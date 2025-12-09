@@ -3,11 +3,25 @@
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
-"scripts": {
+  "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
+    
+    "// --- DEVELOPMENT ---": "",
     "dev": "nodemon",
     "build": "tsc",
-    "start": "node dist/app.js"
+    "start": "node dist/app.js",
+    
+    "// --- DATABASE MIGRATION (KNEX) ---": "",
+    "migrate": "knex migrate:latest",
+    "migrate:make": "knex migrate:make",
+    "migrate:rollback": "knex migrate:rollback",
+    "migrate:reset": "knex migrate:rollback --all",
+    "migrate:status": "knex migrate:status",
+    "migrate:list": "knex migrate:list",
+    
+    "// --- DATABASE SEEDING (DATA DUMMY) ---": "",
+    "seed": "knex seed:run",
+    "seed:make": "knex seed:make"
   },
   "keywords": [],
   "author": "",
@@ -19,6 +33,7 @@
     "dotenv": "^17.2.3",
     "express": "^5.2.1",
     "helmet": "^8.1.0",
+    "knex": "^3.1.0",
     "morgan": "^1.10.1",
     "mysql2": "^3.15.3"
   },
