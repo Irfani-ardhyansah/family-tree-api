@@ -1,0 +1,278 @@
+{
+  "info": {
+    "_postman_id": "familyroots-api-local",
+    "name": "FamilyRoots API",
+    "description": "Family Tree API — Part 0–4.\n\n**Setup:** import environment, set `CORS_ORIGINS` for your FE origin, run **Auth → Login** to save tokens.\n\n**Global headers:** `Authorization: Bearer {{accessToken}}`, optional `X-Request-Id`.\n\n**Error format:** `{ \"error\": { \"code\", \"message\" } }`",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3000" }
+  ],
+  "item": [
+    {
+      "name": "General",
+      "item": [
+        {
+          "name": "Root — API info",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/",
+            "description": "**200 OK**\n```json\n{ \"data\": { \"name\": \"Family Tree API\", \"version\": \"v1\" } }\n```"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "Health check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/health",
+            "description": "**200 OK** `{ \"status\": \"ok\" }`"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Auth",
+      "description": "Login dengan kode keluarga `{ABBREV}{DDMMYY}`. Contoh seed: `MR170845`, `KAMU220800`, `AYAH200175`.",
+      "item": [
+        {
+          "name": "Login — demo MR170845",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  const json = pm.response.json();",
+                  "  pm.environment.set('accessToken', json.data.accessToken);",
+                  "  pm.environment.set('refreshToken', json.data.refreshToken);",
+                  "  pm.environment.set('personId', String(json.data.person.id));",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"MR170845\",\n  \"remember\": true\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/auth/login",
+            "description": "**Public** — login Mulyono Raka (demo-mr).\n\n| Field | Type | Required |\n|---|---|---|\n| code | string | yes |\n| remember | boolean | no (default false) |\n\n**200 OK**\n```json\n{\n  \"data\": {\n    \"accessToken\": \"...\",\n    \"refreshToken\": \"...\",\n    \"expiresIn\": 3600,\n    \"person\": {\n      \"id\": 95,\n      \"fullName\": \"Mulyono Raka\",\n      \"nickname\": null,\n      \"gender\": \"male\",\n      \"birthDate\": \"1945-08-17\",\n      \"status\": \"alive\",\n      \"photoUrl\": null\n    }\n  }\n}\n```\n\n**Errors:**\n- 400 `CODE_REQUIRED`\n- 400 `CODE_INVALID_FORMAT`\n- 401 `CODE_NOT_FOUND`\n- 429 `TOO_MANY_ATTEMPTS`"
+          }
+        },
+        {
+          "name": "Login — me KAMU220800",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  const json = pm.response.json();",
+                  "  pm.environment.set('accessToken', json.data.accessToken);",
+                  "  pm.environment.set('refreshToken', json.data.refreshToken);",
+                  "  pm.environment.set('personId', String(json.data.person.id));",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"KAMU220800\",\n  \"remember\": false\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/auth/login"
+          }
+        },
+        {
+          "name": "Login — invalid format",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"code\": \"ABC\"\n}" },
+            "url": "{{baseUrl}}/api/v1/auth/login",
+            "description": "Expect **400** `CODE_INVALID_FORMAT`"
+          }
+        },
+        {
+          "name": "Login — code not found",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"code\": \"XXXX010100\"\n}" },
+            "url": "{{baseUrl}}/api/v1/auth/login",
+            "description": "Expect **401** `CODE_NOT_FOUND` (sama untuk deceased)"
+          }
+        },
+        {
+          "name": "Get me",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": "{{baseUrl}}/api/v1/auth/me",
+            "description": "**Auth required**\n\n**200 OK**\n```json\n{\n  \"data\": {\n    \"id\": 95,\n    \"fullName\": \"...\",\n    \"nickname\": null,\n    \"gender\": \"male\",\n    \"birthDate\": \"1945-08-17\",\n    \"status\": \"alive\",\n    \"photoUrl\": null,\n    \"familyId\": 1\n  }\n}\n```\n\n**401** `UNAUTHORIZED` tanpa/invalid token"
+          }
+        },
+        {
+          "name": "Refresh token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  const json = pm.response.json();",
+                  "  pm.environment.set('accessToken', json.data.accessToken);",
+                  "  pm.environment.set('refreshToken', json.data.refreshToken);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/auth/refresh",
+            "description": "**Public** — rotate refresh token.\n\n**200 OK** `{ accessToken, refreshToken, expiresIn }`\n\n**401** `REFRESH_TOKEN_INVALID`"
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/auth/logout",
+            "description": "**Auth required** — revoke refresh token.\n\n**200 OK** `{ \"data\": { \"loggedOut\": true } }`"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Logs",
+      "item": [
+        {
+          "name": "Track page view",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"page.view\",\n  \"path\": \"/tree\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/logs/events",
+            "description": "**201 Created** `{ \"data\": { \"recorded\": true } }`"
+          }
+        },
+        {
+          "name": "Track click",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"click\",\n  \"path\": \"/tree\",\n  \"label\": \"Buka profil ayah\",\n  \"metadata\": { \"targetPersonId\": 42 }\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/logs/events"
+          }
+        },
+        {
+          "name": "Track event — invalid payload",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"action\": \"invalid\",\n  \"path\": \"\"\n}" },
+            "url": "{{baseUrl}}/api/v1/logs/events",
+            "description": "Expect **400** `INVALID_LOG_EVENT`"
+          }
+        }
+      ]
+    },
+    {
+      "name": "CORS (Part 4)",
+      "item": [
+        {
+          "name": "Preflight OPTIONS /auth/login",
+          "request": {
+            "method": "OPTIONS",
+            "header": [
+              { "key": "Origin", "value": "http://localhost:5173" },
+              { "key": "Access-Control-Request-Method", "value": "POST" },
+              { "key": "Access-Control-Request-Headers", "value": "Content-Type, Authorization" }
+            ],
+            "url": "{{baseUrl}}/api/v1/auth/login",
+            "description": "Expect **204** with `Access-Control-Allow-Origin` when origin is listed in `CORS_ORIGINS`."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Errors (examples)",
+      "item": [
+        {
+          "name": "Not found",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/does-not-exist",
+            "description": "Expect **404** `NOT_FOUND`"
+          }
+        },
+        {
+          "name": "Me without token",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/auth/me",
+            "description": "Expect **401** `UNAUTHORIZED`"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Coming soon (Part 5+)",
+      "item": [
+        {
+          "name": "GET /persons",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": "{{baseUrl}}/api/v1/persons",
+            "description": "Part 5 — list persons dalam family"
+          }
+        }
+      ]
+    }
+  ]
+}

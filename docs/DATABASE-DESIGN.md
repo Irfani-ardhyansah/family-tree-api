@@ -14,6 +14,7 @@ Prinsip: **identitas orang ≠ detail opsional ≠ hak akses ≠ konteks UI sesi
 | `person_addresses` | Alamat untuk map | 0..1 per orang |
 | `family_members` | Role admin/member | 1 per orang per family |
 | `person_spouses` | Pasangan (canonical) | 0..N per orang |
+| `app_logs` | Audit, navigasi FE, auth, error | append-only |
 
 ---
 
@@ -160,6 +161,52 @@ Satu baris per pasangan, `person_id_a < person_id_b` (numeric).
 
 ---
 
+## `app_logs`
+
+Satu tabel untuk semua jejak aktivitas aplikasi (append-only, jangan update/delete rutin).
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | bigint PK | Volume besar → bigint |
+| `occurred_at` | timestamp | Waktu kejadian |
+| `category` | enum | `audit` \| `navigation` \| `auth` \| `system` \| `error` |
+| `action` | varchar(64) | e.g. `person.create`, `page.view`, `auth.login` |
+| `status` | enum | `success` \| `failure` |
+| `actor_person_id` | int FK nullable | Siapa (null jika belum login) |
+| `family_id` | int FK nullable | Scope keluarga |
+| `resource_type` | varchar(32) nullable | `person`, `page`, `auth`, … |
+| `resource_id` | int nullable | ID entity terkait |
+| `http_method`, `path`, `http_status` | nullable | Untuk request API |
+| `message` | varchar(512) | Ringkasan human-readable |
+| `metadata` | json | Detail extra (query, label klik, diff CRUD) |
+| `ip_address`, `user_agent`, `request_id` | nullable | Traceability |
+
+### Sumber log
+
+| Sumber | Category | Contoh action |
+|---|---|---|
+| Middleware API (POST/PUT/PATCH/DELETE + GET audit) | `audit` / `auth` | `person.update`, `auth.login` |
+| `POST /api/v1/logs/events` dari FE | `navigation` | `page.view`, `click` |
+| Service manual (Part 3+) | `auth`, `error` | `auth.login`, `system.unhandled` |
+
+### FE — track halaman / klik
+
+```bash
+curl -X POST http://localhost:3000/api/v1/logs/events \
+  -H "Content-Type: application/json" \
+  -d '{"action":"page.view","path":"/tree"}'
+```
+
+```bash
+curl -X POST http://localhost:3000/api/v1/logs/events \
+  -H "Content-Type: application/json" \
+  -d '{"action":"click","path":"/tree","label":"Buka profil ayah","metadata":{"targetPersonId":42}}'
+```
+
+Nanti setelah auth: kirim `Authorization: Bearer …` agar `actor_person_id` terisi otomatis.
+
+---
+
 ## Query pattern Part 5
 
 ```sql
@@ -180,7 +227,7 @@ Lalu di service layer: attach `spouseIds`, `generationLabel`, `isSelf`, `address
 
 ```sql
 SET FOREIGN_KEY_CHECKS=0;
-DROP TABLE IF EXISTS person_spouses, person_addresses, person_details, family_members, persons, families, knex_migrations, knex_migrations_lock;
+DROP TABLE IF EXISTS refresh_tokens, app_logs, person_spouses, person_addresses, person_details, family_members, persons, families, knex_migrations, knex_migrations_lock;
 SET FOREIGN_KEY_CHECKS=1;
 ```
 

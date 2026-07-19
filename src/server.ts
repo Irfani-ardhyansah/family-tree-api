@@ -1,3 +1,4 @@
+import './shared/types/express';
 import { createApp } from './app';
 import { env } from './config/env';
 

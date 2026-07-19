@@ -36,6 +36,10 @@ curl http://localhost:3000/api/v1/health
 
 curl http://localhost:3000/api/v1/does-not-exist
 # {"error":{"code":"NOT_FOUND","message":"Endpoint tidak ditemukan."}}
+
+curl -X POST http://localhost:3000/api/v1/logs/events \
+  -H "Content-Type: application/json" \
+  -d '{"action":"page.view","path":"/tree"}'
 ```
 
 ## Database design
@@ -57,14 +61,60 @@ Key rules:
   - `me` → `KAMU220800`
   - `father` → `AYAH200175`
 
+## Postman
+
+Import collection dari [`postman/`](postman/README.md):
+
+- `postman/FamilyRoots-API.postman_collection.json`
+- `postman/FamilyRoots-Local.postman_environment.json`
+
+## Tests
+
+```bash
+npm test
+```
+
+## Auth (Part 3)
+
+```bash
+curl -X POST http://localhost:3000/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"code":"MR170845","remember":true}'
+
+curl http://localhost:3000/api/v1/auth/me \
+  -H "Authorization: Bearer <accessToken>"
+```
+
+## API contract (Part 4)
+
+All errors:
+
+```json
+{ "error": { "code": "ERROR_CODE", "message": "Pesan Bahasa Indonesia" } }
+```
+
+Success responses:
+
+```json
+{ "data": { ... } }
+```
+
+Protected routes: header `Authorization: Bearer <accessToken>`
+
+Optional auth (logs): Bearer attached when present → `actor_person_id` filled in `app_logs`
+
+CORS: set `CORS_ORIGINS` to your FE URL(s), e.g. `http://localhost:5173` for Vite.
+
+Response headers: `X-Request-Id`, `X-API-Version`
+
 ## Architecture
 
 ```
 src/
   server.ts / app.ts
   config/          # env, knex, cors
-  shared/          # errors, utils, types
-  modules/         # feature modules (health, later auth/persons)
+  shared/          # errors, middleware, utils, types
+  modules/         # health, auth, logs, …
   database/        # migrations + seeds
 ```
 
