@@ -245,5 +245,5 @@ export async function seed(knex: Knex): Promise<void> {
   console.log(`familyId=${familyId}, rootPersonId=${rootPersonId} (slug: ${meta.rootPersonId})`);
   console.log(`slug map: demo-mr=${demoMrId}, me=${meId}, father=${fatherId}`);
   console.log('generationLabel + isSelf are derived at API from logged-in personId');
-  console.log('Login code smoke (derived): demo-mr=MR170845, me=KAMU220800, father=AYAH200175');
+  console.log('Login code smoke (derived): demo-mr=MR170845, me=KAMU210399, father=AYAH200175');
 }

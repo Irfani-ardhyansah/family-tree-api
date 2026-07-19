@@ -58,7 +58,7 @@ Key rules:
 - 95 persons (63 alive / 32 deceased), 43 canonical spouse rows, 2 admins
 - Login codes are **derived** (not stored). Smoke examples:
   - `demo-mr` → `MR170845`
-  - `me` → `KAMU220800`
+  - `me` → `KAMU210399` (Mochamad Irfani Ardhyansah, 1999-03-21)
   - `father` → `AYAH200175`
 
 ## Postman

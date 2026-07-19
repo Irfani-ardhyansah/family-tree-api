@@ -6,6 +6,7 @@ import { env } from './config/env';
 import authRoutes from './modules/auth/auth.routes';
 import healthRoutes from './modules/health/health.routes';
 import logsRoutes from './modules/logs/logs.routes';
+import personsRoutes from './modules/persons/persons.routes';
 import { errorHandler, notFoundHandler } from './shared/errors/errorHandler';
 import {
   httpAuditLogMiddleware,
@@ -45,6 +46,7 @@ export function createApp() {
   app.use('/api/v1/health', healthRoutes);
   app.use('/api/v1/auth', authRoutes);
   app.use('/api/v1/logs', logsRoutes);
+  app.use('/api/v1/persons', personsRoutes);
 
   app.use(notFoundHandler);
   app.use(errorHandler);

@@ -52,8 +52,8 @@ describe('login-code.service', () => {
     it('matches seed smoke accounts', () => {
       expect(buildLoginCode({ fullName: 'Mulyono Raka', birthDate: '1945-08-17' })).toBe('MR170845');
       expect(
-        buildLoginCode({ fullName: 'Irfa Ardhyansah', nickname: 'Kamu', birthDate: '2000-08-22' }),
-      ).toBe('KAMU220800');
+        buildLoginCode({ fullName: 'Mochamad Irfani Ardhyansah', nickname: 'Kamu', birthDate: '1999-03-21' }),
+      ).toBe('KAMU210399');
       expect(
         buildLoginCode({ fullName: 'H. Budi Ardhyansah', nickname: 'Ayah', birthDate: '1975-01-20' }),
       ).toBe('AYAH200175');
@@ -79,7 +79,7 @@ describe('login-code.service', () => {
   describe('isValidFormat', () => {
     it('accepts valid codes', () => {
       expect(isValidFormat('MR170845')).toBe(true);
-      expect(isValidFormat('KAMU220800')).toBe(true);
+      expect(isValidFormat('KAMU210399')).toBe(true);
       expect(isValidFormat('  mr170845 ')).toBe(true);
     });
 

@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "familyroots-api-local",
     "name": "FamilyRoots API",
-    "description": "Family Tree API — Part 0–4.\n\n**Setup:** import environment, set `CORS_ORIGINS` for your FE origin, run **Auth → Login** to save tokens.\n\n**Global headers:** `Authorization: Bearer {{accessToken}}`, optional `X-Request-Id`.\n\n**Error format:** `{ \"error\": { \"code\", \"message\" } }`",
+    "description": "Family Tree API — Part 0–5.\n\n**Flow:** Auth → Login → Persons → Logs.\n\n**Error format:** `{ \"error\": { \"code\", \"message\" } }`",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -39,7 +39,7 @@
     },
     {
       "name": "Auth",
-      "description": "Login dengan kode keluarga `{ABBREV}{DDMMYY}`. Contoh seed: `MR170845`, `KAMU220800`, `AYAH200175`.",
+      "description": "Login dengan kode keluarga `{ABBREV}{DDMMYY}`. Contoh seed: `KAMU210399` (demo utama), `MR170845`, `AYAH200175`.",
       "item": [
         {
           "name": "Login — demo MR170845",
@@ -71,7 +71,7 @@
           }
         },
         {
-          "name": "Login — me KAMU220800",
+          "name": "Login — me KAMU210399",
           "event": [
             {
               "listen": "test",
@@ -93,7 +93,7 @@
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"code\": \"KAMU220800\",\n  \"remember\": false\n}"
+              "raw": "{\n  \"code\": \"KAMU210399\",\n  \"remember\": false\n}"
             },
             "url": "{{baseUrl}}/api/v1/auth/login"
           }
@@ -238,6 +238,102 @@
       ]
     },
     {
+      "name": "Persons (Part 5)",
+      "description": "Semua endpoint butuh `Authorization: Bearer {{accessToken}}`. Response camelCase + `generationLabel`/`isSelf` dinamis dari user login.",
+      "item": [
+        {
+          "name": "List persons (paginated)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/persons?page=1&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "persons"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" }
+              ]
+            },
+            "description": "**200 OK** — mode list (default).\n```json\n{\n  \"data\": {\n    \"view\": \"list\",\n    \"rootPersonId\": 83,\n    \"persons\": [ /* max 20 */ ],\n    \"pagination\": {\n      \"page\": 1,\n      \"limit\": 20,\n      \"total\": 95,\n      \"totalPages\": 5,\n      \"hasNext\": true,\n      \"hasPrev\": false\n    }\n  }\n}\n```"
+          }
+        },
+        {
+          "name": "List persons (tree graph)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/persons?view=tree",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "persons"],
+              "query": [{ "key": "view", "value": "tree" }]
+            },
+            "description": "**200 OK** — semua person untuk render pohon (tanpa pagination).\n```json\n{\n  \"data\": {\n    \"view\": \"tree\",\n    \"rootPersonId\": 83,\n    \"persons\": [ /* all 95 */ ],\n    \"treeGraph\": {\n      \"anchorPersonId\": 83,\n      \"edgeFields\": { \"parent\": [\"fatherId\", \"motherId\"], \"spouse\": \"spouseIds\" },\n      \"note\": \"...\"\n    }\n  }\n}\n```\nLihat `docs/PERSON-API-TREE.md`."
+          }
+        },
+        {
+          "name": "Get person by ID",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": "{{baseUrl}}/api/v1/persons/{{personId}}",
+            "description": "Detail satu person dalam family scope."
+          }
+        },
+        {
+          "name": "Create person",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"Anak Baru Demo\",\n  \"gender\": \"male\",\n  \"birthDate\": \"2026-01-01\",\n  \"status\": \"alive\",\n  \"fatherId\": null,\n  \"motherId\": null,\n  \"spouseIds\": []\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/persons",
+            "description": "**201 Created** — login code derived otomatis dari nama+tanggal."
+          }
+        },
+        {
+          "name": "Update person",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"Anak Baru Demo Updated\",\n  \"gender\": \"male\",\n  \"birthDate\": \"2026-01-01\",\n  \"status\": \"alive\",\n  \"nickname\": \"Demo\",\n  \"spouseIds\": []\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/persons/{{personId}}",
+            "description": "**200 OK** — update person dalam family."
+          }
+        },
+        {
+          "name": "Delete person",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": "{{baseUrl}}/api/v1/persons/99999",
+            "description": "Soft delete. **403** jika hapus diri sendiri sebagai root family."
+          }
+        },
+        {
+          "name": "List without token",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/persons",
+            "description": "Expect **401** `UNAUTHORIZED`"
+          }
+        }
+      ]
+    },
+    {
       "name": "Errors (examples)",
       "item": [
         {
@@ -256,20 +352,6 @@
             "header": [],
             "url": "{{baseUrl}}/api/v1/auth/me",
             "description": "Expect **401** `UNAUTHORIZED`"
-          }
-        }
-      ]
-    },
-    {
-      "name": "Coming soon (Part 5+)",
-      "item": [
-        {
-          "name": "GET /persons",
-          "request": {
-            "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
-            "url": "{{baseUrl}}/api/v1/persons",
-            "description": "Part 5 — list persons dalam family"
           }
         }
       ]

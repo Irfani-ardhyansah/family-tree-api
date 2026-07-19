@@ -21,11 +21,11 @@
 
 ## Recommended flow
 
-1. **Auth → Login — demo MR170845** (auto-saves `accessToken` + `refreshToken`)
+1. **Auth → Login — demo MR170845** (auto-saves tokens)
 2. **Auth → Get me**
-3. **Logs → Track page view** (with Bearer token)
-4. **Auth → Refresh token**
-5. **Auth → Logout**
+3. **Persons → List persons** (95 from seed)
+4. **Logs → Track page view**
+5. **Auth → Refresh token** / **Logout**
 
 ## Endpoints
 
@@ -37,6 +37,11 @@
 | POST | `/api/v1/auth/refresh` | — |
 | GET | `/api/v1/auth/me` | Bearer |
 | POST | `/api/v1/auth/logout` | Bearer |
+| GET | `/api/v1/persons` | Bearer |
+| GET | `/api/v1/persons/:id` | Bearer |
+| POST | `/api/v1/persons` | Bearer |
+| PUT | `/api/v1/persons/:id` | Bearer |
+| DELETE | `/api/v1/persons/:id` | Bearer |
 | POST | `/api/v1/logs/events` | optional Bearer |
 
 ## Test login codes (from seed)
@@ -44,7 +49,7 @@
 | Code | Person |
 |---|---|
 | `MR170845` | Mulyono Raka (demo-mr) |
-| `KAMU220800` | Irfa Ardhyansah (me) |
+| `KAMU210399` | Mochamad Irfani Ardhyansah (me, admin) |
 | `AYAH200175` | H. Budi Ardhyansah (father) |
 | `IBU121076` | Hj. Citra Maharani (mother) |
 

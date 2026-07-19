@@ -2013,10 +2013,10 @@
     },
     {
       "id": "me",
-      "fullName": "Irfa Ardhyansah",
+      "fullName": "Mochamad Irfani Ardhyansah",
       "nickname": "Kamu",
       "gender": "male",
-      "birthDate": "2000-08-22",
+      "birthDate": "1999-03-21",
       "deathDate": null,
       "status": "alive",
       "religion": null,
@@ -2042,7 +2042,7 @@
       "generationLabel": "Kamu",
       "isSelf": true,
       "role": "admin",
-      "_computedLoginCode": "KAMU220800"
+      "_computedLoginCode": "KAMU210399"
     },
     {
       "id": "me-sp",
@@ -2511,10 +2511,10 @@
     },
     {
       "personId": "me",
-      "fullName": "Irfa Ardhyansah",
+      "fullName": "Mochamad Irfani Ardhyansah",
       "nickname": "Kamu",
-      "code": "KAMU220800",
-      "reason": "rootPersonId / isSelf / admin"
+      "code": "KAMU210399",
+      "reason": "Primary demo account — rootPersonId / admin"
     },
     {
       "personId": "me-sp",
