@@ -1,37 +1,36 @@
 import express from 'express';
-import cors from 'cors';
-import dotenv from 'dotenv';
 import helmet from 'helmet';
-import userRoutes from './routes/user.routes';
+import morgan from 'morgan';
+import { createCorsMiddleware } from './config/cors';
+import { env } from './config/env';
+import healthRoutes from './modules/health/health.routes';
+import { errorHandler, notFoundHandler } from './shared/errors/errorHandler';
 
-dotenv.config();
+export function createApp() {
+  const app = express();
 
-const app = express();
-const PORT = process.env.PORT || 3000;
+  app.use(helmet());
+  app.use(createCorsMiddleware());
+  app.use(express.json());
+  app.use(express.urlencoded({ extended: true }));
 
-const isProduction = process.env.NODE_ENV === 'production';
+  if (!env.isProduction) {
+    app.use(morgan('dev'));
+  }
 
-const corsOptions = {
-    origin: isProduction 
-    ? (process.env.ALLOWED_ORIGINS || '')
-    : '*',
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
-    credentials: true
-};
+  app.get('/', (_req, res) => {
+    res.status(200).json({
+      data: {
+        name: 'Family Tree API',
+        version: 'v1',
+      },
+    });
+  });
 
-app.use(helmet());
-app.use(cors(corsOptions));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+  app.use('/api/v1/health', healthRoutes);
 
-app.use('/api/users', userRoutes);
+  app.use(notFoundHandler);
+  app.use(errorHandler);
 
-app.get('/', (req, res) => {
-    res.send('Family Tree API is Running');
-});
-
-app.listen(PORT, () => {
-    console.log(`Server is Running on http://localhost:${PORT}`);
-    console.log(`Environment: ${isProduction ? 'Production' : 'Development'}`);
-});
+  return app;
+}

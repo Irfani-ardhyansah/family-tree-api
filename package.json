@@ -1,34 +1,28 @@
 {
   "name": "family-tree-api",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "FamilyRoots family tree API",
+  "main": "dist/server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    
-    "// --- DEVELOPMENT ---": "",
     "dev": "nodemon",
     "build": "tsc",
-    "start": "node dist/app.js",
-    
-    "// --- DATABASE MIGRATION (KNEX) ---": "",
+    "start": "node dist/server.js",
     "migrate": "knex migrate:latest",
     "migrate:make": "knex migrate:make",
     "migrate:rollback": "knex migrate:rollback",
     "migrate:reset": "knex migrate:rollback --all",
     "migrate:status": "knex migrate:status",
     "migrate:list": "knex migrate:list",
-    
-    "// --- DATABASE SEEDING (DATA DUMMY) ---": "",
     "seed": "knex seed:run",
-    "seed:make": "knex seed:make"
+    "seed:make": "knex seed:make",
+    "db:setup": "npm run migrate && npm run seed",
+    "test": "echo \"No tests yet — Part 2 will add Vitest\" && exit 0"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
-    "bcrypt": "^6.0.0",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
     "express": "^5.2.1",
@@ -38,9 +32,9 @@
     "mysql2": "^3.15.3"
   },
   "devDependencies": {
-    "@types/bcrypt": "^6.0.0",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
+    "@types/morgan": "^1.9.10",
     "@types/node": "^24.10.1",
     "nodemon": "^3.1.11",
     "ts-node": "^10.9.2",

@@ -1,39 +1,37 @@
-import type { Knex } from "knex";
+import type { Knex } from 'knex';
 import dotenv from 'dotenv';
 
 dotenv.config();
-// Update with your config settings.
+
+const shared = {
+  client: 'mysql2' as const,
+  connection: {
+    host: process.env.DB_HOST || 'localhost',
+    user: process.env.DB_USER || 'root',
+    password: process.env.DB_PASSWORD || '',
+    database: process.env.DB_NAME || 'family_tree',
+  },
+  migrations: {
+    directory: './src/database/migrations',
+    extension: 'ts',
+  },
+  seeds: {
+    directory: './src/database/seeds',
+    extension: 'ts',
+  },
+};
 
 const config: { [key: string]: Knex.Config } = {
   development: {
-    client: "mysql2",
-    connection: {
-      host: process.env.DB_HOST,
-      user: process.env.DB_USER,
-      password: process.env.DB_PASSWORD,
-      database: process.env.DB_NAME 
-    },
-    migrations: {
-      directory: "./src/database/migrations",
-      extension: "ts"
-    }
+    ...shared,
   },
-
   production: {
-    client: "mysql2",
+    ...shared,
     connection: {
-      host: process.env.DB_HOST,
-      user: process.env.DB_USER,
-      password: process.env.DB_PASSWORD,
-      database: process.env.DB_NAME,
-      ssl: { rejectUnauthorized: false } 
+      ...shared.connection,
+      ssl: { rejectUnauthorized: false },
     },
-    migrations: {
-      directory: "./src/database/migrations",
-      extension: "ts"
-    }
-  }
-
+  },
 };
 
 module.exports = config;

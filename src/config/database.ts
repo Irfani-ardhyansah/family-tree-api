@@ -1,15 +1,21 @@
-import mysql from 'mysql2/promise';
-import dotenv from 'dotenv';
+import knex, { Knex } from 'knex';
+import { env } from './env';
 
-dotenv.config();
+const config: Knex.Config = {
+  client: 'mysql2',
+  connection: {
+    host: env.db.host,
+    user: env.db.user,
+    password: env.db.password,
+    database: env.db.name,
+    ...(env.isProduction ? { ssl: { rejectUnauthorized: false } } : {}),
+  },
+  pool: {
+    min: 0,
+    max: 10,
+  },
+};
 
-const pool = mysql.createPool({
-    host: process.env.DB_HOST || 'localhost',
-    user: process.env.DB_USER || 'root',
-    password: process.env.DB_PASSWORD || 'hwhwhwlol',
-    database: process.env.DB_NAME || 'family_root',
-    waitForConnections: true,
-    queueLimit: 0
-});
+export const db = knex(config);
 
-export default pool;
+export default db;
