@@ -39,7 +39,7 @@
     },
     {
       "name": "Auth",
-      "description": "Login dengan kode keluarga `{ABBREV}{DDMMYY}`. Contoh seed: `KAMU210399` (demo utama), `MR170845`, `AYAH200175`.",
+      "description": "Login dengan kode keluarga `{ABBREV}{DDMMYY}` dari **fullName** (bukan nickname). Contoh: `MIA210399`, `MR170845`, `BA200175`.",
       "item": [
         {
           "name": "Login — demo MR170845",
@@ -67,11 +67,11 @@
               "raw": "{\n  \"code\": \"MR170845\",\n  \"remember\": true\n}"
             },
             "url": "{{baseUrl}}/api/v1/auth/login",
-            "description": "**Public** — login Mulyono Raka (demo-mr).\n\n| Field | Type | Required |\n|---|---|---|\n| code | string | yes |\n| remember | boolean | no (default false) |\n\n**200 OK**\n```json\n{\n  \"data\": {\n    \"accessToken\": \"...\",\n    \"refreshToken\": \"...\",\n    \"expiresIn\": 3600,\n    \"person\": {\n      \"id\": 95,\n      \"fullName\": \"Mulyono Raka\",\n      \"nickname\": null,\n      \"gender\": \"male\",\n      \"birthDate\": \"1945-08-17\",\n      \"status\": \"alive\",\n      \"photoUrl\": null\n    }\n  }\n}\n```\n\n**Errors:**\n- 400 `CODE_REQUIRED`\n- 400 `CODE_INVALID_FORMAT`\n- 401 `CODE_NOT_FOUND`\n- 429 `TOO_MANY_ATTEMPTS`"
+            "description": "**Public** — login Mulyono Raka (demo-mr).\n\n| Field | Type | Required |\n|---|---|---|\n| code | string | yes |\n| remember | boolean | no (default false) |\n\n**200 OK**\n```json\n{\n  \"data\": {\n    \"accessToken\": \"...\",\n    \"refreshToken\": \"...\",\n    \"expiresIn\": 3600,\n    \"person\": {\n      \"id\": 95,\n      \"fullName\": \"Mulyono Raka\",\n      \"nickname\": null,\n      \"gender\": \"male\",\n      \"birthDate\": \"1945-08-17\",\n      \"status\": \"alive\",\n      \"photoUrl\": null,\n      \"isMarried\": false,\n      \"isLegal\": true,\n      \"spouseIds\": []\n    }\n  }\n}\n```\n\n**Errors:**\n- 400 `CODE_REQUIRED`\n- 400 `CODE_INVALID_FORMAT`\n- 401 `CODE_NOT_FOUND`\n- 429 `TOO_MANY_ATTEMPTS`"
           }
         },
         {
-          "name": "Login — me KAMU210399",
+          "name": "Login — me MIA210399",
           "event": [
             {
               "listen": "test",
@@ -93,7 +93,7 @@
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"code\": \"KAMU210399\",\n  \"remember\": false\n}"
+              "raw": "{\n  \"code\": \"MIA210399\",\n  \"remember\": false\n}"
             },
             "url": "{{baseUrl}}/api/v1/auth/login"
           }
@@ -269,7 +269,102 @@
               "path": ["api", "v1", "persons"],
               "query": [{ "key": "view", "value": "tree" }]
             },
-            "description": "**200 OK** — semua person untuk render pohon (tanpa pagination).\n```json\n{\n  \"data\": {\n    \"view\": \"tree\",\n    \"rootPersonId\": 83,\n    \"persons\": [ /* all 95 */ ],\n    \"treeGraph\": {\n      \"anchorPersonId\": 83,\n      \"edgeFields\": { \"parent\": [\"fatherId\", \"motherId\"], \"spouse\": \"spouseIds\" },\n      \"note\": \"...\"\n    }\n  }\n}\n```\nLihat `docs/PERSON-API-TREE.md`."
+            "description": "**200 OK** — full tree (v1). Tanpa filter params → `filter.applied=false`, `meta.filtered=false`, `personCount === totalFamilyCount`.\n\nDengan filter params → subgraph v2 (`filter.applied=true`)."
+          }
+        },
+        {
+          "name": "List persons (tree subgraph — paternal)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/persons?view=tree&focusPersonId=83&lineage=paternal&generationsUp=4&showSpouses=false&showSiblings=false&showChildren=false",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "persons"],
+              "query": [
+                { "key": "view", "value": "tree" },
+                { "key": "focusPersonId", "value": "83" },
+                { "key": "lineage", "value": "paternal" },
+                { "key": "generationsUp", "value": "4" },
+                { "key": "showSpouses", "value": "false" },
+                { "key": "showSiblings", "value": "false" },
+                { "key": "showChildren", "value": "false" }
+              ]
+            },
+            "description": "Subgraph v2 — garis ayah 4 generasi. Expect `meta.personCount` < `meta.totalFamilyCount`."
+          }
+        },
+        {
+          "name": "List persons (tree subgraph — full preset)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/persons?view=tree&focusPersonId=83&lineage=both&generationsUp=4&showSpouses=true&showSiblings=true&showChildren=true",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "persons"],
+              "query": [
+                { "key": "view", "value": "tree" },
+                { "key": "focusPersonId", "value": "83" },
+                { "key": "lineage", "value": "both" },
+                { "key": "generationsUp", "value": "4" },
+                { "key": "showSpouses", "value": "true" },
+                { "key": "showSiblings", "value": "true" },
+                { "key": "showChildren", "value": "true" }
+              ]
+            },
+            "description": "Subgraph v2 — preset Lengkap (selaras FE filterPersons)."
+          }
+        },
+        {
+          "name": "List persons (tree filter invalid)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/persons?view=tree&generationsUp=0",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "persons"],
+              "query": [
+                { "key": "view", "value": "tree" },
+                { "key": "generationsUp", "value": "0" }
+              ]
+            },
+            "description": "Expect **400** `TREE_FILTER_INVALID`."
+          }
+        },
+        {
+          "name": "List persons (tree — focus spouse)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/persons?view=tree&focusPersonId=84",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "persons"],
+              "query": [
+                { "key": "view", "value": "tree" },
+                { "key": "focusPersonId", "value": "84", "description": "Spouse id — ganti jika beda seed" }
+              ]
+            },
+            "description": "Fokus pohon ke pasangan. Response: `focusPersonId` & `rootPersonId` = 84, `selfPersonId` = user login. **403** `PERSON_READ_FOCUS_FORBIDDEN` jika ID bukan diri sendiri / spouse."
+          }
+        },
+        {
+          "name": "List persons (tree — focus forbidden)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/persons?view=tree&focusPersonId=49",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "persons"],
+              "query": [
+                { "key": "view", "value": "tree" },
+                { "key": "focusPersonId", "value": "49" }
+              ]
+            },
+            "description": "Expect **403** `PERSON_READ_FOCUS_FORBIDDEN` (father bukan spouse login user demo)."
           }
         },
         {

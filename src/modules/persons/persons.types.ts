@@ -1,3 +1,10 @@
+export type ReadFocusMeta = {
+  /** Perspektif baca/pivot — dari `?focusPersonId=` atau default user login */
+  focusPersonId: number;
+  /** ID yang valid untuk param (diri + pasangan) */
+  allowedFocusPersonIds: number[];
+};
+
 export type PersonAddress = {
   street?: string | null;
   district?: string | null;
@@ -28,8 +35,13 @@ export type PersonResponse = {
   spouseIds: number[];
   generationLabel: string;
   isSelf: boolean;
+  /** true jika person = focusPersonId (pivot baca saat ini) */
+  isFocus: boolean;
   role: 'admin' | 'member';
 };
+
+/** GET /persons/:id — person fields + read focus meta (top-level) */
+export type PersonReadResponse = ReadFocusMeta & PersonResponse;
 
 export type PaginationMeta = {
   page: number;
@@ -41,12 +53,34 @@ export type PaginationMeta = {
 };
 
 export type TreeGraphMeta = {
-  anchorPersonId: number | null;
+  /** Sama dengan `focusPersonId` — center layout React Flow */
+  anchorPersonId: number;
   edgeFields: {
     parent: ['fatherId', 'motherId'];
     spouse: 'spouseIds';
   };
-  note: string;
+};
+
+export type TreeLineage = 'both' | 'paternal' | 'maternal';
+
+export type TreeSubgraphFilter = {
+  lineage: TreeLineage;
+  generationsUp: number;
+  showSpouses: boolean;
+  showSiblings: boolean;
+  showChildren: boolean;
+};
+
+export type TreeFilterMeta = TreeSubgraphFilter & {
+  applied: boolean;
+};
+
+export type TreeViewMeta = {
+  personCount: number;
+  totalFamilyCount: number;
+  maxAncestorDepth: number;
+  filtered: boolean;
+  recommendClientFilter: boolean;
 };
 
 export type PersonListQuery = {
@@ -55,12 +89,18 @@ export type PersonListQuery = {
   view?: 'list' | 'tree';
 };
 
-export type PersonListResponse = {
+export type PersonListResponse = ReadFocusMeta & {
   view: 'list' | 'tree';
+  /** User login (JWT) — hanya ada di mode tree */
+  selfPersonId?: number;
+  /** Mode list: anchor config keluarga di DB. Mode tree: sama dengan `focusPersonId`. */
   rootPersonId: number | null;
   persons: PersonResponse[];
   pagination?: PaginationMeta;
   treeGraph?: TreeGraphMeta;
+  filter?: TreeFilterMeta;
+  meta?: TreeViewMeta;
+  graphWarnings?: string[];
 };
 
 export type PersonGraphNode = {

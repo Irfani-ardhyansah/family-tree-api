@@ -6,6 +6,11 @@ declare global {
         personId: number;
         familyId: number;
       };
+      /** Set by resolveReadFocusMiddleware on GET /persons */
+      readFocus?: {
+        focusPersonId: number;
+        allowedFocusPersonIds: number[];
+      };
     }
   }
 }

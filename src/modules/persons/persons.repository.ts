@@ -68,6 +68,7 @@ function toGraphNodes(rows: PersonRow[], spouseMap: Map<number, number[]>): Pers
 export function mapPersonRowToResponse(
   row: PersonRow,
   viewerId: number,
+  labelPerspectiveId: number,
   graph: PersonGraphNode[],
   spouseIds: number[],
 ): PersonResponse {
@@ -88,8 +89,9 @@ export function mapPersonRowToResponse(
     fatherId: row.father_id,
     motherId: row.mother_id,
     spouseIds,
-    generationLabel: generationLabelService.build(viewerId, row.id, graph),
+    generationLabel: generationLabelService.build(labelPerspectiveId, row.id, graph),
     isSelf: row.id === viewerId,
+    isFocus: row.id === labelPerspectiveId,
     role: row.role ?? 'member',
   };
 }

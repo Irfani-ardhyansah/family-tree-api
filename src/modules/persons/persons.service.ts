@@ -1,18 +1,29 @@
 import { AppError } from '../../shared/errors/AppError';
 import { ErrorCodes } from '../../shared/errors/errorCodes';
+import { authRepository } from '../auth/auth.repository';
+import {
+  collectFocusBranchIds,
+  computeMaxAncestorDepth,
+  filterRowsByBranch,
+} from './focus-branch.service';
+import { buildReadFocusMeta } from './read-focus.service';
 import { mapPersonRowToResponse, personsRepository } from './persons.repository';
 import {
+  CLIENT_FILTER_RECOMMEND_THRESHOLD,
+  parseTreeFilterQuery,
+} from './tree-filter-query.service';
+import { filterTreeSubgraph } from './tree-subgraph.service';
+import {
+  PersonGraphNode,
   PersonListQuery,
   PersonListResponse,
-  PersonResponse,
+  PersonReadResponse,
+  ReadFocusMeta,
   UpsertPersonInput,
 } from './persons.types';
 
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 100;
-
-const TREE_GRAPH_NOTE =
-  'Bangun adjacency graph di FE dari fatherId, motherId, spouseIds. rootPersonId = titik tampilan awal pohon (bukan user login).';
 
 function validateUpsertInput(input: unknown): UpsertPersonInput {
   if (!input || typeof input !== 'object') {
@@ -107,65 +118,135 @@ export class PersonsService {
     return { graph, spouseMap, rootPersonId };
   }
 
+  private async defaultReadFocus(viewerId: number): Promise<ReadFocusMeta> {
+    const spouseIds = await authRepository.findSpouseIdsByPersonId(viewerId);
+    return buildReadFocusMeta(viewerId, spouseIds);
+  }
+
+  private async loadBranchRows(familyId: number, focusPersonId: number, graph: PersonGraphNode[]) {
+    const branchIds = collectFocusBranchIds(focusPersonId, graph);
+    const allRows = await personsRepository.findAllByFamily(familyId);
+    return filterRowsByBranch(allRows, branchIds);
+  }
+
+  private paginateRows<T>(rows: T[], page: number, limit: number) {
+    const total = rows.length;
+    const totalPages = total === 0 ? 0 : Math.ceil(total / limit);
+    const offset = (page - 1) * limit;
+
+    return {
+      rows: rows.slice(offset, offset + limit),
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages,
+        hasNext: page < totalPages,
+        hasPrev: page > 1,
+      },
+    };
+  }
+
   private mapRows(
     rows: Awaited<ReturnType<typeof personsRepository.findAllByFamily>>,
     viewerId: number,
+    labelPerspectiveId: number,
     graph: Awaited<ReturnType<typeof personsRepository.findGraphNodes>>,
     spouseMap: Map<number, number[]>,
-  ): PersonResponse[] {
+  ) {
     return rows.map((row) =>
-      mapPersonRowToResponse(row, viewerId, graph, spouseMap.get(row.id) ?? []),
+      mapPersonRowToResponse(
+        row,
+        viewerId,
+        labelPerspectiveId,
+        graph,
+        spouseMap.get(row.id) ?? [],
+      ),
     );
   }
 
   async list(
     familyId: number,
     viewerId: number,
+    readFocus: ReadFocusMeta,
     queryInput: Record<string, unknown> = {},
   ): Promise<PersonListResponse> {
     const query = parseListQuery(queryInput);
     const { graph, spouseMap, rootPersonId } = await this.loadGraphContext(familyId);
+    const labelPerspectiveId = readFocus.focusPersonId;
 
     if (query.view === 'tree') {
-      const rows = await personsRepository.findAllByFamily(familyId);
+      const allRows = await personsRepository.findAllByFamily(familyId);
+      const totalFamilyCount = allRows.length;
+      const { filter: treeFilter, applied: filterApplied } = parseTreeFilterQuery(queryInput);
+
+      let visibleIds: Set<number>;
+      let graphWarnings: string[] = [];
+      let maxAncestorDepth: number;
+
+      if (filterApplied) {
+        const subgraph = filterTreeSubgraph(
+          labelPerspectiveId,
+          viewerId,
+          graph,
+          treeFilter,
+        );
+        visibleIds = subgraph.visibleIds;
+        graphWarnings = subgraph.graphWarnings;
+        maxAncestorDepth = subgraph.maxAncestorDepth;
+      } else {
+        visibleIds = new Set(graph.map((node) => node.id));
+        maxAncestorDepth = computeMaxAncestorDepth(labelPerspectiveId, graph);
+      }
+
+      const visibleRows = allRows.filter((row) => visibleIds.has(row.id));
+
       return {
+        ...readFocus,
         view: 'tree',
-        rootPersonId,
-        persons: this.mapRows(rows, viewerId, graph, spouseMap),
+        selfPersonId: viewerId,
+        rootPersonId: labelPerspectiveId,
+        persons: this.mapRows(visibleRows, viewerId, labelPerspectiveId, graph, spouseMap),
         treeGraph: {
-          anchorPersonId: rootPersonId,
+          anchorPersonId: labelPerspectiveId,
           edgeFields: {
             parent: ['fatherId', 'motherId'],
             spouse: 'spouseIds',
           },
-          note: TREE_GRAPH_NOTE,
         },
+        filter: {
+          ...treeFilter,
+          applied: filterApplied,
+        },
+        meta: {
+          personCount: visibleRows.length,
+          totalFamilyCount,
+          maxAncestorDepth,
+          filtered: filterApplied,
+          recommendClientFilter: totalFamilyCount >= CLIENT_FILTER_RECOMMEND_THRESHOLD,
+        },
+        graphWarnings,
       };
     }
 
-    const [total, rows] = await Promise.all([
-      personsRepository.countByFamily(familyId),
-      personsRepository.findByFamilyPaginated(familyId, query.page!, query.limit!),
-    ]);
-
-    const totalPages = total === 0 ? 0 : Math.ceil(total / query.limit!);
+    const branchRows = await this.loadBranchRows(familyId, labelPerspectiveId, graph);
+    const { rows, pagination } = this.paginateRows(branchRows, query.page!, query.limit!);
 
     return {
+      ...readFocus,
       view: 'list',
       rootPersonId,
-      persons: this.mapRows(rows, viewerId, graph, spouseMap),
-      pagination: {
-        page: query.page!,
-        limit: query.limit!,
-        total,
-        totalPages,
-        hasNext: query.page! < totalPages,
-        hasPrev: query.page! > 1,
-      },
+      persons: this.mapRows(rows, viewerId, labelPerspectiveId, graph, spouseMap),
+      pagination,
     };
   }
 
-  async getById(familyId: number, viewerId: number, personId: number): Promise<PersonResponse> {
+  async getById(
+    familyId: number,
+    viewerId: number,
+    personId: number,
+    readFocus: ReadFocusMeta,
+  ): Promise<PersonReadResponse> {
     const [row, { graph, spouseMap }] = await Promise.all([
       personsRepository.findById(familyId, personId),
       this.loadGraphContext(familyId),
@@ -175,15 +256,34 @@ export class PersonsService {
       throw new AppError(404, ErrorCodes.PERSON_NOT_FOUND, 'Person tidak ditemukan.');
     }
 
-    return mapPersonRowToResponse(row, viewerId, graph, spouseMap.get(row.id) ?? []);
+    const branchIds = collectFocusBranchIds(readFocus.focusPersonId, graph);
+    if (!branchIds.has(personId)) {
+      throw new AppError(
+        404,
+        ErrorCodes.PERSON_NOT_FOUND,
+        'Person tidak ada dalam cabang fokus saat ini.',
+      );
+    }
+
+    return {
+      ...readFocus,
+      ...mapPersonRowToResponse(
+        row,
+        viewerId,
+        readFocus.focusPersonId,
+        graph,
+        spouseMap.get(row.id) ?? [],
+      ),
+    };
   }
 
-  async create(familyId: number, viewerId: number, input: unknown): Promise<PersonResponse> {
+  async create(familyId: number, viewerId: number, input: unknown): Promise<PersonReadResponse> {
     const data = validateUpsertInput(input);
     await this.assertRelatedPersonsInFamily(familyId, data);
 
     const personId = await personsRepository.createPerson(familyId, data);
-    return this.getById(familyId, viewerId, personId);
+    const readFocus = await this.defaultReadFocus(viewerId);
+    return this.getById(familyId, viewerId, personId, readFocus);
   }
 
   async update(
@@ -191,7 +291,7 @@ export class PersonsService {
     viewerId: number,
     personId: number,
     input: unknown,
-  ): Promise<PersonResponse> {
+  ): Promise<PersonReadResponse> {
     const existing = await personsRepository.findById(familyId, personId);
     if (!existing) {
       throw new AppError(404, ErrorCodes.PERSON_NOT_FOUND, 'Person tidak ditemukan.');
@@ -201,7 +301,8 @@ export class PersonsService {
     await this.assertRelatedPersonsInFamily(familyId, data);
 
     await personsRepository.updatePerson(familyId, personId, data);
-    return this.getById(familyId, viewerId, personId);
+    const readFocus = await this.defaultReadFocus(viewerId);
+    return this.getById(familyId, viewerId, personId, readFocus);
   }
 
   async remove(familyId: number, viewerId: number, personId: number): Promise<void> {

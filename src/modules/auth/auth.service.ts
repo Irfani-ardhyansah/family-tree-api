@@ -68,6 +68,7 @@ export class AuthService {
     }
 
     const tokens = await this.issueTokenPair(person, remember);
+    const spouseIds = await authRepository.findSpouseIdsByPersonId(person.id);
 
     await logsService.recordFromRequest(req, {
       category: LogCategory.AUTH,
@@ -85,7 +86,7 @@ export class AuthService {
 
     return {
       ...tokens,
-      person: toAuthPersonSummary(person),
+      person: toAuthPersonSummary(person, spouseIds),
     };
   }
 
@@ -95,7 +96,8 @@ export class AuthService {
       throw new AppError(401, ErrorCodes.UNAUTHORIZED, 'Autentikasi diperlukan.');
     }
 
-    return toAuthMeResponse(person);
+    const spouseIds = await authRepository.findSpouseIdsByPersonId(personId);
+    return toAuthMeResponse(person, spouseIds);
   }
 
   async refresh(refreshToken: unknown): Promise<RefreshResponse> {

@@ -64,7 +64,7 @@ Hanya field yang **selalu ada** dan dipakai auth + struktur pohon.
 |---|---|
 | `id` | int unsigned PK auto-increment | |
 | `family_id` | int unsigned FK | Scope data |
-| `full_name`, `nickname` | Login code derived dari sini + `birth_date` |
+| `full_name`, `birth_date` | Login code derived dari inisial `full_name` + `birth_date` (`nickname` tidak dipakai) |
 | `gender` | |
 | `birth_date`, `death_date` | |
 | `status` | `alive` / `deceased` — gate login |

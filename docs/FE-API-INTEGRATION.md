@@ -107,11 +107,12 @@ Pesan selalu **Bahasa Indonesia**. Handle berdasarkan `error.code`, bukan parse 
 | 400 | `CODE_INVALID_FORMAT` | Format kode salah |
 | 400 | `REFRESH_TOKEN_REQUIRED` | Refresh tanpa body |
 | 400 | `PERSON_VALIDATION_FAILED` | CRUD person invalid |
+| 400 | `TREE_FILTER_INVALID` | Query filter tree tidak valid |
 | 400 | `INVALID_LOG_EVENT` | Payload log salah |
 | 401 | `CODE_NOT_FOUND` | Kode tidak cocok / person deceased |
 | 401 | `UNAUTHORIZED` | Token invalid / expired |
 | 401 | `REFRESH_TOKEN_INVALID` | Refresh expired / revoked |
-| 403 | `PERSON_DELETE_FORBIDDEN` | Hapus diri sendiri sebagai root |
+| 403 | `PERSON_READ_FOCUS_FORBIDDEN` | `focusPersonId` bukan diri sendiri / pasangan |
 | 403 | `CORS_FORBIDDEN` | Origin tidak diizinkan |
 | 404 | `PERSON_NOT_FOUND` | Person tidak ada di family |
 | 404 | `NOT_FOUND` | Route tidak ada |
@@ -124,7 +125,9 @@ Pesan selalu **Bahasa Indonesia**. Handle berdasarkan `error.code`, bukan parse 
 
 ### Login code (sama dengan mock FE)
 
-Format: `{SINGKATAN}{DDMMYY}` — contoh `KAMU210399`, `MR170845`.
+Format: `{SINGKATAN_NAMA}{DDMMYY}` — contoh `MIA210399`, `MR170845`.
+
+**Singkatan selalu dari `fullName` saja** — field `nickname` tidak mempengaruhi login code (hanya untuk UI).
 
 Aturan singkatan **identik** dengan `src/utils/loginCode.ts` di FE. BE derive kode dari DB, tidak simpan plaintext.
 
@@ -141,7 +144,7 @@ POST /api/v1/auth/login
 Content-Type: application/json
 
 {
-  "code": "KAMU210399",
+  "code": "MIA210399",
   "remember": false
 }
 ```
@@ -157,11 +160,14 @@ Content-Type: application/json
     "person": {
       "id": 83,
       "fullName": "Mochamad Irfani Ardhyansah",
-      "nickname": "Kamu",
+      "nickname": null,
       "gender": "male",
       "birthDate": "1999-03-21",
       "status": "alive",
-      "photoUrl": null
+      "photoUrl": null,
+      "isMarried": true,
+      "isLegal": true,
+      "spouseIds": [84]
     }
   }
 }
@@ -172,6 +178,9 @@ Content-Type: application/json
 | `expiresIn` | Detik — access token TTL (default 3600) |
 | `remember` | `true` → refresh TTL 30 hari; `false` → 1 hari |
 | `person.id` | Simpan sebagai `userId` / `personId` |
+| `isMarried` | `true` jika punya pasangan aktif di `person_spouses` |
+| `isLegal` | `true` jika usia **di atas 17 tahun** (≥ 18, birthday sudah lewat) |
+| `spouseIds` | ID pasangan — untuk pivot pohon (fokus ke diri vs pasangan). Kosong `[]` jika belum menikah |
 
 ### Penyimpanan token (rekomendasi)
 
@@ -191,17 +200,24 @@ Ganti session mock (`familyroots_auth`, `familyroots_auth_user`) dengan pasangan
   "data": {
     "id": 83,
     "fullName": "Mochamad Irfani Ardhyansah",
-    "nickname": "Kamu",
+    "nickname": null,
     "gender": "male",
     "birthDate": "1999-03-21",
     "status": "alive",
     "photoUrl": null,
+    "isMarried": true,
+    "isLegal": true,
+    "spouseIds": [84],
     "familyId": 1
   }
 }
 ```
 
+Field `isMarried`, `isLegal`, `spouseIds` sama seperti response login.
+
 Pakai saat app boot / refresh halaman untuk restore session.
+
+**Pivot pohon (FE):** jika `isMarried`, tawarkan anchor `person.id` (diri) atau `spouseIds[0]` (pasangan utama).
 
 ### `POST /api/v1/auth/refresh`
 
@@ -272,10 +288,35 @@ Semua endpoint persons **wajib auth**. Data otomatis scoped ke `familyId` dari J
 
 | Field | Arti |
 |---|---|
-| `isSelf` | Person = user yang login (highlight UI) |
-| `rootPersonId` | Anchor pohon keluarga (titik tampilan default) |
-| `generationLabel` | Label relatif ke user login (e.g. "Kakek", "Kamu") — **dihitung BE** |
+| `isSelf` | Person = user yang login (highlight UI) — dari `selfPersonId` di tree |
+| `isFocus` | Person = `focusPersonId` pivot saat ini |
+| `focusPersonId` | Pivot baca / center pohon — dari query param atau default login |
+| `selfPersonId` | User login (JWT) — hanya di response `?view=tree` |
+| `allowedFocusPersonIds` | ID valid untuk param: diri + pasangan |
+| `rootPersonId` | Mode **list**: config anchor keluarga di DB. Mode **tree**: sama dengan `focusPersonId` |
+| `generationLabel` | Label relatif ke `focusPersonId` — **dihitung BE** |
 | `role` | `"admin"` \| `"member"` — dari `family_members` |
+
+### Query `focusPersonId` — **semua GET read**
+
+Satu param, satu validasi (middleware), untuk **semua** endpoint baca persons:
+
+| Endpoint | Contoh |
+|---|---|
+| List | `GET /persons?page=1&focusPersonId=84` |
+| Tree | `GET /persons?view=tree&focusPersonId=84` |
+| Detail | `GET /persons/49?focusPersonId=83` |
+
+- Default (param di-skip) → `focusPersonId` = user login
+- Hanya boleh ID **diri sendiri** atau **pasangan** (`spouseIds` dari login)
+- Response **selalu** include top-level `focusPersonId` + `allowedFocusPersonIds`
+- **`generationLabel`** dihitung relatif ke `focusPersonId`
+- **`isSelf`** = user login (`selfPersonId`); **`isFocus`** = person pivot
+- **List & detail** difilter ke **cabang genealogi** fokus: leluhur + keturunan + node pasangan (tanpa expand ke bloodline orang tua pasangan)
+- **Tree (v1):** mengembalikan **semua person aktif** — tanpa filter params
+- **Tree (v2):** kirim filter params → BE return **subgraph** (selaras `filterPersons()` di `treeLayout.ts`)
+- `meta.recommendClientFilter` → `true` jika family ≥ 200 person; FE auto-switch ke v2
+- `pagination.total` (list) = jumlah person **dalam cabang**, bukan seluruh keluarga
 
 ### ⚠️ ID bertipe `number`
 
@@ -286,7 +327,7 @@ Mock FE mungkin pakai `id: string`. API mengembalikan **integer**. Update type &
 ### Mode A — List paginated (tabel / admin)
 
 ```http
-GET /api/v1/persons?page=1&limit=20
+GET /api/v1/persons?page=1&limit=20&focusPersonId=84
 Authorization: Bearer <accessToken>
 ```
 
@@ -300,6 +341,8 @@ Authorization: Bearer <accessToken>
 ```json
 {
   "data": {
+    "focusPersonId": 83,
+    "allowedFocusPersonIds": [83, 84],
     "view": "list",
     "rootPersonId": 83,
     "persons": [ /* max `limit` items */ ],
@@ -319,40 +362,115 @@ Authorization: Bearer <accessToken>
 
 ---
 
-### Mode B — Tree graph (semua node)
+### Mode B — Tree graph (full atau subgraph)
 
 ```http
 GET /api/v1/persons?view=tree
+GET /api/v1/persons?view=tree&focusPersonId=84
+GET /api/v1/persons?view=tree&focusPersonId=83&lineage=paternal&generationsUp=4
+GET /api/v1/persons?view=tree&focusPersonId=83&lineage=both&generationsUp=4&showSpouses=true&showSiblings=true&showChildren=true
 Authorization: Bearer <accessToken>
 ```
 
-**Tanpa pagination** — mengembalikan **semua** person family (~95 di seed).
+| Query | Default | Validasi |
+|---|---|---|
+| `focusPersonId` | user login (JWT) | Hanya **diri sendiri** atau **pasangan** |
 
-**200 OK**
+**Subgraph filter (v2 — semua opsional):**
+
+| Param | Default saat aktif | Deskripsi |
+|---|---|---|
+| `lineage` | `both` | `both` \| `paternal` \| `maternal` |
+| `generationsUp` | `4` | Integer 1–12 |
+| `showSpouses` | `false` | Pasangan node segaris |
+| `showSiblings` | `false` | Saudara kandung + leluhur (≤ buyut) |
+| `showChildren` | `false` | 1 generasi anak |
+
+Tanpa filter params → **full tree** (~95 di seed). Dengan filter params → subgraph.
+
+**200 OK — full tree**
 
 ```json
 {
   "data": {
     "view": "tree",
-    "rootPersonId": 83,
-    "persons": [ /* all persons */ ],
+    "focusPersonId": 84,
+    "selfPersonId": 83,
+    "allowedFocusPersonIds": [83, 84],
+    "rootPersonId": 84,
+    "persons": [ /* all active persons */ ],
     "treeGraph": {
-      "anchorPersonId": 83,
+      "anchorPersonId": 84,
       "edgeFields": {
         "parent": ["fatherId", "motherId"],
         "spouse": "spouseIds"
-      },
-      "note": "Bangun adjacency graph di FE dari fatherId, motherId, spouseIds."
-    }
+      }
+    },
+    "filter": {
+      "lineage": "both",
+      "generationsUp": 4,
+      "showSpouses": false,
+      "showSiblings": false,
+      "showChildren": false,
+      "applied": false
+    },
+    "meta": {
+      "personCount": 95,
+      "totalFamilyCount": 95,
+      "maxAncestorDepth": 6,
+      "filtered": false,
+      "recommendClientFilter": false
+    },
+    "graphWarnings": []
   }
 }
 ```
+
+**200 OK — subgraph**
+
+```json
+{
+  "data": {
+    "view": "tree",
+    "focusPersonId": 83,
+    "selfPersonId": 83,
+    "rootPersonId": 83,
+    "persons": [ /* subgraph */ ],
+    "filter": {
+      "lineage": "paternal",
+      "generationsUp": 4,
+      "showSpouses": false,
+      "showSiblings": false,
+      "showChildren": false,
+      "applied": true
+    },
+    "meta": {
+      "personCount": 28,
+      "totalFamilyCount": 95,
+      "maxAncestorDepth": 4,
+      "filtered": true,
+      "recommendClientFilter": false
+    },
+    "graphWarnings": []
+  }
+}
+```
+
+| Field tree | Arti |
+|---|---|
+| `filter.applied` | `false` = full; `true` = subgraph aktif |
+| `meta.totalFamilyCount` | Ukuran family sebelum filter |
+| `meta.recommendClientFilter` | FE disarankan pakai filter params jika ≥ 200 |
+
+**Error filter:** `400 TREE_FILTER_INVALID`
+
+**Error fokus:** `403 PERSON_READ_FOCUS_FORBIDDEN`
 
 **Kapan pakai:**
 
 | Halaman FE | Endpoint |
 |---|---|
-| `/tree`, visualisasi pohon | `?view=tree` |
+| `/tree`, visualisasi pohon | `?view=tree&focusPersonId=` (opsional) |
 | Daftar anggota / search table | `?page=&limit=` |
 | Detail satu orang | `GET /persons/:id` |
 
@@ -366,7 +484,7 @@ Jangan pakai list paginated untuk render pohon — relasi parent/spouse bisa ter
 {
   "id": 83,
   "fullName": "Mochamad Irfani Ardhyansah",
-  "nickname": "Kamu",
+  "nickname": null,
   "gender": "male",
   "birthDate": "1999-03-21",
   "deathDate": null,
@@ -405,7 +523,23 @@ Jangan pakai list paginated untuk render pohon — relasi parent/spouse bisa ter
 
 ### `GET /api/v1/persons/:id`
 
-Detail satu person — shape sama seperti item di list.
+Detail satu person — shape person + meta fokus top-level:
+
+```http
+GET /api/v1/persons/49?focusPersonId=83
+```
+
+```json
+{
+  "data": {
+    "focusPersonId": 83,
+    "allowedFocusPersonIds": [83, 84],
+    "id": 49,
+    "fullName": "H. Budi Ardhyansah",
+    "...": "..."
+  }
+}
+```
 
 ---
 
@@ -416,10 +550,11 @@ BE **tidak** mengirim nested tree. FE bangun graph dari flat list.
 ### Langkah implementasi
 
 ```typescript
-// 1. Fetch sekali
-const { persons, rootPersonId, treeGraph } = (
-  await api.get<PersonListResponse>('/persons?view=tree')
+// 1. Fetch sekali (ganti focusPersonId saat user pilih diri / pasangan)
+const tree = (
+  await api.get<PersonListResponse>('/persons?view=tree&focusPersonId=84')
 ).data;
+const { persons, treeGraph, selfPersonId } = tree;
 
 // 2. Index by id
 const byId = new Map(persons.map((p) => [p.id, p]));
@@ -439,9 +574,11 @@ function getSpouses(person: Person): Person[] {
     .filter(Boolean);
 }
 
-// 5. Anchor layout
-const anchorId = rootPersonId ?? persons.find((p) => p.isSelf)?.id;
-const anchor = anchorId != null ? byId.get(anchorId) : undefined;
+// Center layout dari anchorPersonId (= focusPersonId)
+const focusId = treeGraph!.anchorPersonId;
+const focusNode = byId.get(focusId);
+// Highlight login user: person.isSelf (bukan anchor)
+const selfNode = byId.get(selfPersonId!);
 ```
 
 ### Visual mapping
@@ -456,15 +593,16 @@ const anchor = anchorId != null ? byId.get(anchorId) : undefined;
 | `generationLabel` | Tooltip atau label node |
 | `photoUrl`, `fullName` | Avatar + nama node |
 
-### Center tree on user vs root
+### Center tree on user vs focus
 
 | Strategi | Start node |
 |---|---|
-| Default app | `rootPersonId` dari API |
-| "Lihat dari posisiku" | person dengan `isSelf: true` |
-| Klik node | `person.id` yang diklik |
+| Default pohon | `treeGraph.anchorPersonId` (= `focusPersonId`) |
+| Highlight login | person dengan `isSelf: true` (`selfPersonId`) |
+| Navbar "Pasangan" | refetch `?view=tree&focusPersonId=<spouseId>` |
+| Klik node | optional — FE local pan, atau refetch dengan focus baru |
 
-Keduanya valid — `rootPersonId` ≠ selalu user login.
+Di mode tree, `rootPersonId` = `focusPersonId` (bukan config DB).
 
 ---
 
@@ -589,6 +727,7 @@ export type Person = {
   spouseIds: number[];
   generationLabel: string;
   isSelf: boolean;
+  isFocus: boolean;
   role: PersonRole;
 };
 
@@ -601,38 +740,65 @@ export type PaginationMeta = {
   hasPrev: boolean;
 };
 
-export type PersonListResponse =
-  | {
-      view: 'list';
-      rootPersonId: number | null;
-      persons: Person[];
-      pagination: PaginationMeta;
-    }
-  | {
-      view: 'tree';
-      rootPersonId: number | null;
-      persons: Person[];
-      treeGraph: {
-        anchorPersonId: number | null;
-        edgeFields: {
-          parent: ['fatherId', 'motherId'];
-          spouse: 'spouseIds';
-        };
-        note: string;
-      };
+export type ReadFocusMeta = {
+  focusPersonId: number;
+  allowedFocusPersonIds: number[];
+};
+
+export type PersonListResponse = ReadFocusMeta & {
+  view: 'list' | 'tree';
+  selfPersonId?: number;
+  rootPersonId: number | null;
+  persons: Person[];
+  pagination?: PaginationMeta;
+  treeGraph?: {
+    anchorPersonId: number;
+    edgeFields: {
+      parent: ['fatherId', 'motherId'];
+      spouse: 'spouseIds';
     };
+  };
+  filter?: {
+    lineage: 'both' | 'paternal' | 'maternal';
+    generationsUp: number;
+    showSpouses: boolean;
+    showSiblings: boolean;
+    showChildren: boolean;
+    applied: boolean;
+  };
+  meta?: {
+    personCount: number;
+    totalFamilyCount: number;
+    maxAncestorDepth: number;
+    filtered: boolean;
+    recommendClientFilter: boolean;
+  };
+  graphWarnings?: string[];
+};
+
+export type PersonReadResponse = ReadFocusMeta & Person;
+
+export type AuthPersonSummary = {
+  id: number;
+  fullName: string;
+  nickname: string | null;
+  gender: Gender;
+  birthDate: string;
+  status: PersonStatus;
+  photoUrl: string | null;
+  isMarried: boolean;
+  isLegal: boolean;
+  spouseIds: number[];
+};
 
 export type LoginResponse = {
   accessToken: string;
   refreshToken: string;
   expiresIn: number;
-  person: Pick<
-    Person,
-    'id' | 'fullName' | 'nickname' | 'gender' | 'birthDate' | 'status' | 'photoUrl'
-  >;
+  person: AuthPersonSummary;
 };
 
-export type AuthMeResponse = LoginResponse['person'] & { familyId: number };
+export type AuthMeResponse = AuthPersonSummary & { familyId: number };
 
 export type RefreshResponse = {
   accessToken: string;
@@ -785,10 +951,12 @@ Setelah CRUD person sukses, **invalidate** query `['persons']`.
 - [ ] Tampilkan `generationLabel`, `role`, `isSelf`
 
 ### Fase 4 — Tree graph
-- [ ] Fetch `GET /persons?view=tree` di halaman tree
-- [ ] Build `Map<id, Person>`
+- [ ] Fetch tree dengan `focusPersonId` dari pilihan user (diri / pasangan dari login `spouseIds`)
+- [ ] Auto-switch: `meta.recommendClientFilter` → kirim filter params (v2)
+- [ ] Full tree (< 200) tanpa filter params; subgraph dengan `lineage`, `generationsUp`, `show*`
+- [ ] Build `Map<id, Person>` langsung dari response (skip client `filterPersons` jika `filter.applied`)
 - [ ] Render edges: parent + spouse
-- [ ] Anchor dari `rootPersonId` atau `isSelf`
+- [ ] Center dari `treeGraph.anchorPersonId`; highlight dari `isSelf` / `selfPersonId`
 - [ ] Style deceased / highlight self
 - [ ] Loading & error states
 
@@ -809,21 +977,21 @@ Setelah CRUD person sukses, **invalidate** query `['persons']`.
 
 | Field | Nilai |
 |---|---|
-| Login code | **`KAMU210399`** |
+| Login code | **`MIA210399`** |
 | Nama | Mochamad Irfani Ardhyansah |
-| Nickname | Kamu |
+| Nickname | — |
 | birthDate | 1999-03-21 |
 | Role | admin |
 | `isSelf` | true (setelah login) |
-| `rootPersonId` | id person "me" (anchor pohon) |
+| `rootPersonId` | id person "me" (config DB; di tree = `focusPersonId`) |
 
 ### Akun lain (seed)
 
 | Code | Person |
 |---|---|
 | `MR170845` | Mulyono Raka (admin) |
-| `AYAH200175` | H. Budi Ardhyansah |
-| `IBU121076` | Hj. Citra Maharani |
+| `BA200175` | H. Budi Ardhyansah (father) |
+| `CM121076` | Hj. Citra Maharani (mother) |
 
 ### Smoke test manual (curl)
 
@@ -834,7 +1002,7 @@ curl http://localhost:3000/api/v1/health
 # 2. Login
 TOKEN=$(curl -s -X POST http://localhost:3000/api/v1/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"code":"KAMU210399","remember":false}' \
+  -d '{"code":"MIA210399","remember":false}' \
   | jq -r '.data.accessToken')
 
 # 3. Me
@@ -845,9 +1013,17 @@ curl -s http://localhost:3000/api/v1/auth/me \
 curl -s "http://localhost:3000/api/v1/persons?page=1&limit=5" \
   -H "Authorization: Bearer $TOKEN" | jq '.data.pagination'
 
-# 5. Tree (semua node)
-curl -s "http://localhost:3000/api/v1/persons?view=tree" \
-  -H "Authorization: Bearer $TOKEN" | jq '.data | {view, rootPersonId, count: (.persons|length)}'
+# 5. Tree full (tanpa filter)
+curl -s "http://localhost:3000/api/v1/persons?view=tree&focusPersonId=83" \
+  -H "Authorization: Bearer $TOKEN" | jq '.data.meta'
+
+# 6. Tree subgraph — garis ayah
+curl -s "http://localhost:3000/api/v1/persons?view=tree&focusPersonId=83&lineage=paternal&generationsUp=4" \
+  -H "Authorization: Bearer $TOKEN" | jq '.data | {filter, count: (.persons|length), meta}'
+
+# 7. Tree subgraph — preset lengkap
+curl -s "http://localhost:3000/api/v1/persons?view=tree&focusPersonId=83&lineage=both&generationsUp=4&showSpouses=true&showSiblings=true&showChildren=true" \
+  -H "Authorization: Bearer $TOKEN" | jq '.data | {filter, count: (.persons|length), meta}'
 ```
 
 ---

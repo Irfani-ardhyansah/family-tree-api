@@ -8,7 +8,7 @@
     "alive": 63,
     "deceased": 32,
     "notes": [
-      "loginCode is DERIVED — do not store as password; recompute from fullName/nickname/birthDate on login.",
+      "loginCode is DERIVED — do not store as password; recompute from fullName + birthDate on login (nickname ignored).",
       "Deceased persons have loginCode=null and cannot authenticate.",
       "Default religion for deceased without explicit religion is islam (FE helper).",
       "IDs are stable string slugs from FE mock — keep as-is or map to UUID with a lookup table."
@@ -1205,7 +1205,7 @@
       "generationLabel": "Ayah",
       "isSelf": false,
       "role": null,
-      "_computedLoginCode": "AYAH200175"
+      "_computedLoginCode": "BA200175"
     },
     {
       "id": "pat-sib-3",
@@ -1485,7 +1485,7 @@
       "generationLabel": "Ibu",
       "isSelf": false,
       "role": null,
-      "_computedLoginCode": "IBU121076"
+      "_computedLoginCode": "CM121076"
     },
     {
       "id": "mat-sib-3",
@@ -1893,7 +1893,7 @@
       "generationLabel": "Ayah Pasangan",
       "isSelf": false,
       "role": null,
-      "_computedLoginCode": "AYAHPASANGAN080378"
+      "_computedLoginCode": "AK080378"
     },
     {
       "id": "sp-mother",
@@ -1917,7 +1917,7 @@
       "generationLabel": "Ibu Pasangan",
       "isSelf": false,
       "role": null,
-      "_computedLoginCode": "IBUPASANGAN150980"
+      "_computedLoginCode": "MELATI150980"
     },
     {
       "id": "sib-1",
@@ -1941,7 +1941,7 @@
       "generationLabel": "Saudara",
       "isSelf": false,
       "role": "member",
-      "_computedLoginCode": "KAKANDI140398"
+      "_computedLoginCode": "AP140398"
     },
     {
       "id": "sib-1-sp",
@@ -2014,7 +2014,7 @@
     {
       "id": "me",
       "fullName": "Mochamad Irfani Ardhyansah",
-      "nickname": "Kamu",
+      "nickname": null,
       "gender": "male",
       "birthDate": "1999-03-21",
       "deathDate": null,
@@ -2042,7 +2042,7 @@
       "generationLabel": "Kamu",
       "isSelf": true,
       "role": "admin",
-      "_computedLoginCode": "KAMU210399"
+      "_computedLoginCode": "MIA210399"
     },
     {
       "id": "me-sp",
@@ -2066,7 +2066,7 @@
       "generationLabel": "Pasangan",
       "isSelf": false,
       "role": null,
-      "_computedLoginCode": "AYU170501"
+      "_computedLoginCode": "AK170501"
     },
     {
       "id": "me-c1",
@@ -2134,7 +2134,7 @@
       "generationLabel": "Saudara",
       "isSelf": false,
       "role": "member",
-      "_computedLoginCode": "ADIKSARI070102"
+      "_computedLoginCode": "SD070102"
     },
     {
       "id": "sib-2-sp",
@@ -2226,7 +2226,7 @@
       "generationLabel": "Saudara",
       "isSelf": false,
       "role": "member",
-      "_computedLoginCode": "ADIKBAYU191204"
+      "_computedLoginCode": "BN191204"
     },
     {
       "id": "sib-3-sp",
@@ -2512,30 +2512,30 @@
     {
       "personId": "me",
       "fullName": "Mochamad Irfani Ardhyansah",
-      "nickname": "Kamu",
-      "code": "KAMU210399",
-      "reason": "Primary demo account — rootPersonId / admin"
+      "nickname": null,
+      "code": "MIA210399",
+      "reason": "Primary demo account — rootPersonId / admin (M+I+A + 210399)"
     },
     {
       "personId": "me-sp",
       "fullName": "Hj. Ayu Kirana",
       "nickname": "Ayu",
-      "code": "AYU170501",
-      "reason": "Spouse of root"
+      "code": "AK170501",
+      "reason": "Spouse of root (Ayu + Kirana)"
     },
     {
       "personId": "father",
       "fullName": "H. Budi Ardhyansah",
       "nickname": "Ayah",
-      "code": "AYAH200175",
-      "reason": "Parent with nickname-based code"
+      "code": "BA200175",
+      "reason": "Parent (Budi + Ardhyansah)"
     },
     {
       "personId": "mother",
       "fullName": "Hj. Citra Maharani",
       "nickname": "Ibu",
-      "code": "IBU121076",
-      "reason": "Parent with nickname-based code"
+      "code": "CM121076",
+      "reason": "Parent (Citra + Maharani)"
     }
   ]
 }

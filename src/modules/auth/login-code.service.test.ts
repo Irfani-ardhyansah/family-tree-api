@@ -17,18 +17,20 @@ describe('login-code.service', () => {
       expect(buildNameAbbrev('Mulyono Raka')).toBe('MR');
     });
 
-    it('prefers nickname over full name', () => {
-      expect(buildNameAbbrev('Mulyono Raka', 'Raka')).toBe('RAKA');
+    it('ignores nickname — always derives from fullName', () => {
+      expect(buildNameAbbrev('Mulyono Raka')).toBe('MR');
+      expect(buildNameAbbrev('Mochamad Irfani Ardhyansah')).toBe('MIA');
     });
 
     it('strips Indonesian titles from words', () => {
       expect(buildNameAbbrev('H. Mulyono Raka')).toBe('MR');
       expect(buildNameAbbrev('H. Wijaya')).toBe('WIJAYA');
-      expect(buildNameAbbrev('Hj. Citra Maharani', 'Ibu')).toBe('IBU');
+      expect(buildNameAbbrev('Hj. Citra Maharani')).toBe('CM');
     });
 
-    it('handles nickname with spaces', () => {
-      expect(buildNameAbbrev('H. Andi Pratama', 'Kak Andi')).toBe('KAKANDI');
+    it('uses fullName initials when nickname is set on person', () => {
+      expect(buildNameAbbrev('H. Andi Pratama')).toBe('AP');
+      expect(buildNameAbbrev('H. Budi Ardhyansah')).toBe('BA');
     });
   });
 
@@ -46,27 +48,27 @@ describe('login-code.service', () => {
       expect(buildLoginCode({ fullName: 'Mulyono Raka', birthDate: '1945-08-17' })).toBe('MR170845');
       expect(
         buildLoginCode({ fullName: 'Mulyono Raka', nickname: 'Raka', birthDate: '1945-08-17' }),
-      ).toBe('RAKA170845');
+      ).toBe('MR170845');
     });
 
     it('matches seed smoke accounts', () => {
       expect(buildLoginCode({ fullName: 'Mulyono Raka', birthDate: '1945-08-17' })).toBe('MR170845');
       expect(
-        buildLoginCode({ fullName: 'Mochamad Irfani Ardhyansah', nickname: 'Kamu', birthDate: '1999-03-21' }),
-      ).toBe('KAMU210399');
+        buildLoginCode({ fullName: 'Mochamad Irfani Ardhyansah', birthDate: '1999-03-21' }),
+      ).toBe('MIA210399');
       expect(
         buildLoginCode({ fullName: 'H. Budi Ardhyansah', nickname: 'Ayah', birthDate: '1975-01-20' }),
-      ).toBe('AYAH200175');
+      ).toBe('BA200175');
       expect(
         buildLoginCode({ fullName: 'Hj. Citra Maharani', nickname: 'Ibu', birthDate: '1976-10-12' }),
-      ).toBe('IBU121076');
+      ).toBe('CM121076');
       expect(buildLoginCode({ fullName: 'H. Wijaya', birthDate: '1950-05-08' })).toBe('WIJAYA080550');
       expect(
         buildLoginCode({ fullName: 'H. Andi Pratama', nickname: 'Kak Andi', birthDate: '1998-03-14' }),
-      ).toBe('KAKANDI140398');
+      ).toBe('AP140398');
       expect(
         buildLoginCode({ fullName: 'Hj. Ayu Kirana', nickname: 'Ayu', birthDate: '2001-05-17' }),
-      ).toBe('AYU170501');
+      ).toBe('AK170501');
     });
   });
 
@@ -79,7 +81,7 @@ describe('login-code.service', () => {
   describe('isValidFormat', () => {
     it('accepts valid codes', () => {
       expect(isValidFormat('MR170845')).toBe(true);
-      expect(isValidFormat('KAMU210399')).toBe(true);
+      expect(isValidFormat('MIA210399')).toBe(true);
       expect(isValidFormat('  mr170845 ')).toBe(true);
     });
 

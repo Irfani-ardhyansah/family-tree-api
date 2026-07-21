@@ -13,17 +13,17 @@ Dokumen ini diserahkan ke AI/engineer **Backend**. Kerjakan **per part** (prompt
 
 Format: `{SINGKATAN_NAMA}{DDMMYY}`
 
-| Kasus | Contoh nama | Nickname | Tanggal lahir | Kode |
-|---|---|---|---|---|
-| 1 kata | Mia | — | 1999-03-21 | `MIA210399` |
-| 2+ kata | Mulyono Raka | — | 1945-08-17 | `MR170845` |
-| Ada nickname | apa saja | Raka | 1945-08-17 | `RAKA170845` |
+| Kasus | Contoh nama | Tanggal lahir | Kode |
+|---|---|---|---|
+| 1 kata | Mia | 1999-03-21 | `MIA210399` |
+| 2 kata | Mulyono Raka | 1945-08-17 | `MR170845` |
+| 3+ kata | Mochamad Irfani Ardhyansah | 1999-03-21 | `MIA210399` |
 
 Aturan singkatan (wajib sama di BE):
 
 1. Buang gelar: `H.`, `Hj.`, `Dr.`, `Prof.`, `Ny.`, `Tn.` (case-insensitive) di awal kata.
 2. Hanya huruf A–Z (buang angka/simbol dari nama).
-3. Jika ada `nickname` → singkatan = seluruh nickname (huruf saja, UPPERCASE).
+3. **`nickname` tidak dipakai** — singkatan selalu dari `fullName`.
 4. Jika nama 1 kata → seluruh kata UPPERCASE.
 5. Jika nama 2+ kata → huruf pertama tiap kata, digabung UPPERCASE.
 6. Suffix tanggal: dari `birthDate` ISO `YYYY-MM-DD` → `DD` + `MM` + `YY` (2 digit tahun terakhir).
@@ -314,7 +314,7 @@ Field JSON **camelCase** agar FE tidak perlu transform berat.
 
 - User hanya melihat persons dalam `family_id` miliknya.
 - Tidak boleh hapus diri sendiri jika masih satu-satunya akun / root — tentukan rule sederhana.
-- Saat create/update `fullName`/`nickname`/`birthDate`/`status`, login code ikut berubah (derived) — tidak perlu kolom terpisah.
+- Saat create/update `fullName`/`birthDate`/`status`, login code ikut berubah (derived dari fullName) — tidak perlu kolom terpisah.
 - Deceased: tidak bisa login (sudah di Part 3).
 
 **Acceptance:**

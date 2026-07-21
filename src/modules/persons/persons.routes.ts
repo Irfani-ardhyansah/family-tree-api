@@ -1,16 +1,17 @@
 import { Router } from 'express';
 import { requireAuth } from '../../shared/middleware/requireAuth.middleware';
 import { personsController } from './persons.controller';
+import { resolveReadFocusMiddleware } from './read-focus.middleware';
 
 const personsRoutes = Router();
 
 personsRoutes.use(requireAuth);
 
-personsRoutes.get('/', (req, res, next) => {
+personsRoutes.get('/', resolveReadFocusMiddleware, (req, res, next) => {
   void personsController.list(req, res, next);
 });
 
-personsRoutes.get('/:id', (req, res, next) => {
+personsRoutes.get('/:id', resolveReadFocusMiddleware, (req, res, next) => {
   void personsController.getById(req, res, next);
 });
 

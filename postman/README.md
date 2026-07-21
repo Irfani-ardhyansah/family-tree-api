@@ -49,9 +49,9 @@
 | Code | Person |
 |---|---|
 | `MR170845` | Mulyono Raka (demo-mr) |
-| `KAMU210399` | Mochamad Irfani Ardhyansah (me, admin) |
-| `AYAH200175` | H. Budi Ardhyansah (father) |
-| `IBU121076` | Hj. Citra Maharani (mother) |
+| `MIA210399` | Mochamad Irfani Ardhyansah (me, admin) |
+| `BA200175` | H. Budi Ardhyansah (father) |
+| `CM121076` | Hj. Citra Maharani (mother) |
 
 ## Environment variables
 

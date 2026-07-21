@@ -12,12 +12,20 @@ function parsePersonId(raw: string): number {
   return personId;
 }
 
+function requireReadFocus(req: Request): NonNullable<Request['readFocus']> {
+  if (!req.readFocus) {
+    throw new AppError(500, ErrorCodes.INTERNAL_ERROR, 'Read focus context belum di-resolve.');
+  }
+  return req.readFocus;
+}
+
 export class PersonsController {
   async list(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const data = await personsService.list(
         req.auth!.familyId,
         req.auth!.personId,
+        requireReadFocus(req),
         req.query,
       );
       sendData(res, data);
@@ -29,7 +37,12 @@ export class PersonsController {
   async getById(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const personId = parsePersonId(req.params.id);
-      const data = await personsService.getById(req.auth!.familyId, req.auth!.personId, personId);
+      const data = await personsService.getById(
+        req.auth!.familyId,
+        req.auth!.personId,
+        personId,
+        requireReadFocus(req),
+      );
       sendData(res, data);
     } catch (error) {
       next(error);

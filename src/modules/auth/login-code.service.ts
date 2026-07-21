@@ -15,11 +15,8 @@ function stripTitleFromWord(word: string): string {
   return word.replace(TITLE_PREFIX, '');
 }
 
-export function buildNameAbbrev(fullName: string, nickname?: string | null): string {
-  if (nickname) {
-    return lettersOnly(nickname).toUpperCase();
-  }
-
+/** Singkatan login code — selalu dari fullName, nickname tidak dipakai. */
+export function buildNameAbbrev(fullName: string): string {
   const words = fullName
     .trim()
     .split(/\s+/)
@@ -54,7 +51,7 @@ export function buildBirthDateSuffix(birthDate: string): string {
 }
 
 export function buildLoginCode(person: LoginCodePerson): string {
-  const abbrev = buildNameAbbrev(person.fullName, person.nickname);
+  const abbrev = buildNameAbbrev(person.fullName);
   const suffix = buildBirthDateSuffix(person.birthDate);
   return `${abbrev}${suffix}`;
 }

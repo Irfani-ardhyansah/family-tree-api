@@ -6,6 +6,9 @@ export type AuthPersonSummary = {
   birthDate: string;
   status: 'alive' | 'deceased';
   photoUrl: string | null;
+  isMarried: boolean;
+  isLegal: boolean;
+  spouseIds: number[];
 };
 
 export type AuthMeResponse = AuthPersonSummary & {

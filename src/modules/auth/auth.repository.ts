@@ -36,6 +36,20 @@ export class AuthRepository {
       ]);
   }
 
+  async findSpouseIdsByPersonId(personId: number): Promise<number[]> {
+    const rows = await db('person_spouses as ps')
+      .innerJoin('persons as pa', 'pa.id', 'ps.person_id_a')
+      .innerJoin('persons as pb', 'pb.id', 'ps.person_id_b')
+      .where(function whereSpouse() {
+        this.where('ps.person_id_a', personId).orWhere('ps.person_id_b', personId);
+      })
+      .whereNull('pa.deleted_at')
+      .whereNull('pb.deleted_at')
+      .select<{ person_id_a: number; person_id_b: number }[]>('ps.person_id_a', 'ps.person_id_b');
+
+    return rows.map((row) => (row.person_id_a === personId ? row.person_id_b : row.person_id_a));
+  }
+
   async insertRefreshToken(input: {
     personId: number;
     tokenHash: string;

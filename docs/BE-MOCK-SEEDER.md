@@ -25,7 +25,7 @@ Dokumen ini untuk AI/engineer **Backend** saat mengerjakan **Part 1 (schema + se
 2. Jika `status === deceased` dan `religion` kosong → set `religion = "islam"`.
 3. `spouseIds` selalu **dua arah** (`A→B` dan `B→A`).
 4. Relasi orang tua: `fatherId` + `motherId` (keduanya opsional, tapi di mock hampir selalu berpasangan).
-5. `loginCode` **derived** dari `fullName` / `nickname` + `birthDate` — **jangan simpan sebagai password**. Field `_computedLoginCode` di JSON hanya untuk smoke test.
+5. `loginCode` **derived** dari `fullName` + `birthDate` — **nickname tidak dipakai**. Jangan simpan sebagai password. Field `_computedLoginCode` di JSON hanya untuk smoke test.
 6. ID di mock adalah **slug string stabil** (`me`, `father`, `pat-ggp-m`, …). BE boleh:
    - pakai slug langsung sebagai PK, **atau**
    - map slug → UUID dengan tabel lookup `legacy_id`.
@@ -91,11 +91,11 @@ Pakai ini dulu untuk smoke test auth. Kode dihitung ulang di BE dari nama+tangga
 | personId | Nama | Nickname | birthDate | Login code | Catatan |
 |---|---|---|---|---|---|
 | `demo-mr` | Mulyono Raka | — | 1945-08-17 | `MR170845` | Demo eksplisit di mock |
-| `me` | Mochamad Irfani Ardhyansah | Kamu | 1999-03-21 | `KAMU210399` | `rootPersonId`, `isSelf`, `role=admin` |
-| `me-sp` | Hj. Ayu Kirana | Ayu | 2001-05-17 | `AYU170501` | Pasangan root |
-| `father` | H. Budi Ardhyansah | Ayah | 1975-01-20 | `AYAH200175` | Nickname override |
-| `mother` | Hj. Citra Maharani | Ibu | 1976-10-12 | `IBU121076` | Nickname override |
-| `sib-1` | H. Andi Pratama | Kak Andi | 1998-03-14 | `KAKANDI140398` | Saudara |
+| `me` | Mochamad Irfani Ardhyansah | — | 1999-03-21 | `MIA210399` | `rootPersonId`, `isSelf`, `role=admin` |
+| `me-sp` | Hj. Ayu Kirana | Ayu | 2001-05-17 | `AK170501` | Pasangan root |
+| `father` | H. Budi Ardhyansah | Ayah | 1975-01-20 | `BA200175` | Inisial Budi + Ardhyansah |
+| `mother` | Hj. Citra Maharani | Ibu | 1976-10-12 | `CM121076` | Inisial Citra + Maharani |
+| `sib-1` | H. Andi Pratama | Kak Andi | 1998-03-14 | `AP140398` | Saudara |
 | `pat-gp-m` | H. Wijaya | — | 1950-05-08 | `WIJAYA080550` | 1 kata setelah gelar |
 
 **Negative cases**
@@ -241,7 +241,7 @@ Pasangan sibling default birthDate: `1975-01-01`.
 | id | fullName | nickname | birth | spouse | children | role / flags |
 |---|---|---|---|---|---|---|
 | `sib-1` | H. Andi Pratama | Kak Andi | 1998-03-14 | `sib-1-sp` Hj. Rina Oktavia (2000-01-01) | `sib-1-c1` Fadil Ardhyansah (2020-06-01), `sib-1-c2` Fira Maharani (2022-11-18) | member |
-| `me` | Mochamad Irfani Ardhyansah | Kamu | 1999-03-21 | `me-sp` Hj. Ayu Kirana | `me-c1` Zahra Kirana (2024-02-10), `me-c2` Zaki Ardhyansah (2023-09-05) | **admin**, `isSelf`, SE, phone, address Malang |
+| `me` | Mochamad Irfani Ardhyansah | — | 1999-03-21 | `me-sp` Hj. Ayu Kirana | `me-c1` Zahra Kirana (2024-02-10), `me-c2` Zaki Ardhyansah (2023-09-05) | **admin**, `isSelf`, SE, phone, address Malang |
 | `sib-2` | Hj. Sari Dewi | Adik Sari | 2002-01-07 | `sib-2-sp` H. Doni Saputra (2000-01-01) | `sib-2-c1` Kevin Saputra (2023-04-22), `sib-2-c2` Karin Saputra (2025-01-30) | member |
 | `sib-3` | H. Bayu Nugroho | Adik Bayu | 2004-12-19 | `sib-3-sp` Hj. Lina Permata (2000-01-01) | `sib-3-c1` Reza Nugroho (2024-07-14), `sib-3-c2` Rani Nugroho (2025-03-08) | member |
 
@@ -280,7 +280,7 @@ Detail street/district/postal lengkap ada di JSON.
 {
   "id": "me",
   "fullName": "Mochamad Irfani Ardhyansah",
-  "nickname": "Kamu",
+  "nickname": null,
   "gender": "male",
   "birthDate": "1999-03-21",
   "deathDate": null,
@@ -332,7 +332,7 @@ Sumber data: docs/BE-MOCK-SEEDER.md + docs/seed/mock-family-seed.json
   - count persons = 95
   - alive = 63, deceased = 32
   - login code demo-mr = MR170845
-  - login code me = KAMU210399
+  - login code me = MIA210399
 ```
 
 ### Validasi pasca-seed (SQL / script)
@@ -345,8 +345,8 @@ person id=me exists, is_self=true, role=admin
 person id=demo-mr exists
 spouse pairs == 43 (atau 86 rows junction jika disimpan 2 arah — pilih 1 model)
 BuildLoginCode(demo-mr) == "MR170845"
-BuildLoginCode(me) == "KAMU210399"
-BuildLoginCode(father) == "AYAH200175"
+BuildLoginCode(me) == "MIA210399"
+BuildLoginCode(father) == "BA200175"
 ```
 
 ---
