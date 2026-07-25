@@ -44,6 +44,12 @@ describe('logsService.inferAuditAction', () => {
     expect(logsService.inferAuditAction('POST', '/api/v1/memoriam/17/tributes')).toBe(
       'memorial.tribute.create',
     );
+    expect(logsService.inferAuditAction('PATCH', '/api/v1/memoriam/17/tributes/3')).toBe(
+      'memorial.tribute.update',
+    );
+    expect(logsService.inferAuditAction('DELETE', '/api/v1/memoriam/17/tributes/3')).toBe(
+      'memorial.tribute.delete',
+    );
     expect(logsService.inferAuditAction('POST', '/api/v1/memoriam/17/prayers')).toBe(
       'memorial.prayer.create',
     );

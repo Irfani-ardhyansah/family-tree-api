@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { PersonGraphNode } from '../persons/persons.types';
 import {
   canAccessMemorial,
+  canManageTribute,
   collectMemorialConnectedIds,
   isDeceasedVisibleInPerspective,
 } from './memoriam-access.service';
@@ -38,6 +39,11 @@ describe('memoriam-access.service', () => {
   it('allows memorial access only for connected viewers', () => {
     expect(canAccessMemorial(3, 1, graph)).toBe(true);
     expect(canAccessMemorial(10, 1, graph)).toBe(false);
+  });
+
+  it('allows manage only for the tribute author', () => {
+    expect(canManageTribute(83, 83)).toBe(true);
+    expect(canManageTribute(83, 84)).toBe(false);
   });
 
   it('shows deceased in perspective when in visible subgraph or memorial-linked to focus', () => {

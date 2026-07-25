@@ -62,6 +62,11 @@ export function canAccessMemorial(
   return connected.has(viewerPersonId);
 }
 
+/** Update/delete tribute hanya boleh author. */
+export function canManageTribute(authorPersonId: number, viewerPersonId: number): boolean {
+  return authorPersonId === viewerPersonId;
+}
+
 /** Mendiang tampil saat fokus jika ada di subgraph visible ATAU terhubung langsung ke focus via graph memorial. */
 export function isDeceasedVisibleInPerspective(
   deceasedId: number,

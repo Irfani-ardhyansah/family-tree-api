@@ -72,6 +72,8 @@ export class AuthService {
 
     const tokens = await this.issueTokenPair(person, remember);
     const spouseIds = await authRepository.findSpouseIdsByPersonId(person.id);
+    const spouseRows = await authRepository.findPersonsByIds(spouseIds);
+    await personOptionsService.ensureDefaultReadFocusPersonId(person.id);
 
     await logsService.recordFromRequest(req, {
       category: LogCategory.AUTH,
@@ -89,7 +91,7 @@ export class AuthService {
 
     return {
       ...tokens,
-      person: toAuthPersonSummary(person, spouseIds),
+      person: toAuthPersonSummary(person, spouseIds, spouseRows),
     };
   }
 
@@ -100,6 +102,8 @@ export class AuthService {
     }
 
     const spouseIds = await authRepository.findSpouseIdsByPersonId(personId);
+    const spouseRows = await authRepository.findPersonsByIds(spouseIds);
+    await personOptionsService.ensureDefaultReadFocusPersonId(personId);
     const storedFocus = await personOptionsService.resolveStoredReadFocusPersonId(
       personId,
       spouseIds,
@@ -107,7 +111,7 @@ export class AuthService {
     const readFocus = buildReadFocusMeta(personId, spouseIds, storedFocus);
 
     return {
-      ...toAuthMeResponse(person, spouseIds),
+      ...toAuthMeResponse(person, spouseIds, spouseRows),
       readFocusPersonId: readFocus.focusPersonId,
       allowedFocusPersonIds: readFocus.allowedFocusPersonIds,
     };

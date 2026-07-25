@@ -1,11 +1,17 @@
 import { AppError } from '../../shared/errors/AppError';
 import { ErrorCodes } from '../../shared/errors/errorCodes';
+import {
+  attachResolvedMedia,
+  resolvePendingPhotos,
+} from '../media/media.attach.service';
+import { MAX_PHOTOS_BY_PURPOSE } from '../media/media.constants';
 import { getVisiblePersonIds } from '../persons/perspective-subgraph.service';
 import { mapPersonRowToResponse, personsRepository } from '../persons/persons.repository';
 import { ReadFocusMeta } from '../persons/persons.types';
 import { sanitizeMemorialHtml } from './html-sanitize.service';
 import {
   canAccessMemorial,
+  canManageTribute,
   isDeceasedVisibleInPerspective,
 } from './memoriam-access.service';
 import { memoriamRepository } from './memoriam.repository';
@@ -17,10 +23,13 @@ import {
   DeceasedListResponse,
   PrayerListResponse,
   PrayerMeResponse,
+  TributeDetailResponse,
+  TributeItem,
   TributeListResponse,
+  TributeRow,
 } from './memoriam.types';
 
-const MAX_TRIBUTE_PHOTOS = 8;
+const MAX_TRIBUTE_PHOTOS = MAX_PHOTOS_BY_PURPOSE.memoriam_tribute;
 
 function parseListQuery(raw: Record<string, unknown>): DeceasedListQuery {
   const query: DeceasedListQuery = {};
@@ -60,8 +69,11 @@ function validateTributeInput(input: unknown): CreateTributeInput {
   const photoUrls = Array.isArray(body.photoUrls)
     ? body.photoUrls.filter((url): url is string => typeof url === 'string' && url.length > 0)
     : [];
+  const mediaIds = Array.isArray(body.mediaIds)
+    ? body.mediaIds.filter((id): id is string => typeof id === 'string' && id.length > 0)
+    : [];
 
-  if (photoUrls.length > MAX_TRIBUTE_PHOTOS) {
+  if (photoUrls.length > MAX_TRIBUTE_PHOTOS || mediaIds.length > MAX_TRIBUTE_PHOTOS) {
     throw new AppError(
       400,
       ErrorCodes.TRIBUTE_VALIDATION_FAILED,
@@ -72,11 +84,30 @@ function validateTributeInput(input: unknown): CreateTributeInput {
   return {
     content: sanitizeMemorialHtml(body.content.trim()),
     photoUrls,
+    mediaIds,
   };
 }
 
 function formatDateTime(value: Date): string {
   return value.toISOString();
+}
+
+function mapTributeItem(
+  row: TributeRow,
+  photoUrls: string[],
+  viewerPersonId: number,
+): TributeItem {
+  return {
+    id: row.id,
+    deceasedId: row.deceased_person_id,
+    content: row.content,
+    authorId: row.author_person_id,
+    authorName: row.author_name,
+    photoUrls,
+    createdAt: formatDateTime(row.created_at),
+    updatedAt: formatDateTime(row.updated_at),
+    canManage: canManageTribute(row.author_person_id, viewerPersonId),
+  };
 }
 
 export class MemoriamService {
@@ -248,6 +279,36 @@ export class MemoriamService {
     };
   }
 
+  private assertCanManageTribute(row: TributeRow, viewerId: number): void {
+    if (!canManageTribute(row.author_person_id, viewerId)) {
+      throw new AppError(
+        403,
+        ErrorCodes.TRIBUTE_MANAGE_FORBIDDEN,
+        'Hanya penulis tribute yang boleh mengubah atau menghapus.',
+      );
+    }
+  }
+
+  private async getTributeDetail(
+    familyId: number,
+    viewerId: number,
+    deceasedId: number,
+    tributeId: number,
+    readFocus: ReadFocusMeta,
+  ): Promise<TributeDetailResponse> {
+    const row = await memoriamRepository.findTributeById(familyId, deceasedId, tributeId);
+    if (!row) {
+      throw new AppError(404, ErrorCodes.TRIBUTE_NOT_FOUND, 'Tribute tidak ditemukan.');
+    }
+
+    const photoMap = await memoriamRepository.findTributePhotosByTributeIds([tributeId]);
+    return {
+      ...readFocus,
+      selfPersonId: viewerId,
+      tribute: mapTributeItem(row, photoMap.get(tributeId) ?? [], viewerId),
+    };
+  }
+
   async listTributes(
     familyId: number,
     viewerId: number,
@@ -263,15 +324,9 @@ export class MemoriamService {
     return {
       ...readFocus,
       selfPersonId: viewerId,
-      tributes: rows.map((row) => ({
-        id: row.id,
-        content: row.content,
-        authorId: row.author_person_id,
-        authorName: row.author_name,
-        photoUrls: photoMap.get(row.id) ?? [],
-        createdAt: formatDateTime(row.created_at),
-        updatedAt: row.updated_at ? formatDateTime(row.updated_at) : null,
-      })),
+      tributes: rows.map((row) =>
+        mapTributeItem(row, photoMap.get(row.id) ?? [], viewerId),
+      ),
     };
   }
 
@@ -281,11 +336,84 @@ export class MemoriamService {
     deceasedId: number,
     readFocus: ReadFocusMeta,
     input: unknown,
-  ): Promise<TributeListResponse> {
+  ): Promise<TributeDetailResponse> {
     await this.assertDeceasedAccess(familyId, viewerId, deceasedId, readFocus);
     const data = validateTributeInput(input);
-    await memoriamRepository.createTribute(familyId, deceasedId, viewerId, data);
-    return this.listTributes(familyId, viewerId, deceasedId, readFocus);
+
+    const resolved = await resolvePendingPhotos({
+      uploaderPersonId: viewerId,
+      purpose: 'memoriam_tribute',
+      mediaIds: data.mediaIds,
+      photoUrls: data.photoUrls,
+      maxCount: MAX_TRIBUTE_PHOTOS,
+    });
+
+    const tributeId = await memoriamRepository.createTribute(familyId, deceasedId, viewerId, {
+      ...data,
+      photoUrls: resolved.photoUrls,
+    });
+    await attachResolvedMedia({
+      mediaIds: resolved.mediaIds,
+      purpose: 'memoriam_tribute',
+      attachedToId: String(tributeId),
+    });
+
+    return this.getTributeDetail(familyId, viewerId, deceasedId, tributeId, readFocus);
+  }
+
+  async updateTribute(
+    familyId: number,
+    viewerId: number,
+    deceasedId: number,
+    tributeId: number,
+    readFocus: ReadFocusMeta,
+    input: unknown,
+  ): Promise<TributeDetailResponse> {
+    await this.assertDeceasedAccess(familyId, viewerId, deceasedId, readFocus);
+
+    const existing = await memoriamRepository.findTributeById(familyId, deceasedId, tributeId);
+    if (!existing) {
+      throw new AppError(404, ErrorCodes.TRIBUTE_NOT_FOUND, 'Tribute tidak ditemukan.');
+    }
+    this.assertCanManageTribute(existing, viewerId);
+
+    const data = validateTributeInput(input);
+    const resolved = await resolvePendingPhotos({
+      uploaderPersonId: viewerId,
+      purpose: 'memoriam_tribute',
+      mediaIds: data.mediaIds,
+      photoUrls: data.photoUrls,
+      maxCount: MAX_TRIBUTE_PHOTOS,
+    });
+
+    await memoriamRepository.updateTribute(familyId, deceasedId, tributeId, {
+      ...data,
+      photoUrls: resolved.photoUrls,
+    });
+    await attachResolvedMedia({
+      mediaIds: resolved.mediaIds,
+      purpose: 'memoriam_tribute',
+      attachedToId: String(tributeId),
+    });
+
+    return this.getTributeDetail(familyId, viewerId, deceasedId, tributeId, readFocus);
+  }
+
+  async removeTribute(
+    familyId: number,
+    viewerId: number,
+    deceasedId: number,
+    tributeId: number,
+    readFocus: ReadFocusMeta,
+  ): Promise<void> {
+    await this.assertDeceasedAccess(familyId, viewerId, deceasedId, readFocus);
+
+    const existing = await memoriamRepository.findTributeById(familyId, deceasedId, tributeId);
+    if (!existing) {
+      throw new AppError(404, ErrorCodes.TRIBUTE_NOT_FOUND, 'Tribute tidak ditemukan.');
+    }
+    this.assertCanManageTribute(existing, viewerId);
+    await memoriamRepository.softDeleteTribute(familyId, deceasedId, tributeId);
   }
 
   async listPrayers(

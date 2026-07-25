@@ -19,6 +19,25 @@ export class MemoriamRepository {
     return new Map(rows.map((row) => [row.deceased_person_id, Number(row.count)]));
   }
 
+  async findLatestTributeAtByDeceasedIds(
+    deceasedIds: number[],
+  ): Promise<Map<number, Date>> {
+    if (deceasedIds.length === 0) {
+      return new Map();
+    }
+
+    const rows = await db('memoriam_tributes')
+      .whereIn('deceased_person_id', deceasedIds)
+      .whereNull('deleted_at')
+      .groupBy('deceased_person_id')
+      .select<{ deceased_person_id: number; latest_at: Date }[]>(
+        'deceased_person_id',
+        db.raw('MAX(created_at) as latest_at'),
+      );
+
+    return new Map(rows.map((row) => [row.deceased_person_id, row.latest_at]));
+  }
+
   async countPrayersByDeceasedIds(deceasedIds: number[]): Promise<Map<number, number>> {
     if (deceasedIds.length === 0) {
       return new Map();
@@ -76,6 +95,32 @@ export class MemoriamRepository {
     return map;
   }
 
+  async findTributeById(
+    familyId: number,
+    deceasedId: number,
+    tributeId: number,
+  ): Promise<TributeRow | undefined> {
+    return db('memoriam_tributes as t')
+      .innerJoin('persons as p', 'p.id', 't.author_person_id')
+      .where({
+        't.id': tributeId,
+        't.family_id': familyId,
+        't.deceased_person_id': deceasedId,
+      })
+      .whereNull('t.deleted_at')
+      .first<TributeRow>(
+        't.id',
+        't.family_id',
+        't.deceased_person_id',
+        't.author_person_id',
+        't.content',
+        't.created_at',
+        't.updated_at',
+        't.deleted_at',
+        db.raw('p.full_name as author_name'),
+      );
+  }
+
   async createTribute(
     familyId: number,
     deceasedId: number,
@@ -91,17 +136,69 @@ export class MemoriamRepository {
       });
 
       const id = Number(tributeId);
-      if (input.photoUrls.length > 0) {
-        await trx('memoriam_tribute_photos').insert(
-          input.photoUrls.map((photoUrl, index) => ({
-            tribute_id: id,
-            photo_url: photoUrl,
-            sort_order: index,
-          })),
-        );
-      }
+      await this.syncPhotos(trx, id, input.photoUrls);
       return id;
     });
+  }
+
+  async updateTribute(
+    familyId: number,
+    deceasedId: number,
+    tributeId: number,
+    input: CreateTributeInput,
+  ): Promise<void> {
+    await db.transaction(async (trx) => {
+      const updated = await trx('memoriam_tributes')
+        .where({
+          id: tributeId,
+          family_id: familyId,
+          deceased_person_id: deceasedId,
+        })
+        .whereNull('deleted_at')
+        .update({
+          content: input.content,
+          updated_at: trx.fn.now(),
+        });
+
+      if (!updated) {
+        return;
+      }
+
+      await this.syncPhotos(trx, tributeId, input.photoUrls);
+    });
+  }
+
+  async softDeleteTribute(
+    familyId: number,
+    deceasedId: number,
+    tributeId: number,
+  ): Promise<void> {
+    await db('memoriam_tributes')
+      .where({
+        id: tributeId,
+        family_id: familyId,
+        deceased_person_id: deceasedId,
+      })
+      .whereNull('deleted_at')
+      .update({ deleted_at: db.fn.now() });
+  }
+
+  private async syncPhotos(
+    trx: typeof db,
+    tributeId: number,
+    photoUrls: string[],
+  ): Promise<void> {
+    await trx('memoriam_tribute_photos').where({ tribute_id: tributeId }).del();
+    if (photoUrls.length === 0) {
+      return;
+    }
+    await trx('memoriam_tribute_photos').insert(
+      photoUrls.map((photoUrl, index) => ({
+        tribute_id: tributeId,
+        photo_url: photoUrl,
+        sort_order: index,
+      })),
+    );
   }
 
   async findPrayers(familyId: number, deceasedId: number): Promise<PrayerRow[]> {

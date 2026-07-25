@@ -82,7 +82,7 @@ export class EventsController {
   async remove(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const eventId = parseEventId(req.params.id);
-      await eventsService.remove(req.auth!.familyId, eventId);
+      await eventsService.remove(req.auth!.familyId, req.auth!.personId, eventId);
       sendData(res, { deleted: true });
     } catch (error) {
       next(error);

@@ -50,6 +50,27 @@ export class AuthRepository {
     return rows.map((row) => (row.person_id_a === personId ? row.person_id_b : row.person_id_a));
   }
 
+  async findPersonsByIds(personIds: number[]): Promise<PersonAuthRow[]> {
+    if (personIds.length === 0) {
+      return [];
+    }
+
+    return db('persons as p')
+      .leftJoin('person_details as d', 'd.person_id', 'p.id')
+      .whereIn('p.id', personIds)
+      .whereNull('p.deleted_at')
+      .select<PersonAuthRow[]>([
+        'p.id',
+        'p.family_id',
+        'p.full_name',
+        'p.nickname',
+        'p.gender',
+        'p.birth_date',
+        'p.status',
+        'd.photo_url',
+      ]);
+  }
+
   async insertRefreshToken(input: {
     personId: number;
     tokenHash: string;

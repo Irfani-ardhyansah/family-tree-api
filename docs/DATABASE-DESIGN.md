@@ -181,6 +181,8 @@ Setting v1:
 
 Resolusi fokus baca di middleware: `?focusPersonId=` (override) → `person_options` → default JWT sub.
 
+**First login / GET /me:** otomatis insert `readFocusPersonId = person.id` jika belum ada.
+
 API: `GET/PATCH /api/v1/auth/me/options`
 
 ---

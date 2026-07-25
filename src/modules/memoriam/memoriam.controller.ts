@@ -12,6 +12,14 @@ function parseDeceasedId(raw: string): number {
   return deceasedId;
 }
 
+function parseTributeId(raw: string): number {
+  const tributeId = Number(raw);
+  if (!Number.isInteger(tributeId) || tributeId <= 0) {
+    throw new AppError(400, ErrorCodes.TRIBUTE_VALIDATION_FAILED, 'ID tribute tidak valid.');
+  }
+  return tributeId;
+}
+
 function requireReadFocus(req: Request): NonNullable<Request['readFocus']> {
   if (!req.readFocus) {
     throw new AppError(500, ErrorCodes.INTERNAL_ERROR, 'Read focus context belum di-resolve.');
@@ -75,6 +83,41 @@ export class MemoriamController {
         req.body,
       );
       sendData(res, data, 201);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async updateTribute(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const deceasedId = parseDeceasedId(req.params.deceasedId);
+      const tributeId = parseTributeId(req.params.tributeId);
+      const data = await memoriamService.updateTribute(
+        req.auth!.familyId,
+        req.auth!.personId,
+        deceasedId,
+        tributeId,
+        requireReadFocus(req),
+        req.body,
+      );
+      sendData(res, data);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async removeTribute(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const deceasedId = parseDeceasedId(req.params.deceasedId);
+      const tributeId = parseTributeId(req.params.tributeId);
+      await memoriamService.removeTribute(
+        req.auth!.familyId,
+        req.auth!.personId,
+        deceasedId,
+        tributeId,
+        requireReadFocus(req),
+      );
+      sendData(res, { deleted: true });
     } catch (error) {
       next(error);
     }

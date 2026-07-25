@@ -102,6 +102,25 @@ export class PersonOptionsService {
   }
 
   /**
+   * Set readFocusPersonId = diri sendiri jika belum pernah disimpan (first login / legacy user).
+   */
+  async ensureDefaultReadFocusPersonId(personId: number): Promise<void> {
+    const existing = await personOptionsRepository.findByPersonAndSetting(
+      personId,
+      PersonOptionSetting.READ_FOCUS_PERSON_ID,
+    );
+    if (existing) {
+      return;
+    }
+
+    await personOptionsRepository.upsert(
+      personId,
+      PersonOptionSetting.READ_FOCUS_PERSON_ID,
+      String(personId),
+    );
+  }
+
+  /**
    * Resolve fokus baca dari person_options.
    * Returns undefined jika belum pernah diset (caller default ke viewerId).
    */

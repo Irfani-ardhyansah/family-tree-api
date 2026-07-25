@@ -4,9 +4,12 @@ import morgan from 'morgan';
 import { createCorsMiddleware } from './config/cors';
 import { env } from './config/env';
 import authRoutes from './modules/auth/auth.routes';
+import dashboardRoutes from './modules/dashboard/dashboard.routes';
 import eventsRoutes from './modules/events/events.routes';
 import healthRoutes from './modules/health/health.routes';
 import logsRoutes from './modules/logs/logs.routes';
+import mediaRoutes from './modules/media/media.routes';
+import { mediaStorage } from './modules/media/media.storage';
 import memoriamRoutes from './modules/memoriam/memoriam.routes';
 import personsRoutes from './modules/persons/persons.routes';
 import { errorHandler, notFoundHandler } from './shared/errors/errorHandler';
@@ -23,7 +26,11 @@ export function createApp() {
   const app = express();
 
   app.set('trust proxy', true);
-  app.use(helmet());
+  app.use(
+    helmet({
+      crossOriginResourcePolicy: { policy: 'cross-origin' },
+    }),
+  );
   app.use(createCorsMiddleware());
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));
@@ -35,6 +42,13 @@ export function createApp() {
   if (!env.isProduction) {
     app.use(morgan('dev'));
   }
+
+  // Public media files (local disk adapter). URLs: MEDIA_PUBLIC_BASE_URL/{storageKey}
+  void mediaStorage.ensureReady();
+  app.use('/media', express.static(mediaStorage.getStaticRoot(), {
+    fallthrough: true,
+    maxAge: env.isProduction ? '7d' : 0,
+  }));
 
   app.get('/', (_req, res) => {
     res.status(200).json({
@@ -51,6 +65,8 @@ export function createApp() {
   app.use('/api/v1/persons', personsRoutes);
   app.use('/api/v1/events', eventsRoutes);
   app.use('/api/v1/memoriam', memoriamRoutes);
+  app.use('/api/v1/media', mediaRoutes);
+  app.use('/api/v1/dashboard', dashboardRoutes);
 
   app.use(notFoundHandler);
   app.use(errorHandler);

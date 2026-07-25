@@ -160,14 +160,32 @@ Content-Type: application/json
     "person": {
       "id": 83,
       "fullName": "Mochamad Irfani Ardhyansah",
-      "nickname": null,
+      "nickname": "Kamu",
       "gender": "male",
       "birthDate": "1999-03-21",
       "status": "alive",
       "photoUrl": null,
       "isMarried": true,
       "isLegal": true,
-      "spouseIds": [84]
+      "spouseIds": [84],
+      "allowedFocusPersons": [
+        {
+          "id": 83,
+          "fullName": "Mochamad Irfani Ardhyansah",
+          "nickname": "Kamu",
+          "gender": "male",
+          "photoUrl": null,
+          "relation": "self"
+        },
+        {
+          "id": 84,
+          "fullName": "Siti Aminah",
+          "nickname": "Aminah",
+          "gender": "female",
+          "photoUrl": null,
+          "relation": "spouse"
+        }
+      ]
     }
   }
 }
@@ -181,6 +199,7 @@ Content-Type: application/json
 | `isMarried` | `true` jika punya pasangan aktif di `person_spouses` |
 | `isLegal` | `true` jika usia **di atas 17 tahun** (≥ 18, birthday sudah lewat) |
 | `spouseIds` | ID pasangan — untuk pivot pohon (fokus ke diri vs pasangan). Kosong `[]` jika belum menikah |
+| `allowedFocusPersons` | Self + pasangan yang diizinkan jadi fokus baca (nama/nickname/photo). Pakai untuk label switcher navbar tanpa menunggu `GET /persons`. Belum menikah → hanya `relation: "self"` |
 
 ### Penyimpanan token (rekomendasi)
 
@@ -200,7 +219,7 @@ Ganti session mock (`familyroots_auth`, `familyroots_auth_user`) dengan pasangan
   "data": {
     "id": 83,
     "fullName": "Mochamad Irfani Ardhyansah",
-    "nickname": null,
+    "nickname": "Kamu",
     "gender": "male",
     "birthDate": "1999-03-21",
     "status": "alive",
@@ -208,16 +227,36 @@ Ganti session mock (`familyroots_auth`, `familyroots_auth_user`) dengan pasangan
     "isMarried": true,
     "isLegal": true,
     "spouseIds": [84],
-    "familyId": 1
+    "familyId": 1,
+    "readFocusPersonId": 83,
+    "allowedFocusPersonIds": [83, 84],
+    "allowedFocusPersons": [
+      {
+        "id": 83,
+        "fullName": "Mochamad Irfani Ardhyansah",
+        "nickname": "Kamu",
+        "gender": "male",
+        "photoUrl": null,
+        "relation": "self"
+      },
+      {
+        "id": 84,
+        "fullName": "Siti Aminah",
+        "nickname": "Aminah",
+        "gender": "female",
+        "photoUrl": null,
+        "relation": "spouse"
+      }
+    ]
   }
 }
 ```
 
-Field `isMarried`, `isLegal`, `spouseIds` sama seperti response login.
+Field `isMarried`, `isLegal`, `spouseIds`, `allowedFocusPersons` sama seperti response login. `allowedFocusPersons` sinkron dengan `allowedFocusPersonIds` (self dulu, lalu spouse).
 
 Pakai saat app boot / refresh halaman untuk restore session.
 
-**Pivot pohon (FE):** jika `isMarried`, tawarkan anchor `person.id` (diri) atau `spouseIds[0]` (pasangan utama).
+**Pivot pohon (FE):** map `allowedFocusPersons` ke label switcher fokus (nickname || fullName). Fallback ke lookup `/persons` hanya jika field belum ada (client lama).
 
 ### `POST /api/v1/auth/refresh`
 
@@ -305,6 +344,8 @@ Resolusi fokus (middleware), **prioritas**:
 2. **`person_options`** — setting `readFocusPersonId` (disimpan via `PATCH /auth/me/options`)
 3. Default → user login (JWT sub)
 
+**First login:** BE otomatis set `readFocusPersonId` = id user jika belum ada di `person_options`.
+
 **Simpan preferensi (toggle navbar Saya / Pasangan):**
 
 ```http
@@ -320,7 +361,7 @@ Content-Type: application/json
 
 **201/200:** `{ "data": { "options": { "readFocusPersonId": "84" } } }`
 
-`GET /auth/me` juga mengembalikan `readFocusPersonId` + `allowedFocusPersonIds`.
+`GET /auth/me` juga mengembalikan `readFocusPersonId` + `allowedFocusPersonIds` + `allowedFocusPersons`.
 
 Setelah PATCH, FE **tidak wajib** kirim `?focusPersonId=` di setiap API — BE baca dari DB.
 
@@ -741,7 +782,7 @@ Setiap hit API (kecuali health & logs) juga tercatat di `app_logs` via middlewar
 | `GET /events*` | `event.read` |
 | `POST/PATCH/DELETE /events*` | `event.create` / `update` / `delete` |
 | `GET /memoriam*` | `memorial.read` |
-| `POST .../tributes` | `memorial.tribute.create` |
+| `POST/PATCH/DELETE .../tributes*` | `memorial.tribute.create` / `update` / `delete` |
 | `POST .../prayers` | `memorial.prayer.create` |
 
 ---
@@ -839,6 +880,15 @@ export type PersonListResponse = ReadFocusMeta & {
 
 export type PersonReadResponse = ReadFocusMeta & Person;
 
+export type AllowedFocusPerson = {
+  id: number;
+  fullName: string;
+  nickname: string | null;
+  gender: Gender;
+  photoUrl: string | null;
+  relation: 'self' | 'spouse';
+};
+
 export type AuthPersonSummary = {
   id: number;
   fullName: string;
@@ -850,6 +900,7 @@ export type AuthPersonSummary = {
   isMarried: boolean;
   isLegal: boolean;
   spouseIds: number[];
+  allowedFocusPersons: AllowedFocusPerson[];
 };
 
 export type LoginResponse = {
@@ -859,7 +910,11 @@ export type LoginResponse = {
   person: AuthPersonSummary;
 };
 
-export type AuthMeResponse = AuthPersonSummary & { familyId: number };
+export type AuthMeResponse = AuthPersonSummary & {
+  familyId: number;
+  readFocusPersonId: number;
+  allowedFocusPersonIds: number[];
+};
 
 export type RefreshResponse = {
   accessToken: string;

@@ -10,6 +10,11 @@ export function isRestrictedEvent(attendeeIds: number[]): boolean {
   return attendeeIds.length > 0;
 }
 
+/** Update/delete event hanya boleh creator. */
+export function canManageEvent(createdByPersonId: number, viewerPersonId: number): boolean {
+  return createdByPersonId === viewerPersonId;
+}
+
 /** Event tampil di list jika personIds kosong atau ada overlap dengan visible subgraph. */
 export function isEventVisibleInPerspective(
   personIds: number[],

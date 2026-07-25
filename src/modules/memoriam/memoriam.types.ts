@@ -27,17 +27,24 @@ export type DeceasedDetailResponse = ReadFocusMeta & {
 
 export type TributeItem = {
   id: number;
+  deceasedId: number;
   content: string;
   authorId: number;
   authorName: string;
   photoUrls: string[];
   createdAt: string;
-  updatedAt: string | null;
+  updatedAt: string;
+  canManage: boolean;
 };
 
 export type TributeListResponse = ReadFocusMeta & {
   selfPersonId: number;
   tributes: TributeItem[];
+};
+
+export type TributeDetailResponse = ReadFocusMeta & {
+  selfPersonId: number;
+  tribute: TributeItem;
 };
 
 export type PrayerItem = {
@@ -60,6 +67,7 @@ export type PrayerMeResponse = ReadFocusMeta & {
 export type CreateTributeInput = {
   content: string;
   photoUrls: string[];
+  mediaIds: string[];
 };
 
 export type TributeRow = {

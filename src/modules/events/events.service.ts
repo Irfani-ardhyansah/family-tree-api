@@ -1,11 +1,17 @@
 import { AppError } from '../../shared/errors/AppError';
 import { ErrorCodes } from '../../shared/errors/errorCodes';
 import { formatBirthDate } from '../auth/auth.mapper';
+import {
+  attachResolvedMedia,
+  resolvePendingPhotos,
+} from '../media/media.attach.service';
+import { MAX_PHOTOS_BY_PURPOSE } from '../media/media.constants';
 import { getVisiblePersonIds } from '../persons/perspective-subgraph.service';
 import { personsRepository } from '../persons/persons.repository';
 import { ReadFocusMeta } from '../persons/persons.types';
 import {
   canAccessEvent,
+  canManageEvent,
   isEventVisibleInPerspective,
   isRestrictedEvent,
 } from './event-access.service';
@@ -145,6 +151,9 @@ function validateUpsertInput(input: unknown): UpsertEventInput {
   const photoUrls = Array.isArray(body.photoUrls)
     ? body.photoUrls.filter((url): url is string => typeof url === 'string' && url.length > 0)
     : [];
+  const mediaIds = Array.isArray(body.mediaIds)
+    ? body.mediaIds.filter((id): id is string => typeof id === 'string' && id.length > 0)
+    : [];
 
   return {
     title: body.title.trim(),
@@ -155,6 +164,7 @@ function validateUpsertInput(input: unknown): UpsertEventInput {
     description: typeof body.description === 'string' ? body.description : null,
     personIds,
     photoUrls,
+    mediaIds,
     attendeeIds,
   };
 }
@@ -165,16 +175,31 @@ function validateContributionInput(input: unknown): CreateContributionInput {
   }
 
   const body = input as Record<string, unknown>;
-  if (typeof body.photoUrl !== 'string' || body.photoUrl.trim().length === 0) {
+  const photoUrl =
+    typeof body.photoUrl === 'string' && body.photoUrl.trim().length > 0
+      ? body.photoUrl.trim()
+      : undefined;
+  const mediaId =
+    typeof body.mediaId === 'string' && body.mediaId.trim().length > 0
+      ? body.mediaId.trim()
+      : undefined;
+  const mediaIds = Array.isArray(body.mediaIds)
+    ? body.mediaIds.filter((id): id is string => typeof id === 'string' && id.length > 0)
+    : mediaId
+      ? [mediaId]
+      : [];
+
+  if (!photoUrl && mediaIds.length === 0) {
     throw new AppError(
       400,
       ErrorCodes.CONTRIBUTION_VALIDATION_FAILED,
-      'URL foto kontribusi wajib diisi.',
+      'mediaIds / mediaId / photoUrl wajib diisi.',
     );
   }
 
   return {
-    photoUrl: body.photoUrl.trim(),
+    photoUrl,
+    mediaIds,
     caption: typeof body.caption === 'string' ? body.caption : null,
   };
 }
@@ -216,6 +241,8 @@ function mapEventRow(
     })),
     isRestricted: restricted,
     canAccess: access,
+    createdById: row.created_by_person_id,
+    canManage: canManageEvent(row.created_by_person_id, viewerPersonId),
   };
 }
 
@@ -349,8 +376,34 @@ export class EventsService {
     const data = validateUpsertInput(input);
     await this.assertPersonIdsInFamily(familyId, [...data.personIds ?? [], ...data.attendeeIds ?? []]);
 
-    const eventId = await eventsRepository.create(familyId, viewerId, data);
+    const resolved = await resolvePendingPhotos({
+      uploaderPersonId: viewerId,
+      purpose: 'event',
+      mediaIds: data.mediaIds,
+      photoUrls: data.photoUrls,
+      maxCount: MAX_PHOTOS_BY_PURPOSE.event,
+    });
+
+    const eventId = await eventsRepository.create(familyId, viewerId, {
+      ...data,
+      photoUrls: resolved.photoUrls,
+    });
+    await attachResolvedMedia({
+      mediaIds: resolved.mediaIds,
+      purpose: 'event',
+      attachedToId: String(eventId),
+    });
     return this.getById(familyId, viewerId, eventId, readFocus);
+  }
+
+  private assertCanManageEvent(existing: EventRow, viewerId: number): void {
+    if (!canManageEvent(existing.created_by_person_id, viewerId)) {
+      throw new AppError(
+        403,
+        ErrorCodes.EVENT_MANAGE_FORBIDDEN,
+        'Hanya pembuat acara yang boleh mengubah atau menghapus.',
+      );
+    }
   }
 
   async update(
@@ -364,18 +417,37 @@ export class EventsService {
     if (!existing) {
       throw new AppError(404, ErrorCodes.EVENT_NOT_FOUND, 'Acara tidak ditemukan.');
     }
+    this.assertCanManageEvent(existing, viewerId);
 
     const data = validateUpsertInput(input);
     await this.assertPersonIdsInFamily(familyId, [...data.personIds ?? [], ...data.attendeeIds ?? []]);
-    await eventsRepository.update(familyId, eventId, data);
+
+    const resolved = await resolvePendingPhotos({
+      uploaderPersonId: viewerId,
+      purpose: 'event',
+      mediaIds: data.mediaIds,
+      photoUrls: data.photoUrls,
+      maxCount: MAX_PHOTOS_BY_PURPOSE.event,
+    });
+
+    await eventsRepository.update(familyId, eventId, {
+      ...data,
+      photoUrls: resolved.photoUrls,
+    });
+    await attachResolvedMedia({
+      mediaIds: resolved.mediaIds,
+      purpose: 'event',
+      attachedToId: String(eventId),
+    });
     return this.getById(familyId, viewerId, eventId, readFocus);
   }
 
-  async remove(familyId: number, eventId: number): Promise<void> {
+  async remove(familyId: number, viewerId: number, eventId: number): Promise<void> {
     const existing = await eventsRepository.findById(familyId, eventId);
     if (!existing) {
       throw new AppError(404, ErrorCodes.EVENT_NOT_FOUND, 'Acara tidak ditemukan.');
     }
+    this.assertCanManageEvent(existing, viewerId);
     await eventsRepository.softDelete(familyId, eventId);
   }
 
@@ -402,7 +474,35 @@ export class EventsService {
     }
 
     const data = validateContributionInput(input);
-    await eventsRepository.insertContribution(eventId, viewerId, data.photoUrl, data.caption ?? null);
+    const resolved = await resolvePendingPhotos({
+      uploaderPersonId: viewerId,
+      purpose: 'event_contribution',
+      mediaIds: data.mediaIds,
+      photoUrls: data.photoUrl ? [data.photoUrl] : [],
+      maxCount: MAX_PHOTOS_BY_PURPOSE.event_contribution,
+      requireAtLeastOne: true,
+      requireManaged: true,
+      emptyErrorCode: ErrorCodes.CONTRIBUTION_VALIDATION_FAILED,
+      emptyErrorMessage: 'mediaIds / mediaId / photoUrl wajib diisi.',
+    });
+
+    for (const [index, photoUrl] of resolved.photoUrls.entries()) {
+      const contributionId = await eventsRepository.insertContribution(
+        eventId,
+        viewerId,
+        photoUrl,
+        data.caption ?? null,
+      );
+      const mediaId = resolved.mediaIds[index];
+      if (mediaId) {
+        await attachResolvedMedia({
+          mediaIds: [mediaId],
+          purpose: 'event_contribution',
+          attachedToId: String(contributionId),
+        });
+      }
+    }
+
     return this.getById(familyId, viewerId, eventId, readFocus);
   }
 }

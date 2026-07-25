@@ -74,7 +74,9 @@ Body: `{ "address": { ... } }`
 | Topik | Keputusan |
 |-------|-----------|
 | List restricted event | **Tampil** di list dengan `isRestricted: true`, `canAccess: false`; detail → `403 EVENT_ACCESS_FORBIDDEN` |
-| CRUD event | **Semua member login** (tanpa gate `isLegal`) |
+| Create event | **Semua member login** (tanpa gate `isLegal`); `createdById` = JWT `selfPersonId` |
+| Update / Delete event | **Hanya creator** (`createdById === selfPersonId`) → selain itu `403 EVENT_MANAGE_FORBIDDEN` |
+| Flag UI | Response event punya `createdById` + `canManage` |
 | Kontribusi | Hanya jika `canAccessEvent` |
 
 ### Akses
@@ -108,6 +110,7 @@ Filter list: `type`, `year`, `month`, `dateFrom`, `dateTo`, `q`, `page`, `limit`
 |------|------|
 | `EVENT_NOT_FOUND` | 404 |
 | `EVENT_ACCESS_FORBIDDEN` | 403 |
+| `EVENT_MANAGE_FORBIDDEN` | 403 |
 | `EVENT_VALIDATION_FAILED` | 400 |
 | `CONTRIBUTION_VALIDATION_FAILED` | 400 |
 
@@ -130,6 +133,14 @@ isDeceasedVisibleInPerspective(deceasedId, focusPersonId, visibleSubgraph, graph
 
 Tribute: HTML disanitasi server-side (tag aman: `p`, `br`, `strong`, `em`, `ul`, `ol`, `li`). Max **8 foto** per tribute.
 
+| Topik | Keputusan |
+|-------|-----------|
+| Create tribute | Author = JWT `selfPersonId` |
+| Update / Delete tribute | **Hanya author** (`authorId === selfPersonId`) → selain itu `403 TRIBUTE_MANAGE_FORBIDDEN` |
+| Media PATCH | **Replace-all** dari `mediaIds` / `photoUrls` final yang dikirim FE |
+| Flag UI | Tribute punya `canManage` (+ `deceasedId`, `updatedAt`) |
+| POST create response | **Single** `{ tribute }` (bukan full list) |
+
 Prayer: idempotent `UNIQUE(deceased_person_id, author_person_id)` — `POST` → `201` baru, `200` jika sudah ada.
 
 ### Endpoints
@@ -140,6 +151,8 @@ Prayer: idempotent `UNIQUE(deceased_person_id, author_person_id)` — `POST` →
 | GET | `/api/v1/memoriam/:deceasedId?focusPersonId={id}` |
 | GET | `/api/v1/memoriam/:deceasedId/tributes?focusPersonId={id}` |
 | POST | `/api/v1/memoriam/:deceasedId/tributes?focusPersonId={id}` |
+| PATCH | `/api/v1/memoriam/:deceasedId/tributes/:tributeId?focusPersonId={id}` |
+| DELETE | `/api/v1/memoriam/:deceasedId/tributes/:tributeId?focusPersonId={id}` |
 | GET | `/api/v1/memoriam/:deceasedId/prayers?focusPersonId={id}` |
 | POST | `/api/v1/memoriam/:deceasedId/prayers?focusPersonId={id}` |
 | GET | `/api/v1/memoriam/:deceasedId/prayers/me?focusPersonId={id}` |
@@ -152,6 +165,8 @@ Filter list deceased: `q`, `deathYear`.
 |------|------|
 | `MEMORIAL_ACCESS_FORBIDDEN` | 403 |
 | `MEMORIAL_NOT_DECEASED` | 400 |
+| `TRIBUTE_NOT_FOUND` | 404 |
+| `TRIBUTE_MANAGE_FORBIDDEN` | 403 |
 | `TRIBUTE_VALIDATION_FAILED` | 400 |
 
 ---
@@ -205,5 +220,5 @@ Hit API modul ini otomatis masuk `app_logs`:
 | `GET /events*` | `event.read` |
 | Mutasi events | `event.create` / `update` / `delete` / `contribution.create` |
 | `GET /memoriam*` | `memorial.read` |
-| `POST .../tributes` | `memorial.tribute.create` |
+| Mutasi tributes | `memorial.tribute.create` / `update` / `delete` |
 | `POST .../prayers` | `memorial.prayer.create` |

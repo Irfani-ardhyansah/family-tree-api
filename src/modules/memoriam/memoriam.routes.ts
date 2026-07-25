@@ -19,6 +19,22 @@ memoriamRoutes.post('/:deceasedId/tributes', resolveReadFocusMiddleware, (req, r
   void memoriamController.createTribute(req, res, next);
 });
 
+memoriamRoutes.patch(
+  '/:deceasedId/tributes/:tributeId',
+  resolveReadFocusMiddleware,
+  (req, res, next) => {
+    void memoriamController.updateTribute(req, res, next);
+  },
+);
+
+memoriamRoutes.delete(
+  '/:deceasedId/tributes/:tributeId',
+  resolveReadFocusMiddleware,
+  (req, res, next) => {
+    void memoriamController.removeTribute(req, res, next);
+  },
+);
+
 memoriamRoutes.get('/:deceasedId/prayers/me', resolveReadFocusMiddleware, (req, res, next) => {
   void memoriamController.getPrayerMe(req, res, next);
 });

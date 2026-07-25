@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   canAccessEvent,
+  canManageEvent,
   isEventVisibleInPerspective,
   isRestrictedEvent,
 } from './event-access.service';
@@ -15,6 +16,11 @@ describe('event-access.service', () => {
     expect(canAccessEvent([83], 83)).toBe(true);
     expect(canAccessEvent([83], 84)).toBe(false);
     expect(isRestrictedEvent([83])).toBe(true);
+  });
+
+  it('allows manage only for the creator', () => {
+    expect(canManageEvent(83, 83)).toBe(true);
+    expect(canManageEvent(83, 84)).toBe(false);
   });
 
   it('shows general events without personIds in any perspective', () => {

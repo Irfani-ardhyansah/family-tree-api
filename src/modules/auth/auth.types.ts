@@ -1,3 +1,13 @@
+/** Ringkas untuk switcher fokus navbar (self + pasangan yang diizinkan). */
+export type AllowedFocusPerson = {
+  id: number;
+  fullName: string;
+  nickname: string | null;
+  gender: 'male' | 'female';
+  photoUrl: string | null;
+  relation: 'self' | 'spouse';
+};
+
 export type AuthPersonSummary = {
   id: number;
   fullName: string;
@@ -9,6 +19,8 @@ export type AuthPersonSummary = {
   isMarried: boolean;
   isLegal: boolean;
   spouseIds: number[];
+  /** Sinkron dengan allowedFocusPersonIds — self dulu, lalu pasangan. */
+  allowedFocusPersons: AllowedFocusPerson[];
 };
 
 export type AuthMeBase = AuthPersonSummary & {

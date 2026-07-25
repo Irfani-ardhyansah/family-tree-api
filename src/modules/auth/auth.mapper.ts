@@ -1,4 +1,5 @@
-import { AuthMeBase, AuthPersonSummary, PersonAuthRow } from './auth.types';
+import { getAllowedReadFocusPersonIds } from '../persons/read-focus.service';
+import { AllowedFocusPerson, AuthMeBase, AuthPersonSummary, PersonAuthRow } from './auth.types';
 
 export function formatBirthDate(value: Date | string): string {
   if (value instanceof Date) {
@@ -29,7 +30,53 @@ export function isLegalAge(birthDate: string, asOf: Date = new Date()): boolean 
   return age > 17;
 }
 
-export function toAuthPersonSummary(row: PersonAuthRow, spouseIds: number[] = []): AuthPersonSummary {
+export function toAllowedFocusPerson(
+  row: PersonAuthRow,
+  relation: 'self' | 'spouse',
+): AllowedFocusPerson {
+  return {
+    id: row.id,
+    fullName: row.full_name,
+    nickname: row.nickname,
+    gender: row.gender,
+    photoUrl: row.photo_url,
+    relation,
+  };
+}
+
+/**
+ * Sinkron dengan allowedFocusPersonIds: self dulu, lalu pasangan yang diizinkan.
+ * Pasangan yang tidak ketemu di DB di-skip (edge case soft-delete race).
+ */
+export function buildAllowedFocusPersons(
+  self: PersonAuthRow,
+  spouseIds: number[],
+  spouseRows: PersonAuthRow[],
+): AllowedFocusPerson[] {
+  const byId = new Map(spouseRows.map((row) => [row.id, row]));
+  const allowedIds = getAllowedReadFocusPersonIds(self.id, spouseIds);
+  const result: AllowedFocusPerson[] = [];
+
+  for (const id of allowedIds) {
+    if (id === self.id) {
+      result.push(toAllowedFocusPerson(self, 'self'));
+      continue;
+    }
+
+    const spouse = byId.get(id);
+    if (spouse) {
+      result.push(toAllowedFocusPerson(spouse, 'spouse'));
+    }
+  }
+
+  return result;
+}
+
+export function toAuthPersonSummary(
+  row: PersonAuthRow,
+  spouseIds: number[] = [],
+  spouseRows: PersonAuthRow[] = [],
+): AuthPersonSummary {
   const birthDate = formatBirthDate(row.birth_date);
 
   return {
@@ -43,12 +90,17 @@ export function toAuthPersonSummary(row: PersonAuthRow, spouseIds: number[] = []
     isMarried: spouseIds.length > 0,
     isLegal: isLegalAge(birthDate),
     spouseIds,
+    allowedFocusPersons: buildAllowedFocusPersons(row, spouseIds, spouseRows),
   };
 }
 
-export function toAuthMeResponse(row: PersonAuthRow, spouseIds: number[] = []): AuthMeBase {
+export function toAuthMeResponse(
+  row: PersonAuthRow,
+  spouseIds: number[] = [],
+  spouseRows: PersonAuthRow[] = [],
+): AuthMeBase {
   return {
-    ...toAuthPersonSummary(row, spouseIds),
+    ...toAuthPersonSummary(row, spouseIds, spouseRows),
     familyId: row.family_id,
   };
 }

@@ -3,6 +3,11 @@ import { ErrorCodes } from '../../shared/errors/errorCodes';
 import { authRepository } from '../auth/auth.repository';
 import { isLegalAge, formatBirthDate } from '../auth/auth.mapper';
 import {
+  attachResolvedMedia,
+  resolvePendingPhotos,
+} from '../media/media.attach.service';
+import { MAX_PHOTOS_BY_PURPOSE } from '../media/media.constants';
+import {
   collectFocusBranchIds,
   computeMaxAncestorDepth,
   filterRowsByBranch,
@@ -20,6 +25,7 @@ import {
   getVisiblePersonIds,
   PERSPECTIVE_VIEW_DEFAULTS,
 } from './perspective-subgraph.service';
+import { assertParentBornBeforeChild } from './person-parent-validation.service';
 import { mapPersonRowToResponse, personsRepository } from './persons.repository';
 import {
   CLIENT_FILTER_RECOMMEND_THRESHOLD,
@@ -77,6 +83,10 @@ function validateUpsertInput(input: unknown): UpsertPersonInput {
     status: (body.status as 'alive' | 'deceased' | undefined) ?? 'alive',
     religion: body.religion === 'islam' || body.religion === 'other' ? body.religion : null,
     photoUrl: typeof body.photoUrl === 'string' ? body.photoUrl : null,
+    mediaId:
+      typeof body.mediaId === 'string' && body.mediaId.trim().length > 0
+        ? body.mediaId.trim()
+        : null,
     occupation: typeof body.occupation === 'string' ? body.occupation : null,
     phone: typeof body.phone === 'string' ? body.phone : null,
     phoneAlt: typeof body.phoneAlt === 'string' ? body.phoneAlt : null,
@@ -291,11 +301,43 @@ export class PersonsService {
     };
   }
 
+  private async resolvePersonPhoto(
+    viewerId: number,
+    data: UpsertPersonInput,
+  ): Promise<{ photoUrl: string | null; mediaIds: string[] }> {
+    if (!data.mediaId && !data.photoUrl) {
+      return { photoUrl: data.photoUrl ?? null, mediaIds: [] };
+    }
+
+    const resolved = await resolvePendingPhotos({
+      uploaderPersonId: viewerId,
+      purpose: 'person',
+      mediaIds: data.mediaId ? [data.mediaId] : [],
+      photoUrls: data.photoUrl ? [data.photoUrl] : [],
+      maxCount: MAX_PHOTOS_BY_PURPOSE.person,
+    });
+
+    return {
+      photoUrl: resolved.photoUrls[0] ?? null,
+      mediaIds: resolved.mediaIds,
+    };
+  }
+
   async create(familyId: number, viewerId: number, input: unknown): Promise<PersonReadResponse> {
     const data = validateUpsertInput(input);
     await this.assertRelatedPersonsInFamily(familyId, data);
 
-    const personId = await personsRepository.createPerson(familyId, data);
+    const photo = await this.resolvePersonPhoto(viewerId, data);
+    const personId = await personsRepository.createPerson(familyId, {
+      ...data,
+      photoUrl: photo.photoUrl,
+    });
+    await attachResolvedMedia({
+      mediaIds: photo.mediaIds,
+      purpose: 'person',
+      attachedToId: String(personId),
+    });
+
     const readFocus = await this.defaultReadFocus(viewerId);
     return this.getById(familyId, viewerId, personId, readFocus);
   }
@@ -312,9 +354,19 @@ export class PersonsService {
     }
 
     const data = validateUpsertInput(input);
-    await this.assertRelatedPersonsInFamily(familyId, data);
+    await this.assertRelatedPersonsInFamily(familyId, data, personId);
 
-    await personsRepository.updatePerson(familyId, personId, data);
+    const photo = await this.resolvePersonPhoto(viewerId, data);
+    await personsRepository.updatePerson(familyId, personId, {
+      ...data,
+      photoUrl: photo.photoUrl,
+    });
+    await attachResolvedMedia({
+      mediaIds: photo.mediaIds,
+      purpose: 'person',
+      attachedToId: String(personId),
+    });
+
     const readFocus = await this.defaultReadFocus(viewerId);
     return this.getById(familyId, viewerId, personId, readFocus);
   }
@@ -444,16 +496,47 @@ export class PersonsService {
   private async assertRelatedPersonsInFamily(
     familyId: number,
     input: UpsertPersonInput,
+    selfPersonId?: number,
   ): Promise<void> {
-    const relatedIds = [
-      input.fatherId,
-      input.motherId,
-      ...(input.spouseIds ?? []),
-    ].filter((id): id is number => typeof id === 'number');
+    if (selfPersonId !== undefined) {
+      if (input.fatherId === selfPersonId || input.motherId === selfPersonId) {
+        throw new AppError(
+          400,
+          ErrorCodes.PERSON_VALIDATION_FAILED,
+          'Person tidak boleh menjadi ayah atau ibu dirinya sendiri.',
+        );
+      }
+    }
 
-    for (const relatedId of relatedIds) {
-      const related = await personsRepository.findById(familyId, relatedId);
-      if (!related) {
+    const parentChecks: Array<{ id: number | null | undefined; role: 'ayah' | 'ibu' }> = [
+      { id: input.fatherId, role: 'ayah' },
+      { id: input.motherId, role: 'ibu' },
+    ];
+
+    for (const { id, role } of parentChecks) {
+      if (typeof id !== 'number') {
+        continue;
+      }
+
+      const parent = await personsRepository.findById(familyId, id);
+      if (!parent) {
+        throw new AppError(
+          400,
+          ErrorCodes.PERSON_VALIDATION_FAILED,
+          'Relasi person tidak valid atau di luar keluarga.',
+        );
+      }
+
+      assertParentBornBeforeChild(
+        input.birthDate,
+        formatBirthDate(parent.birth_date),
+        role,
+      );
+    }
+
+    for (const spouseId of input.spouseIds ?? []) {
+      const spouse = await personsRepository.findById(familyId, spouseId);
+      if (!spouse) {
         throw new AppError(
           400,
           ErrorCodes.PERSON_VALIDATION_FAILED,

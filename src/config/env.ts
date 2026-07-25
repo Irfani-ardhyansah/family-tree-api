@@ -63,4 +63,17 @@ export const env = {
   refreshTtlSessionSeconds: Number(optional('REFRESH_TTL_SESSION', '86400')),
   loginRateLimitMax: Number(optional('LOGIN_RATE_LIMIT_MAX', '10')),
   loginRateLimitWindowMs: Number(optional('LOGIN_RATE_LIMIT_WINDOW_MS', String(15 * 60 * 1000))),
+  media: {
+    /** Absolute or relative dir for uploaded files (local disk adapter). */
+    storageDir: optional('MEDIA_STORAGE_DIR', './uploads/media'),
+    /**
+     * Public base URL for `<img src>` (no trailing slash).
+     * Default serves via Express static at `/media`.
+     */
+    publicBaseUrl: optional('MEDIA_PUBLIC_BASE_URL', `http://localhost:${optional('PORT', '3000')}/media`),
+    maxFileBytes: Number(optional('MEDIA_MAX_FILE_BYTES', String(5 * 1024 * 1024))),
+    /** Pending media older than this are purged by the TTL job. */
+    pendingTtlMs: Number(optional('MEDIA_PENDING_TTL_MS', String(24 * 60 * 60 * 1000))),
+    ttlIntervalMs: Number(optional('MEDIA_TTL_INTERVAL_MS', String(60 * 60 * 1000))),
+  },
 } as const;

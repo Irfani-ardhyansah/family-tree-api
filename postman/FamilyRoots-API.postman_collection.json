@@ -67,7 +67,7 @@
               "raw": "{\n  \"code\": \"MR170845\",\n  \"remember\": true\n}"
             },
             "url": "{{baseUrl}}/api/v1/auth/login",
-            "description": "**Public** — login Mulyono Raka (demo-mr).\n\n| Field | Type | Required |\n|---|---|---|\n| code | string | yes |\n| remember | boolean | no (default false) |\n\n**200 OK**\n```json\n{\n  \"data\": {\n    \"accessToken\": \"...\",\n    \"refreshToken\": \"...\",\n    \"expiresIn\": 3600,\n    \"person\": {\n      \"id\": 95,\n      \"fullName\": \"Mulyono Raka\",\n      \"nickname\": null,\n      \"gender\": \"male\",\n      \"birthDate\": \"1945-08-17\",\n      \"status\": \"alive\",\n      \"photoUrl\": null,\n      \"isMarried\": false,\n      \"isLegal\": true,\n      \"spouseIds\": []\n    }\n  }\n}\n```\n\n**Errors:**\n- 400 `CODE_REQUIRED`\n- 400 `CODE_INVALID_FORMAT`\n- 401 `CODE_NOT_FOUND`\n- 429 `TOO_MANY_ATTEMPTS`"
+            "description": "**Public** — login Mulyono Raka (demo-mr).\n\n| Field | Type | Required |\n|---|---|---|\n| code | string | yes |\n| remember | boolean | no (default false) |\n\n**200 OK**\n```json\n{\n  \"data\": {\n    \"accessToken\": \"...\",\n    \"refreshToken\": \"...\",\n    \"expiresIn\": 3600,\n    \"person\": {\n      \"id\": 95,\n      \"fullName\": \"Mulyono Raka\",\n      \"nickname\": null,\n      \"gender\": \"male\",\n      \"birthDate\": \"1945-08-17\",\n      \"status\": \"alive\",\n      \"photoUrl\": null,\n      \"isMarried\": false,\n      \"isLegal\": true,\n      \"spouseIds\": [],\n      \"allowedFocusPersons\": [\n        {\n          \"id\": 95,\n          \"fullName\": \"Mulyono Raka\",\n          \"nickname\": null,\n          \"gender\": \"male\",\n          \"photoUrl\": null,\n          \"relation\": \"self\"\n        }\n      ]\n    }\n  }\n}\n```\n\n**Errors:**\n- 400 `CODE_REQUIRED`\n- 400 `CODE_INVALID_FORMAT`\n- 401 `CODE_NOT_FOUND`\n- 429 `TOO_MANY_ATTEMPTS`"
           }
         },
         {
@@ -124,7 +124,7 @@
             "method": "GET",
             "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
             "url": "{{baseUrl}}/api/v1/auth/me",
-            "description": "**Auth required** — includes `readFocusPersonId`, `allowedFocusPersonIds`, `spouseIds`, `isMarried`, `isLegal`.\n\n**401** `UNAUTHORIZED` tanpa/invalid token"
+            "description": "**Auth required** — includes `readFocusPersonId`, `allowedFocusPersonIds`, `allowedFocusPersons` (self + spouse for navbar switcher), `spouseIds`, `isMarried`, `isLegal`.\n\n**401** `UNAUTHORIZED` tanpa/invalid token"
           }
         },
         {
@@ -448,6 +448,20 @@
         },
         {
           "name": "Create person",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  const json = pm.response.json();",
+                  "  pm.environment.set('createdPersonId', String(json.data.id));",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "request": {
             "method": "POST",
             "header": [
@@ -456,10 +470,10 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"fullName\": \"Anak Baru Demo\",\n  \"gender\": \"male\",\n  \"birthDate\": \"2026-01-01\",\n  \"status\": \"alive\",\n  \"fatherId\": null,\n  \"motherId\": null,\n  \"spouseIds\": []\n}"
+              "raw": "{\n  \"fullName\": \"Anak Baru Demo\",\n  \"gender\": \"male\",\n  \"birthDate\": \"2026-01-01\",\n  \"status\": \"alive\",\n  \"mediaId\": \"{{personMediaId}}\",\n  \"fatherId\": null,\n  \"motherId\": null,\n  \"spouseIds\": []\n}"
             },
             "url": "{{baseUrl}}/api/v1/persons",
-            "description": "**201 Created** — login code derived otomatis dari nama+tanggal."
+            "description": "**201 Created** — prefer `mediaId` dari Media → Upload person (avatar). Kosongkan `mediaId` jika tanpa foto."
           }
         },
         {
@@ -472,10 +486,10 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"fullName\": \"Anak Baru Demo Updated\",\n  \"gender\": \"male\",\n  \"birthDate\": \"2026-01-01\",\n  \"status\": \"alive\",\n  \"nickname\": \"Demo\",\n  \"spouseIds\": []\n}"
+              "raw": "{\n  \"fullName\": \"Anak Baru Demo Updated\",\n  \"gender\": \"male\",\n  \"birthDate\": \"2026-01-01\",\n  \"status\": \"alive\",\n  \"nickname\": \"Demo\",\n  \"mediaId\": \"{{personMediaId}}\",\n  \"spouseIds\": []\n}"
             },
-            "url": "{{baseUrl}}/api/v1/persons/{{personId}}",
-            "description": "**200 OK** — update person dalam family."
+            "url": "{{baseUrl}}/api/v1/persons/{{createdPersonId}}",
+            "description": "**200 OK** — `mediaId` optional (purpose=person, max 1)."
           }
         },
         {
@@ -548,6 +562,161 @@
       ]
     },
     {
+      "name": "Media",
+      "description": "Eager upload foto. Storage dipisah: `events/` · `memoriam/` · `persons/`. Lihat docs/MEDIA-UPLOAD-API.md.\n\nFlow: Upload → preview → Delete/Cleanup → submit entity dengan `mediaIds` / `mediaId`.",
+      "item": [
+        {
+          "name": "Upload — event",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  const json = pm.response.json();",
+                  "  pm.environment.set('mediaId', json.data.id);",
+                  "  pm.environment.set('mediaUrl', json.data.url);",
+                  "  pm.environment.set('eventMediaId', json.data.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "file", "type": "file", "src": [], "description": "max 5MB" },
+                { "key": "purpose", "type": "text", "value": "event" },
+                { "key": "contextId", "type": "text", "value": "", "description": "Opsional eventId" }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/media/upload?focusPersonId={{personId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "media", "upload"],
+              "query": [{ "key": "focusPersonId", "value": "{{personId}}" }]
+            },
+            "description": "File → `uploads/media/events/`. Test script set `mediaId` + `eventMediaId`."
+          }
+        },
+        {
+          "name": "Upload — memoriam_tribute",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  const json = pm.response.json();",
+                  "  pm.environment.set('mediaId', json.data.id);",
+                  "  pm.environment.set('mediaUrl', json.data.url);",
+                  "  pm.environment.set('memoriamMediaId', json.data.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "file", "type": "file", "src": [], "description": "max 5MB" },
+                { "key": "purpose", "type": "text", "value": "memoriam_tribute" },
+                { "key": "contextId", "type": "text", "value": "17", "description": "deceasedId (opsional)" }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/media/upload?focusPersonId={{personId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "media", "upload"],
+              "query": [{ "key": "focusPersonId", "value": "{{personId}}" }]
+            },
+            "description": "File → `uploads/media/memoriam/`. Test script set `memoriamMediaId`."
+          }
+        },
+        {
+          "name": "Upload — person (avatar)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  const json = pm.response.json();",
+                  "  pm.environment.set('mediaId', json.data.id);",
+                  "  pm.environment.set('mediaUrl', json.data.url);",
+                  "  pm.environment.set('personMediaId', json.data.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "file", "type": "file", "src": [], "description": "max 5MB, max 1 foto per person" },
+                { "key": "purpose", "type": "text", "value": "person" },
+                { "key": "contextId", "type": "text", "value": "", "description": "Opsional personId saat edit" }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/media/upload?focusPersonId={{personId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "media", "upload"],
+              "query": [{ "key": "focusPersonId", "value": "{{personId}}" }]
+            },
+            "description": "File → `uploads/media/persons/`. Test script set `personMediaId`. Submit ke Persons Create/Update dengan `mediaId`."
+          }
+        },
+        {
+          "name": "Delete media",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/media/{{mediaId}}?focusPersonId={{personId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "media", "{{mediaId}}"],
+              "query": [{ "key": "focusPersonId", "value": "{{personId}}" }]
+            },
+            "description": "**204** — hanya owner + status pending."
+          }
+        },
+        {
+          "name": "Cleanup media batch",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mediaIds\": [\"{{mediaId}}\"]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/media/cleanup?focusPersonId={{personId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "media", "cleanup"],
+              "query": [{ "key": "focusPersonId", "value": "{{personId}}" }]
+            },
+            "description": "**200** `{ deletedIds, skippedIds }` — panggil saat batal/tutup modal."
+          }
+        }
+      ]
+    },
+    {
       "name": "Events",
       "description": "Acara keluarga — `focusPersonId` wajib. Lihat docs/MAP-EVENTS-MEMORIAM-API.md.",
       "item": [
@@ -593,7 +762,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"title\": \"Acara Demo API\",\n  \"type\": \"other\",\n  \"date\": \"2026-07-21\",\n  \"location\": \"Malang\",\n  \"personIds\": [83],\n  \"attendeeIds\": [],\n  \"photoUrls\": []\n}"
+              "raw": "{\n  \"title\": \"Acara Demo API\",\n  \"type\": \"other\",\n  \"date\": \"2026-07-21\",\n  \"location\": \"Malang\",\n  \"personIds\": [83],\n  \"attendeeIds\": [],\n  \"mediaIds\": [\"{{eventMediaId}}\"]\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/api/v1/events?focusPersonId=83",
@@ -601,7 +770,42 @@
               "path": ["api", "v1", "events"],
               "query": [{ "key": "focusPersonId", "value": "83" }]
             },
-            "description": "**201 Created** — semua member login boleh CRUD (v1)."
+            "description": "**201 Created** — `createdById` = self, `canManage: true`. Prefer `mediaIds` dari POST /media/upload."
+          }
+        },
+        {
+          "name": "Update event",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Acara Demo API (edited)\",\n  \"type\": \"other\",\n  \"date\": \"2026-07-21\",\n  \"location\": \"Malang\",\n  \"personIds\": [83],\n  \"attendeeIds\": [],\n  \"mediaIds\": []\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/events/1?focusPersonId=83",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "events", "1"],
+              "query": [{ "key": "focusPersonId", "value": "83" }]
+            },
+            "description": "Hanya creator. Non-creator → **403** `EVENT_MANAGE_FORBIDDEN`."
+          }
+        },
+        {
+          "name": "Delete event",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/events/1?focusPersonId=83",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "events", "1"],
+              "query": [{ "key": "focusPersonId", "value": "83" }]
+            },
+            "description": "Hanya creator. Response `{ deleted: true }`. Non-creator → **403** `EVENT_MANAGE_FORBIDDEN`."
           }
         },
         {
@@ -614,7 +818,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"photoUrl\": \"https://cdn.example.com/events/demo.jpg\",\n  \"caption\": \"Foto dari API\"\n}"
+              "raw": "{\n  \"mediaIds\": [\"{{mediaId}}\"],\n  \"caption\": \"Foto dari API\"\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/api/v1/events/1/contributions?focusPersonId=83",
@@ -622,7 +826,45 @@
               "path": ["api", "v1", "events", "1", "contributions"],
               "query": [{ "key": "focusPersonId", "value": "83" }]
             },
-            "description": "Contributor dari JWT. Perlu `canAccessEvent`."
+            "description": "Prefer `mediaIds` (purpose=event_contribution). Perlu `canAccessEvent`. Max 10."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Dashboard",
+      "description": "Agregat ringkasan keluarga untuk halaman Dashboard. Perspektif via resolveReadFocusMiddleware (person_options / ?focusPersonId=). Lihat docs/DASHBOARD-API.md.",
+      "item": [
+        {
+          "name": "Get dashboard",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/dashboard",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "dashboard"]
+            },
+            "description": "Stats + recentEvents + upcomingEvents + recentMemoriam. Fokus dari person_options / self (tanpa query)."
+          }
+        },
+        {
+          "name": "Get dashboard (focus override)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/dashboard?focusPersonId={{personId}}&recentLimit=5&upcomingLimit=3&memoriamLimit=4",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "dashboard"],
+              "query": [
+                { "key": "focusPersonId", "value": "{{personId}}" },
+                { "key": "recentLimit", "value": "5" },
+                { "key": "upcomingLimit", "value": "3" },
+                { "key": "memoriamLimit", "value": "4" }
+              ]
+            },
+            "description": "Override fokus baca via query. Limit opsional (default 5/3/4, max 20)."
           }
         }
       ]
@@ -682,7 +924,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"content\": \"<p>Doa dan kenangan dari API.</p>\",\n  \"photoUrls\": [\"https://cdn.example.com/memoriam/new.jpg\"]\n}"
+              "raw": "{\n  \"content\": \"<p>Doa dan kenangan dari API.</p>\",\n  \"mediaIds\": [\"{{memoriamMediaId}}\"]\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/api/v1/memoriam/17/tributes?focusPersonId=83",
@@ -690,7 +932,42 @@
               "path": ["api", "v1", "memoriam", "17", "tributes"],
               "query": [{ "key": "focusPersonId", "value": "83" }]
             },
-            "description": "Max 8 foto. HTML disanitasi."
+            "description": "**201** single `{ tribute }` dengan `canManage: true`. Max 8 foto. Prefer `mediaIds` (purpose=memoriam_tribute)."
+          }
+        },
+        {
+          "name": "Update tribute",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": \"<p>Doa dan kenangan (edited).</p>\",\n  \"mediaIds\": [\"{{memoriamMediaId}}\"]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/memoriam/17/tributes/1?focusPersonId=83",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "memoriam", "17", "tributes", "1"],
+              "query": [{ "key": "focusPersonId", "value": "83" }]
+            },
+            "description": "Hanya author. Media **replace-all**. Non-author → **403** `TRIBUTE_MANAGE_FORBIDDEN`."
+          }
+        },
+        {
+          "name": "Delete tribute",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/memoriam/17/tributes/1?focusPersonId=83",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "memoriam", "17", "tributes", "1"],
+              "query": [{ "key": "focusPersonId", "value": "83" }]
+            },
+            "description": "Hanya author. Response `{ deleted: true }`."
           }
         },
         {

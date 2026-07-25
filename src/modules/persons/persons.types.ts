@@ -148,6 +148,8 @@ export type UpsertPersonInput = {
   status?: 'alive' | 'deceased';
   religion?: 'islam' | 'other' | null;
   photoUrl?: string | null;
+  /** Prefer over photoUrl — dari POST /media/upload purpose=person (max 1). */
+  mediaId?: string | null;
   occupation?: string | null;
   phone?: string | null;
   phoneAlt?: string | null;

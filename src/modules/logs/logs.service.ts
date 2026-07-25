@@ -100,8 +100,10 @@ export class LogsService {
     }
 
     if (normalized.startsWith('/memoriam')) {
-      if (normalized.includes('/tributes') && method === 'POST') {
-        return 'memorial.tribute.create';
+      if (normalized.includes('/tributes')) {
+        if (method === 'POST') return 'memorial.tribute.create';
+        if (method === 'PATCH') return 'memorial.tribute.update';
+        if (method === 'DELETE') return 'memorial.tribute.delete';
       }
       if (normalized.includes('/prayers') && method === 'POST') {
         return 'memorial.prayer.create';

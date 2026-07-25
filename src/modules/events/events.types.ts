@@ -25,6 +25,8 @@ export type EventItem = {
   contributions: EventContribution[];
   isRestricted: boolean;
   canAccess: boolean;
+  createdById: number;
+  canManage: boolean;
 };
 
 export type EventListQuery = {
@@ -58,11 +60,14 @@ export type UpsertEventInput = {
   description?: string | null;
   personIds?: number[];
   photoUrls?: string[];
+  mediaIds?: string[];
   attendeeIds?: number[];
 };
 
 export type CreateContributionInput = {
-  photoUrl: string;
+  photoUrl?: string;
+  mediaId?: string;
+  mediaIds?: string[];
   caption?: string | null;
 };
 
