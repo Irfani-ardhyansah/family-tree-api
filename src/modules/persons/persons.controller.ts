@@ -20,6 +20,36 @@ function requireReadFocus(req: Request): NonNullable<Request['readFocus']> {
 }
 
 export class PersonsController {
+  async map(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const data = await personsService.map(
+        req.auth!.familyId,
+        req.auth!.personId,
+        requireReadFocus(req),
+        req.query,
+      );
+      sendData(res, data);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async patchAddress(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const personId = parsePersonId(req.params.id);
+      const data = await personsService.patchAddress(
+        req.auth!.familyId,
+        req.auth!.personId,
+        personId,
+        requireReadFocus(req),
+        req.body,
+      );
+      sendData(res, data);
+    } catch (error) {
+      next(error);
+    }
+  }
+
   async list(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const data = await personsService.list(

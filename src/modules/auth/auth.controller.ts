@@ -22,6 +22,24 @@ export class AuthController {
     }
   }
 
+  async getOptions(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const result = await authService.getOptions(req.auth!.personId);
+      sendData(res, result);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async upsertOption(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const result = await authService.upsertOption(req.auth!.personId, req.body);
+      sendData(res, result);
+    } catch (error) {
+      next(error);
+    }
+  }
+
   async refresh(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const result = await authService.refresh(req.body?.refreshToken);

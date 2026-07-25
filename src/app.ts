@@ -4,8 +4,10 @@ import morgan from 'morgan';
 import { createCorsMiddleware } from './config/cors';
 import { env } from './config/env';
 import authRoutes from './modules/auth/auth.routes';
+import eventsRoutes from './modules/events/events.routes';
 import healthRoutes from './modules/health/health.routes';
 import logsRoutes from './modules/logs/logs.routes';
+import memoriamRoutes from './modules/memoriam/memoriam.routes';
 import personsRoutes from './modules/persons/persons.routes';
 import { errorHandler, notFoundHandler } from './shared/errors/errorHandler';
 import {
@@ -47,6 +49,8 @@ export function createApp() {
   app.use('/api/v1/auth', authRoutes);
   app.use('/api/v1/logs', logsRoutes);
   app.use('/api/v1/persons', personsRoutes);
+  app.use('/api/v1/events', eventsRoutes);
+  app.use('/api/v1/memoriam', memoriamRoutes);
 
   app.use(notFoundHandler);
   app.use(errorHandler);

@@ -162,3 +162,41 @@ export type SpousePairRow = {
   person_id_a: number;
   person_id_b: number;
 };
+
+export type PersonMapItem = {
+  id: number;
+  fullName: string;
+  nickname: string | null;
+  gender: 'male' | 'female';
+  status: 'alive' | 'deceased';
+  photoUrl: string | null;
+  generationLabel: string;
+  phone: string | null;
+  phoneAlt: string | null;
+  address: PersonAddress | null;
+};
+
+export type PersonMapMeta = {
+  totalVisible: number;
+  withAddress: number;
+  withExactCoords: number;
+  withCityOnly: number;
+};
+
+export type PersonMapQuery = {
+  lineage?: TreeLineage;
+  status?: 'alive' | 'deceased' | 'all';
+  city?: string;
+  province?: string;
+  q?: string;
+};
+
+export type PersonMapResponse = ReadFocusMeta & {
+  selfPersonId: number;
+  persons: PersonMapItem[];
+  meta: PersonMapMeta;
+};
+
+export type PatchPersonAddressInput = {
+  address: PersonAddress;
+};

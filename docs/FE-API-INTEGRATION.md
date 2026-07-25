@@ -297,17 +297,39 @@ Semua endpoint persons **wajib auth**. Data otomatis scoped ke `familyId` dari J
 | `generationLabel` | Label relatif ke `focusPersonId` — **dihitung BE** |
 | `role` | `"admin"` \| `"member"` — dari `family_members` |
 
-### Query `focusPersonId` — **semua GET read**
+### Perspektif baca (`focusPersonId`) — **semua GET read**
 
-Satu param, satu validasi (middleware), untuk **semua** endpoint baca persons:
+Resolusi fokus (middleware), **prioritas**:
 
-| Endpoint | Contoh |
+1. Query `?focusPersonId=` — override eksplisit (opsional)
+2. **`person_options`** — setting `readFocusPersonId` (disimpan via `PATCH /auth/me/options`)
+3. Default → user login (JWT sub)
+
+**Simpan preferensi (toggle navbar Saya / Pasangan):**
+
+```http
+PATCH /api/v1/auth/me/options
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "setting": "readFocusPersonId",
+  "value": "84"
+}
+```
+
+**201/200:** `{ "data": { "options": { "readFocusPersonId": "84" } } }`
+
+`GET /auth/me` juga mengembalikan `readFocusPersonId` + `allowedFocusPersonIds`.
+
+Setelah PATCH, FE **tidak wajib** kirim `?focusPersonId=` di setiap API — BE baca dari DB.
+
+| Endpoint | Contoh (override opsional) |
 |---|---|
-| List | `GET /persons?page=1&focusPersonId=84` |
-| Tree | `GET /persons?view=tree&focusPersonId=84` |
-| Detail | `GET /persons/49?focusPersonId=83` |
+| List | `GET /persons?page=1` |
+| Tree | `GET /persons?view=tree` |
+| Map / Events / Memoriam | `GET /events` (tanpa query) |
 
-- Default (param di-skip) → `focusPersonId` = user login
 - Hanya boleh ID **diri sendiri** atau **pasangan** (`spouseIds` dari login)
 - Response **selalu** include top-level `focusPersonId` + `allowedFocusPersonIds`
 - **`generationLabel`** dihitung relatif ke `focusPersonId`
@@ -681,7 +703,46 @@ Authorization: Bearer <accessToken>   # optional
 
 **201:** `{ "data": { "recorded": true } }`
 
-Saran: fire-and-forget dari router FE, jangan block UI.
+**400** `INVALID_LOG_EVENT` jika `path` bukan rute FE yang dikenali.
+
+### Path halaman wajib (router FE)
+
+Fire-and-forget dari router hook saat route mount — **termasuk halaman baru**:
+
+| Halaman | `path` (contoh) | Kapan kirim |
+|---|---|---|
+| Login | `/login` | Route mount |
+| Tree | `/tree` | Route mount |
+| Data person | `/persons`, `/persons/:id` | Route mount |
+| **Peta keluarga** | `/family/map` | Route mount |
+| **Acara** | `/events`, `/events/:id` | Route mount |
+| **In Memoriam** | `/in-memoriam`, `/in-memoriam/:deceasedId`, `/in-memoriam/:deceasedId/doa` | Route mount |
+
+Contoh hook React Router:
+
+```typescript
+// Saat pathname berubah (authenticated routes)
+void api.post('/logs/events', {
+  action: 'page.view',
+  path: location.pathname,
+  label: PAGE_LABELS[location.pathname] ?? undefined,
+}).catch(() => {});
+```
+
+Saran: fire-and-forget, jangan block UI.
+
+### Audit API otomatis (BE)
+
+Setiap hit API (kecuali health & logs) juga tercatat di `app_logs` via middleware — **tanpa** aksi FE:
+
+| API | Action audit |
+|---|---|
+| `GET /persons/map` | `person.map.read` |
+| `GET /events*` | `event.read` |
+| `POST/PATCH/DELETE /events*` | `event.create` / `update` / `delete` |
+| `GET /memoriam*` | `memorial.read` |
+| `POST .../tributes` | `memorial.tribute.create` |
+| `POST .../prayers` | `memorial.prayer.create` |
 
 ---
 
@@ -966,7 +1027,11 @@ Setelah CRUD person sukses, **invalidate** query `['persons']`.
 - [ ] Handle `PERSON_DELETE_FORBIDDEN`
 
 ### Fase 6 — Observability (opsional)
-- [ ] Router hook → `POST /logs/events` page.view
+- [ ] Router hook → `POST /logs/events` `page.view` untuk **semua** route:
+  - `/tree`, `/persons`, `/persons/:id`
+  - **`/family/map`**
+  - **`/events`**, **`/events/:id`**
+  - **`/in-memoriam`**, **`/in-memoriam/:deceasedId`**, **`/in-memoriam/:deceasedId/doa`**
 - [ ] Log `X-Request-Id` saat tampilkan error ke user
 
 ---

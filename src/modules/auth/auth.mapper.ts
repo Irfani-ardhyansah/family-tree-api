@@ -1,4 +1,4 @@
-import { AuthMeResponse, AuthPersonSummary, PersonAuthRow } from './auth.types';
+import { AuthMeBase, AuthPersonSummary, PersonAuthRow } from './auth.types';
 
 export function formatBirthDate(value: Date | string): string {
   if (value instanceof Date) {
@@ -46,7 +46,7 @@ export function toAuthPersonSummary(row: PersonAuthRow, spouseIds: number[] = []
   };
 }
 
-export function toAuthMeResponse(row: PersonAuthRow, spouseIds: number[] = []): AuthMeResponse {
+export function toAuthMeResponse(row: PersonAuthRow, spouseIds: number[] = []): AuthMeBase {
   return {
     ...toAuthPersonSummary(row, spouseIds),
     familyId: row.family_id,

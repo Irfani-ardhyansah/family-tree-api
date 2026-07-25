@@ -11,8 +11,14 @@ export type AuthPersonSummary = {
   spouseIds: number[];
 };
 
-export type AuthMeResponse = AuthPersonSummary & {
+export type AuthMeBase = AuthPersonSummary & {
   familyId: number;
+};
+
+export type AuthMeResponse = AuthMeBase & {
+  /** Fokus baca aktif — dari person_options atau default diri sendiri */
+  readFocusPersonId: number;
+  allowedFocusPersonIds: number[];
 };
 
 export type LoginResponse = {

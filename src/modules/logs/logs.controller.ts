@@ -2,6 +2,7 @@ import { NextFunction, Request, Response } from 'express';
 import { AppError } from '../../shared/errors/AppError';
 import { ErrorCodes } from '../../shared/errors/errorCodes';
 import { sendData } from '../../shared/utils/response';
+import { isAllowedNavigationPath, normalizeNavigationPath } from './navigation-paths';
 import { TrackNavigationInput } from './logs.types';
 import { logsService } from './logs.service';
 
@@ -25,7 +26,19 @@ export class LogsController {
         throw new AppError(400, ErrorCodes.INVALID_LOG_EVENT, 'Payload log tidak valid.');
       }
 
-      await logsService.trackNavigation(req, req.body);
+      const normalizedPath = normalizeNavigationPath(req.body.path);
+      if (!isAllowedNavigationPath(normalizedPath)) {
+        throw new AppError(
+          400,
+          ErrorCodes.INVALID_LOG_EVENT,
+          `Path navigasi tidak dikenali: ${normalizedPath}.`,
+        );
+      }
+
+      await logsService.trackNavigation(req, {
+        ...req.body,
+        path: normalizedPath,
+      });
       sendData(res, { recorded: true }, 201);
     } catch (error) {
       next(error);

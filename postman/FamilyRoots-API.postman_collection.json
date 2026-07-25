@@ -124,7 +124,32 @@
             "method": "GET",
             "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
             "url": "{{baseUrl}}/api/v1/auth/me",
-            "description": "**Auth required**\n\n**200 OK**\n```json\n{\n  \"data\": {\n    \"id\": 95,\n    \"fullName\": \"...\",\n    \"nickname\": null,\n    \"gender\": \"male\",\n    \"birthDate\": \"1945-08-17\",\n    \"status\": \"alive\",\n    \"photoUrl\": null,\n    \"familyId\": 1\n  }\n}\n```\n\n**401** `UNAUTHORIZED` tanpa/invalid token"
+            "description": "**Auth required** — includes `readFocusPersonId`, `allowedFocusPersonIds`, `spouseIds`, `isMarried`, `isLegal`.\n\n**401** `UNAUTHORIZED` tanpa/invalid token"
+          }
+        },
+        {
+          "name": "Get my options",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": "{{baseUrl}}/api/v1/auth/me/options",
+            "description": "**200 OK** `{ \"data\": { \"options\": { \"readFocusPersonId\": \"84\" } } }`"
+          }
+        },
+        {
+          "name": "Set readFocusPersonId (spouse)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"setting\": \"readFocusPersonId\",\n  \"value\": \"84\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/auth/me/options",
+            "description": "Toggle perspektif Pasangan — setelah ini GET /events, /persons/map, dll. tanpa query focusPersonId."
           }
         },
         {
@@ -203,6 +228,51 @@
             "body": {
               "mode": "raw",
               "raw": "{\n  \"action\": \"click\",\n  \"path\": \"/tree\",\n  \"label\": \"Buka profil ayah\",\n  \"metadata\": { \"targetPersonId\": 42 }\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/logs/events"
+          }
+        },
+        {
+          "name": "Track page view — family map",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"page.view\",\n  \"path\": \"/family/map\",\n  \"label\": \"Peta Keluarga\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/logs/events"
+          }
+        },
+        {
+          "name": "Track page view — events",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"page.view\",\n  \"path\": \"/events\",\n  \"label\": \"Acara\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/logs/events"
+          }
+        },
+        {
+          "name": "Track page view — in memoriam",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"page.view\",\n  \"path\": \"/in-memoriam\",\n  \"label\": \"In Memoriam\"\n}"
             },
             "url": "{{baseUrl}}/api/v1/logs/events"
           }
@@ -424,6 +494,231 @@
             "header": [],
             "url": "{{baseUrl}}/api/v1/persons",
             "description": "Expect **401** `UNAUTHORIZED`"
+          }
+        },
+        {
+          "name": "Map — focus self (83)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/persons/map?focusPersonId=83",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "persons", "map"],
+              "query": [{ "key": "focusPersonId", "value": "83" }]
+            },
+            "description": "Peta keluarga scoped subgraph visible dari diri sendiri. Response echo `focusPersonId`, `selfPersonId`, `meta.withExactCoords`."
+          }
+        },
+        {
+          "name": "Map — focus spouse (84)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/persons/map?focusPersonId=84",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "persons", "map"],
+              "query": [{ "key": "focusPersonId", "value": "84" }]
+            },
+            "description": "Subset berbeda dari focus 83 — subgraph pasangan."
+          }
+        },
+        {
+          "name": "Patch person address",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"address\": {\n    \"street\": \"Jl. Demo No. 1\",\n    \"city\": \"Kota Malang\",\n    \"province\": \"Jawa Timur\",\n    \"latitude\": -7.9666,\n    \"longitude\": 112.6326\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/persons/{{personId}}?focusPersonId={{personId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "persons", "{{personId}}"],
+              "query": [{ "key": "focusPersonId", "value": "{{personId}}" }]
+            },
+            "description": "Gate **isLegal** (18+). **403** `PERSON_UPDATE_FORBIDDEN` jika underage."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Events",
+      "description": "Acara keluarga — `focusPersonId` wajib. Lihat docs/MAP-EVENTS-MEMORIAM-API.md.",
+      "item": [
+        {
+          "name": "List events",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/events?focusPersonId=83&page=1&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "events"],
+              "query": [
+                { "key": "focusPersonId", "value": "83" },
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" }
+              ]
+            },
+            "description": "List acara dalam perspektif fokus. Restricted events tampil dengan `canAccess: false`."
+          }
+        },
+        {
+          "name": "Get event by ID",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/events/1?focusPersonId=83",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "events", "1"],
+              "query": [{ "key": "focusPersonId", "value": "83" }]
+            },
+            "description": "**403** `EVENT_ACCESS_FORBIDDEN` untuk restricted event jika viewer bukan attendee."
+          }
+        },
+        {
+          "name": "Create event",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Acara Demo API\",\n  \"type\": \"other\",\n  \"date\": \"2026-07-21\",\n  \"location\": \"Malang\",\n  \"personIds\": [83],\n  \"attendeeIds\": [],\n  \"photoUrls\": []\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/events?focusPersonId=83",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "events"],
+              "query": [{ "key": "focusPersonId", "value": "83" }]
+            },
+            "description": "**201 Created** — semua member login boleh CRUD (v1)."
+          }
+        },
+        {
+          "name": "Add contribution",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"photoUrl\": \"https://cdn.example.com/events/demo.jpg\",\n  \"caption\": \"Foto dari API\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/events/1/contributions?focusPersonId=83",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "events", "1", "contributions"],
+              "query": [{ "key": "focusPersonId", "value": "83" }]
+            },
+            "description": "Contributor dari JWT. Perlu `canAccessEvent`."
+          }
+        }
+      ]
+    },
+    {
+      "name": "In Memoriam",
+      "description": "Memorial mendiang — BFS access graph. `focusPersonId` wajib.",
+      "item": [
+        {
+          "name": "List deceased",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/memoriam/deceased?focusPersonId=83",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "memoriam", "deceased"],
+              "query": [{ "key": "focusPersonId", "value": "83" }]
+            },
+            "description": "Mendiang scoped ke subgraph + canAccessMemorial."
+          }
+        },
+        {
+          "name": "Get deceased profile",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/memoriam/17?focusPersonId=83",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "memoriam", "17"],
+              "query": [{ "key": "focusPersonId", "value": "83" }]
+            },
+            "description": "pat-buyut-m (id 17) — profile + tribute/prayer counts."
+          }
+        },
+        {
+          "name": "List tributes",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/memoriam/17/tributes?focusPersonId=83",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "memoriam", "17", "tributes"],
+              "query": [{ "key": "focusPersonId", "value": "83" }]
+            }
+          }
+        },
+        {
+          "name": "Create tribute",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": \"<p>Doa dan kenangan dari API.</p>\",\n  \"photoUrls\": [\"https://cdn.example.com/memoriam/new.jpg\"]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/memoriam/17/tributes?focusPersonId=83",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "memoriam", "17", "tributes"],
+              "query": [{ "key": "focusPersonId", "value": "83" }]
+            },
+            "description": "Max 8 foto. HTML disanitasi."
+          }
+        },
+        {
+          "name": "Record prayer (idempotent)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/memoriam/17/prayers?focusPersonId=83",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "memoriam", "17", "prayers"],
+              "query": [{ "key": "focusPersonId", "value": "83" }]
+            },
+            "description": "**201** pertama kali, **200** jika sudah pernah."
+          }
+        },
+        {
+          "name": "Prayer me",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/memoriam/17/prayers/me?focusPersonId=83",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "memoriam", "17", "prayers", "me"],
+              "query": [{ "key": "focusPersonId", "value": "83" }]
+            },
+            "description": "`{ hasPrayed: boolean }`"
           }
         }
       ]

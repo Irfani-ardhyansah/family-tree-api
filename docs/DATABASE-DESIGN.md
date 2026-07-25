@@ -14,6 +14,7 @@ Prinsip: **identitas orang ≠ detail opsional ≠ hak akses ≠ konteks UI sesi
 | `person_addresses` | Alamat untuk map | 0..1 per orang |
 | `family_members` | Role admin/member | 1 per orang per family |
 | `person_spouses` | Pasangan (canonical) | 0..N per orang |
+| `person_options` | Preferensi UI per user login (EAV) | 0..N per orang |
 | `app_logs` | Audit, navigasi FE, auth, error | append-only |
 
 ---
@@ -161,7 +162,28 @@ Satu baris per pasangan, `person_id_a < person_id_b` (numeric).
 
 ---
 
-## `app_logs`
+## `person_options` — preferensi UI per user login (EAV)
+
+Konteks UI sesi — **bukan** data keluarga. Satu baris per `(person_id, setting)`.
+
+| Column | Type | Notes |
+|---|---|---|
+| `person_id` | int FK PK | User login (JWT sub) |
+| `setting` | varchar(64) PK | Nama opsi, e.g. `readFocusPersonId` |
+| `value` | varchar(512) | Nilai string (angka/boolean disimpan sebagai string) |
+| `updated_at` | timestamp | |
+
+Setting v1:
+
+| `setting` | `value` | Validasi |
+|---|---|---|
+| `readFocusPersonId` | `"83"` / `"84"` | Hanya diri sendiri atau pasangan terdaftar |
+
+Resolusi fokus baca di middleware: `?focusPersonId=` (override) → `person_options` → default JWT sub.
+
+API: `GET/PATCH /api/v1/auth/me/options`
+
+---
 
 Satu tabel untuk semua jejak aktivitas aplikasi (append-only, jangan update/delete rutin).
 
@@ -185,8 +207,8 @@ Satu tabel untuk semua jejak aktivitas aplikasi (append-only, jangan update/dele
 
 | Sumber | Category | Contoh action |
 |---|---|---|
-| Middleware API (POST/PUT/PATCH/DELETE + GET audit) | `audit` / `auth` | `person.update`, `auth.login` |
 | `POST /api/v1/logs/events` dari FE | `navigation` | `page.view`, `click` |
+| Middleware API (GET/POST/PATCH/DELETE) | `audit` / `auth` | `person.map.read`, `event.read`, `memorial.read`, … |
 | Service manual (Part 3+) | `auth`, `error` | `auth.login`, `system.unhandled` |
 
 ### FE — track halaman / klik

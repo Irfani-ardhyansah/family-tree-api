@@ -8,6 +8,9 @@ import { authRepository } from './auth.repository';
 import { toAuthMeResponse, toAuthPersonSummary, formatBirthDate } from './auth.mapper';
 import { AuthMeResponse, LoginResponse, PersonAuthRow, RefreshResponse } from './auth.types';
 import { tokenService } from './token.service';
+import { personOptionsService } from '../person-options/person-options.service';
+import { PersonOptionsResponse } from '../person-options/person-options.types';
+import { buildReadFocusMeta } from '../persons/read-focus.service';
 
 const CODE_NOT_FOUND_MESSAGE =
   'Kode tidak ditemukan. Periksa singkatan nama dan tanggal lahir Anda.';
@@ -97,7 +100,30 @@ export class AuthService {
     }
 
     const spouseIds = await authRepository.findSpouseIdsByPersonId(personId);
-    return toAuthMeResponse(person, spouseIds);
+    const storedFocus = await personOptionsService.resolveStoredReadFocusPersonId(
+      personId,
+      spouseIds,
+    );
+    const readFocus = buildReadFocusMeta(personId, spouseIds, storedFocus);
+
+    return {
+      ...toAuthMeResponse(person, spouseIds),
+      readFocusPersonId: readFocus.focusPersonId,
+      allowedFocusPersonIds: readFocus.allowedFocusPersonIds,
+    };
+  }
+
+  async getOptions(personId: number): Promise<PersonOptionsResponse> {
+    await this.me(personId);
+    return personOptionsService.getOptions(personId);
+  }
+
+  async upsertOption(
+    personId: number,
+    input: unknown,
+  ): Promise<PersonOptionsResponse> {
+    const spouseIds = await authRepository.findSpouseIdsByPersonId(personId);
+    return personOptionsService.upsertOption(personId, spouseIds, input);
   }
 
   async refresh(refreshToken: unknown): Promise<RefreshResponse> {

@@ -7,6 +7,10 @@ const personsRoutes = Router();
 
 personsRoutes.use(requireAuth);
 
+personsRoutes.get('/map', resolveReadFocusMiddleware, (req, res, next) => {
+  void personsController.map(req, res, next);
+});
+
 personsRoutes.get('/', resolveReadFocusMiddleware, (req, res, next) => {
   void personsController.list(req, res, next);
 });
@@ -17,6 +21,10 @@ personsRoutes.get('/:id', resolveReadFocusMiddleware, (req, res, next) => {
 
 personsRoutes.post('/', (req, res, next) => {
   void personsController.create(req, res, next);
+});
+
+personsRoutes.patch('/:id', resolveReadFocusMiddleware, (req, res, next) => {
+  void personsController.patchAddress(req, res, next);
 });
 
 personsRoutes.put('/:id', (req, res, next) => {

@@ -1,12 +1,25 @@
 import { AppError } from '../../shared/errors/AppError';
 import { ErrorCodes } from '../../shared/errors/errorCodes';
 import { authRepository } from '../auth/auth.repository';
+import { isLegalAge, formatBirthDate } from '../auth/auth.mapper';
 import {
   collectFocusBranchIds,
   computeMaxAncestorDepth,
   filterRowsByBranch,
 } from './focus-branch.service';
 import { buildReadFocusMeta } from './read-focus.service';
+import {
+  hasAnyAddress,
+  hasCityLevel,
+  hasExactCoords,
+  matchesMapFilters,
+  parseMapQuery,
+  validatePatchAddressInput,
+} from './person-map.service';
+import {
+  getVisiblePersonIds,
+  PERSPECTIVE_VIEW_DEFAULTS,
+} from './perspective-subgraph.service';
 import { mapPersonRowToResponse, personsRepository } from './persons.repository';
 import {
   CLIENT_FILTER_RECOMMEND_THRESHOLD,
@@ -17,6 +30,7 @@ import {
   PersonGraphNode,
   PersonListQuery,
   PersonListResponse,
+  PersonMapResponse,
   PersonReadResponse,
   ReadFocusMeta,
   UpsertPersonInput,
@@ -321,6 +335,110 @@ export class PersonsService {
     }
 
     await personsRepository.softDelete(familyId, personId);
+  }
+
+  async map(
+    familyId: number,
+    viewerId: number,
+    readFocus: ReadFocusMeta,
+    queryInput: Record<string, unknown> = {},
+  ): Promise<PersonMapResponse> {
+    const query = parseMapQuery(queryInput);
+    const filter = {
+      ...PERSPECTIVE_VIEW_DEFAULTS,
+      ...(query.lineage ? { lineage: query.lineage } : {}),
+    };
+
+    const [visibleIds, { graph, spouseMap }] = await Promise.all([
+      getVisiblePersonIds(familyId, readFocus.focusPersonId, viewerId, filter),
+      this.loadGraphContext(familyId),
+    ]);
+
+    const allRows = await personsRepository.findAllByFamily(familyId);
+    const labelPerspectiveId = readFocus.focusPersonId;
+
+    const visiblePersons = allRows
+      .filter((row) => visibleIds.has(row.id))
+      .map((row) => {
+        const mapped = mapPersonRowToResponse(
+          row,
+          viewerId,
+          labelPerspectiveId,
+          graph,
+          spouseMap.get(row.id) ?? [],
+        );
+        return {
+          id: mapped.id,
+          fullName: mapped.fullName,
+          nickname: mapped.nickname,
+          gender: mapped.gender,
+          status: mapped.status,
+          photoUrl: mapped.photoUrl,
+          generationLabel: mapped.generationLabel,
+          phone: mapped.phone,
+          phoneAlt: mapped.phoneAlt,
+          address: mapped.address,
+        };
+      })
+      .filter((person) => matchesMapFilters(person, query));
+
+    let withAddress = 0;
+    let withExactCoords = 0;
+    let withCityOnly = 0;
+
+    for (const person of visiblePersons) {
+      if (hasAnyAddress(person.address)) {
+        withAddress += 1;
+      }
+      if (hasExactCoords(person.address)) {
+        withExactCoords += 1;
+      } else if (hasCityLevel(person.address)) {
+        withCityOnly += 1;
+      }
+    }
+
+    return {
+      ...readFocus,
+      selfPersonId: viewerId,
+      persons: visiblePersons,
+      meta: {
+        totalVisible: visiblePersons.length,
+        withAddress,
+        withExactCoords,
+        withCityOnly,
+      },
+    };
+  }
+
+  async patchAddress(
+    familyId: number,
+    viewerId: number,
+    personId: number,
+    readFocus: ReadFocusMeta,
+    input: unknown,
+  ): Promise<PersonReadResponse> {
+    const viewer = await authRepository.findPersonById(viewerId);
+    if (!viewer) {
+      throw new AppError(404, ErrorCodes.PERSON_NOT_FOUND, 'Person tidak ditemukan.');
+    }
+
+    const birthDate = formatBirthDate(viewer.birth_date);
+    if (!isLegalAge(birthDate)) {
+      throw new AppError(
+        403,
+        ErrorCodes.PERSON_UPDATE_FORBIDDEN,
+        'Hanya anggota dewasa (18+) yang boleh mengubah data alamat.',
+      );
+    }
+
+    const existing = await personsRepository.findById(familyId, personId);
+    if (!existing) {
+      throw new AppError(404, ErrorCodes.PERSON_NOT_FOUND, 'Person tidak ditemukan.');
+    }
+
+    const address = validatePatchAddressInput(input);
+    await personsRepository.patchAddress(personId, address);
+    return this.getById(familyId, viewerId, personId, readFocus);
   }
 
   private async assertRelatedPersonsInFamily(

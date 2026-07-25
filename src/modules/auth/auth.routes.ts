@@ -21,4 +21,12 @@ authRoutes.get('/me', requireAuth, (req, res, next) => {
   void authController.me(req, res, next);
 });
 
+authRoutes.get('/me/options', requireAuth, (req, res, next) => {
+  void authController.getOptions(req, res, next);
+});
+
+authRoutes.patch('/me/options', requireAuth, (req, res, next) => {
+  void authController.upsertOption(req, res, next);
+});
+
 export default authRoutes;

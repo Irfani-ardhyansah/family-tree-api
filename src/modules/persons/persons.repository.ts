@@ -273,6 +273,12 @@ export class PersonsRepository {
       .update({ deleted_at: db.fn.now() });
   }
 
+  async patchAddress(personId: number, address: PersonAddress): Promise<void> {
+    await db.transaction(async (trx) => {
+      await this.upsertAddress(trx, personId, address);
+    });
+  }
+
   async countActivePersons(familyId: number): Promise<number> {
     const result = await db('persons')
       .where({ family_id: familyId })

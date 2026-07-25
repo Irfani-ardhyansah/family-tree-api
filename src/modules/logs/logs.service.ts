@@ -80,10 +80,33 @@ export class LogsService {
     const normalized = path.replace(/^\/api\/v1/, '');
 
     if (normalized.startsWith('/persons')) {
+      if (normalized === '/persons/map' && method === 'GET') {
+        return 'person.map.read';
+      }
       if (method === 'POST') return 'person.create';
       if (method === 'PUT' || method === 'PATCH') return 'person.update';
       if (method === 'DELETE') return 'person.delete';
       if (method === 'GET') return 'person.read';
+    }
+
+    if (normalized.startsWith('/events')) {
+      if (normalized.includes('/contributions') && method === 'POST') {
+        return 'event.contribution.create';
+      }
+      if (method === 'POST') return 'event.create';
+      if (method === 'PATCH') return 'event.update';
+      if (method === 'DELETE') return 'event.delete';
+      if (method === 'GET') return 'event.read';
+    }
+
+    if (normalized.startsWith('/memoriam')) {
+      if (normalized.includes('/tributes') && method === 'POST') {
+        return 'memorial.tribute.create';
+      }
+      if (normalized.includes('/prayers') && method === 'POST') {
+        return 'memorial.prayer.create';
+      }
+      if (method === 'GET') return 'memorial.read';
     }
 
     if (normalized.startsWith('/auth/login') && method === 'POST') return 'auth.login';

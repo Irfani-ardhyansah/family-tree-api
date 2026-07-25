@@ -796,7 +796,16 @@
       "occupation": "PNS",
       "phone": null,
       "phoneAlt": null,
-      "address": null,
+      "address": {
+        "street": "Jl. Merdeka No. 12",
+        "district": "Klojen",
+        "city": "Kota Malang",
+        "province": "Jawa Timur",
+        "postalCode": "65111",
+        "country": "Indonesia",
+        "latitude": -7.983,
+        "longitude": 112.631
+      },
       "fatherId": "pat-buyut-m",
       "motherId": "pat-buyut-f",
       "spouseIds": [
@@ -844,7 +853,14 @@
       "occupation": "Pedagang",
       "phone": null,
       "phoneAlt": null,
-      "address": null,
+      "address": {
+        "street": "Jl. Pahlawan No. 5",
+        "district": "Lowokwaru",
+        "city": "Kota Malang",
+        "province": "Jawa Timur",
+        "postalCode": "65141",
+        "country": "Indonesia"
+      },
       "fatherId": "mat-buyut-m",
       "motherId": "mat-buyut-f",
       "spouseIds": [
@@ -1884,7 +1900,16 @@
       "occupation": "Dokter",
       "phone": null,
       "phoneAlt": null,
-      "address": null,
+      "address": {
+        "street": "Jl. Ahmad Yani No. 33",
+        "district": "Blimbing",
+        "city": "Kota Malang",
+        "province": "Jawa Timur",
+        "postalCode": "65126",
+        "country": "Indonesia",
+        "latitude": -7.955,
+        "longitude": 112.645
+      },
       "fatherId": "sp-pat-gp-m",
       "motherId": "sp-pat-gp-f",
       "spouseIds": [
@@ -2057,7 +2082,16 @@
       "occupation": null,
       "phone": "081355566677",
       "phoneAlt": null,
-      "address": null,
+      "address": {
+        "street": "Jl. Ijen Boulevard No. 22",
+        "district": "Klojen",
+        "city": "Kota Malang",
+        "province": "Jawa Timur",
+        "postalCode": "65119",
+        "country": "Indonesia",
+        "latitude": -7.968,
+        "longitude": 112.628
+      },
       "fatherId": "sp-father",
       "motherId": "sp-mother",
       "spouseIds": [
