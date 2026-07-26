@@ -1,6 +1,6 @@
 import { NextFunction, Request, Response } from 'express';
-import { LogCategory, LogStatus } from '../../modules/logs/logs.types';
-import { logsService } from '../../modules/logs/logs.service';
+import { LogCategory, LogStatus } from '../../modules/core/logs/logs.types';
+import { logsService } from '../../modules/core/logs/logs.service';
 
 const SKIP_PATHS = new Set(['/api/v1/health', '/api/v1/logs/events']);
 

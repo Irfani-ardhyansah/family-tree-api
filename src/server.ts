@@ -1,8 +1,8 @@
 import './shared/types/express';
 import { createApp } from './app';
 import { env } from './config/env';
-import { startMediaTtlJob } from './modules/media/media.ttl';
-import { recoverPersonImportJobs } from './modules/persons/import/person-import.worker';
+import { startMediaTtlJob } from './modules/core/media/media.ttl';
+import { recoverPersonImportJobs } from './modules/family-roots/persons/import/person-import.worker';
 
 const app = createApp();
 

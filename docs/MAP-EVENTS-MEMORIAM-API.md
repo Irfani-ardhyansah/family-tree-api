@@ -4,7 +4,7 @@ Dokumentasi modul **Peta Keluarga**, **Acara**, dan **In Memoriam** — FamilyRo
 
 Semua endpoint GET echo `focusPersonId` + `selfPersonId`.
 
-**Fokus baca** disimpan di `person_options` (`setting` + `value` string). Toggle navbar → `PATCH /auth/me/options` — tidak perlu `?focusPersonId=` di tiap request (query tetap didukung sebagai override).
+**Fokus baca** disimpan di `core_person_options` (`setting` + `value` string). Toggle navbar → `PATCH /auth/me/options` — tidak perlu `?focusPersonId=` di tiap request (query tetap didukung sebagai override).
 
 Default subgraph filter (selaras FE `buildPerspectiveViewConfig`):
 

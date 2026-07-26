@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import type { Knex } from 'knex';
+import { Tables } from '../../shared/database/tables';
 
 type SeedPerson = { id: string };
 
@@ -30,14 +31,14 @@ export async function seed(knex: Knex): Promise<void> {
   const slugToId = loadSlugToIdMap();
   const familyId = 1;
 
-  await knex('memoriam_prayers').del();
-  await knex('memoriam_tribute_photos').del();
-  await knex('memoriam_tributes').del();
-  await knex('family_event_contributions').del();
-  await knex('family_event_photos').del();
-  await knex('family_event_attendees').del();
-  await knex('family_event_persons').del();
-  await knex('family_events').del();
+  await knex(Tables.MEMORIAM_PRAYERS).del();
+  await knex(Tables.MEMORIAM_TRIBUTE_PHOTOS).del();
+  await knex(Tables.MEMORIAM_TRIBUTES).del();
+  await knex(Tables.EVENT_CONTRIBUTIONS).del();
+  await knex(Tables.EVENT_PHOTOS).del();
+  await knex(Tables.EVENT_ATTENDEES).del();
+  await knex(Tables.EVENT_PERSONS).del();
+  await knex(Tables.EVENTS).del();
 
   const meId = id(slugToId, 'me');
   const meSpId = id(slugToId, 'me-sp');
@@ -45,7 +46,7 @@ export async function seed(knex: Knex): Promise<void> {
   const patBuyutMId = id(slugToId, 'pat-buyut-m');
   const matBuyutMId = id(slugToId, 'mat-buyut-m');
 
-  const [reunionId] = await knex('family_events').insert({
+  const [reunionId] = await knex(Tables.EVENTS).insert({
     family_id: familyId,
     title: 'Reuni Keluarga Besar 2024',
     type: 'reunion',
@@ -56,7 +57,7 @@ export async function seed(knex: Knex): Promise<void> {
     created_by_person_id: meId,
   });
 
-  const [weddingId] = await knex('family_events').insert({
+  const [weddingId] = await knex(Tables.EVENTS).insert({
     family_id: familyId,
     title: 'Pernikahan Irfani & Ayu',
     type: 'wedding',
@@ -67,7 +68,7 @@ export async function seed(knex: Knex): Promise<void> {
     created_by_person_id: meId,
   });
 
-  const [birthdayId] = await knex('family_events').insert({
+  const [birthdayId] = await knex(Tables.EVENTS).insert({
     family_id: familyId,
     title: 'Ulang Tahun Ayah',
     type: 'birthday',
@@ -78,7 +79,7 @@ export async function seed(knex: Knex): Promise<void> {
     created_by_person_id: fatherId,
   });
 
-  const [restrictedMeId] = await knex('family_events').insert({
+  const [restrictedMeId] = await knex(Tables.EVENTS).insert({
     family_id: familyId,
     title: 'Rapat Inti Keluarga (Restricted)',
     type: 'other',
@@ -89,7 +90,7 @@ export async function seed(knex: Knex): Promise<void> {
     created_by_person_id: meId,
   });
 
-  const [restrictedSpId] = await knex('family_events').insert({
+  const [restrictedSpId] = await knex(Tables.EVENTS).insert({
     family_id: familyId,
     title: 'Arisan Keluarga Ayu (Restricted)',
     type: 'other',
@@ -100,7 +101,7 @@ export async function seed(knex: Knex): Promise<void> {
     created_by_person_id: meSpId,
   });
 
-  const [deathId] = await knex('family_events').insert({
+  const [deathId] = await knex(Tables.EVENTS).insert({
     family_id: familyId,
     title: 'Tahlilan H. Ardhyansah',
     type: 'death',
@@ -111,7 +112,7 @@ export async function seed(knex: Knex): Promise<void> {
     created_by_person_id: fatherId,
   });
 
-  await knex('family_event_persons').insert([
+  await knex(Tables.EVENT_PERSONS).insert([
     { event_id: weddingId, person_id: meId },
     { event_id: weddingId, person_id: meSpId },
     { event_id: birthdayId, person_id: fatherId },
@@ -120,12 +121,12 @@ export async function seed(knex: Knex): Promise<void> {
     { event_id: restrictedSpId, person_id: id(slugToId, 'sp-father') },
   ]);
 
-  await knex('family_event_attendees').insert([
+  await knex(Tables.EVENT_ATTENDEES).insert([
     { event_id: restrictedMeId, person_id: meId },
     { event_id: restrictedSpId, person_id: meSpId },
   ]);
 
-  await knex('family_event_photos').insert([
+  await knex(Tables.EVENT_PHOTOS).insert([
     {
       event_id: reunionId,
       photo_url: 'https://cdn.example.com/events/reunion-2024-cover.jpg',
@@ -138,7 +139,7 @@ export async function seed(knex: Knex): Promise<void> {
     },
   ]);
 
-  await knex('family_event_contributions').insert([
+  await knex(Tables.EVENT_CONTRIBUTIONS).insert([
     {
       event_id: reunionId,
       contributor_person_id: meId,
@@ -167,7 +168,7 @@ export async function seed(knex: Knex): Promise<void> {
   ];
 
   for (let i = 0; i < tributeContents.length; i += 1) {
-    const [tributeId] = await knex('memoriam_tributes').insert({
+    const [tributeId] = await knex(Tables.MEMORIAM_TRIBUTES).insert({
       family_id: familyId,
       deceased_person_id: patBuyutMId,
       author_person_id: i % 2 === 0 ? meId : fatherId,
@@ -175,7 +176,7 @@ export async function seed(knex: Knex): Promise<void> {
     });
 
     if (i < 2) {
-      await knex('memoriam_tribute_photos').insert({
+      await knex(Tables.MEMORIAM_TRIBUTE_PHOTOS).insert({
         tribute_id: tributeId,
         photo_url: `https://cdn.example.com/memoriam/pat-buyut-m-${i + 1}.jpg`,
         sort_order: 0,
@@ -184,7 +185,7 @@ export async function seed(knex: Knex): Promise<void> {
   }
 
   for (let i = 0; i < 4; i += 1) {
-    await knex('memoriam_tributes').insert({
+    await knex(Tables.MEMORIAM_TRIBUTES).insert({
       family_id: familyId,
       deceased_person_id: matBuyutMId,
       author_person_id: i % 2 === 0 ? meId : id(slugToId, 'mother'),
@@ -192,7 +193,7 @@ export async function seed(knex: Knex): Promise<void> {
     });
   }
 
-  await knex('memoriam_prayers').insert([
+  await knex(Tables.MEMORIAM_PRAYERS).insert([
     { family_id: familyId, deceased_person_id: patBuyutMId, author_person_id: meId },
     { family_id: familyId, deceased_person_id: patBuyutMId, author_person_id: fatherId },
     { family_id: familyId, deceased_person_id: patBuyutMId, author_person_id: id(slugToId, 'mother') },
@@ -201,9 +202,9 @@ export async function seed(knex: Knex): Promise<void> {
     { family_id: familyId, deceased_person_id: matBuyutMId, author_person_id: meId },
   ]);
 
-  const eventCount = Number((await knex('family_events').count({ count: '*' }))[0]?.count ?? 0);
-  const tributeCount = Number((await knex('memoriam_tributes').count({ count: '*' }))[0]?.count ?? 0);
-  const prayerCount = Number((await knex('memoriam_prayers').count({ count: '*' }))[0]?.count ?? 0);
+  const eventCount = Number((await knex(Tables.EVENTS).count({ count: '*' }))[0]?.count ?? 0);
+  const tributeCount = Number((await knex(Tables.MEMORIAM_TRIBUTES).count({ count: '*' }))[0]?.count ?? 0);
+  const prayerCount = Number((await knex(Tables.MEMORIAM_PRAYERS).count({ count: '*' }))[0]?.count ?? 0);
 
   console.log(
     `Events/Memoriam seed OK: events=${eventCount}, tributes=${tributeCount}, prayers=${prayerCount}`,

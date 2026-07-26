@@ -1,5 +1,5 @@
 import { NextFunction, Request, Response } from 'express';
-import { tokenService } from '../../modules/auth/token.service';
+import { tokenService } from '../../modules/core/auth/token.service';
 
 /**
  * Attach req.auth when Bearer token is valid; continue as guest otherwise.

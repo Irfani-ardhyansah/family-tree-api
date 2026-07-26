@@ -347,10 +347,10 @@ Semua endpoint persons **wajib auth**. Data otomatis scoped ke `familyId` dari J
 Resolusi fokus (middleware), **prioritas**:
 
 1. Query `?focusPersonId=` — override eksplisit (opsional)
-2. **`person_options`** — setting `readFocusPersonId` (disimpan via `PATCH /auth/me/options`)
+2. **`core_person_options`** — setting `readFocusPersonId` (disimpan via `PATCH /auth/me/options`)
 3. Default → user login (JWT sub)
 
-**First login:** BE otomatis set `readFocusPersonId` = id user jika belum ada di `person_options`.
+**First login:** BE otomatis set `readFocusPersonId` = id user jika belum ada di `core_person_options`.
 
 **Simpan preferensi (toggle navbar Saya / Pasangan):**
 

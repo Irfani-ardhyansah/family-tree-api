@@ -1,6 +1,6 @@
 import { Request } from 'express';
-import { logsService } from '../../modules/logs/logs.service';
-import { LogCategory, LogStatus } from '../../modules/logs/logs.types';
+import { logsService } from '../../modules/core/logs/logs.service';
+import { LogCategory, LogStatus } from '../../modules/core/logs/logs.types';
 import { extractErrorLocation, serializeUnknownError } from './errorLocation';
 import { appendAppLogLine } from './fileLogger';
 

@@ -3,15 +3,15 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 import { createCorsMiddleware } from './config/cors';
 import { env } from './config/env';
-import authRoutes from './modules/auth/auth.routes';
-import dashboardRoutes from './modules/dashboard/dashboard.routes';
-import eventsRoutes from './modules/events/events.routes';
-import healthRoutes from './modules/health/health.routes';
-import logsRoutes from './modules/logs/logs.routes';
-import mediaRoutes from './modules/media/media.routes';
-import { mediaStorage } from './modules/media/media.storage';
-import memoriamRoutes from './modules/memoriam/memoriam.routes';
-import personsRoutes from './modules/persons/persons.routes';
+import authRoutes from './modules/core/auth/auth.routes';
+import healthRoutes from './modules/core/health/health.routes';
+import logsRoutes from './modules/core/logs/logs.routes';
+import mediaRoutes from './modules/core/media/media.routes';
+import { mediaStorage } from './modules/core/media/media.storage';
+import dashboardRoutes from './modules/family-roots/dashboard/dashboard.routes';
+import eventsRoutes from './modules/family-roots/events/events.routes';
+import memoriamRoutes from './modules/family-roots/memoriam/memoriam.routes';
+import personsRoutes from './modules/family-roots/persons/persons.routes';
 import { errorHandler, notFoundHandler } from './shared/errors/errorHandler';
 import {
   httpAuditLogMiddleware,
@@ -53,7 +53,7 @@ export function createApp() {
   app.get('/', (_req, res) => {
     res.status(200).json({
       data: {
-        name: 'Family Tree API',
+        name: 'Family Roots API',
         version: 'v1',
       },
     });

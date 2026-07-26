@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import type { Knex } from 'knex';
+import { Tables } from '../../shared/database/tables';
 
 type SeedAddress = {
   street?: string | null;
@@ -100,14 +101,15 @@ export async function seed(knex: Knex): Promise<void> {
   const slugToId = buildSlugToIdMap(persons);
   const familyId = 1;
 
-  await knex('person_spouses').del();
-  await knex('person_addresses').del();
-  await knex('person_details').del();
-  await knex('family_members').del();
-  await knex('persons').del();
-  await knex('families').del();
+  await knex(Tables.PERSON_SPOUSES).del();
+  await knex(Tables.PERSON_ADDRESSES).del();
+  await knex(Tables.PERSON_LINEAGE).del();
+  await knex(Tables.PERSON_DETAILS).del();
+  await knex(Tables.FAMILY_MEMBERS).del();
+  await knex(Tables.PERSONS).del();
+  await knex(Tables.FAMILIES).del();
 
-  await knex('families').insert({
+  await knex(Tables.FAMILIES).insert({
     id: familyId,
     name: meta.familyName,
     root_person_id: null,
@@ -122,10 +124,16 @@ export async function seed(knex: Knex): Promise<void> {
     birth_date: person.birthDate,
     death_date: person.deathDate ?? null,
     status: person.status,
-    father_id: null,
-    mother_id: null,
     deleted_at: null,
   }));
+
+  const lineageRows = persons
+    .filter((person) => person.fatherId || person.motherId)
+    .map((person) => ({
+      person_id: slugToId.get(person.id)!,
+      father_id: resolveId(slugToId, person.fatherId),
+      mother_id: resolveId(slugToId, person.motherId),
+    }));
 
   const detailRows = persons.filter(hasPersonDetails).map((person) => ({
     person_id: slugToId.get(person.id)!,
@@ -158,34 +166,27 @@ export async function seed(knex: Knex): Promise<void> {
 
   const chunkSize = 25;
   for (let i = 0; i < personRows.length; i += chunkSize) {
-    await knex('persons').insert(personRows.slice(i, i + chunkSize));
+    await knex(Tables.PERSONS).insert(personRows.slice(i, i + chunkSize));
   }
 
-  for (const person of persons) {
-    if (!person.fatherId && !person.motherId) {
-      continue;
+  if (lineageRows.length > 0) {
+    for (let i = 0; i < lineageRows.length; i += chunkSize) {
+      await knex(Tables.PERSON_LINEAGE).insert(lineageRows.slice(i, i + chunkSize));
     }
-
-    await knex('persons')
-      .where({ id: slugToId.get(person.id) })
-      .update({
-        father_id: resolveId(slugToId, person.fatherId),
-        mother_id: resolveId(slugToId, person.motherId),
-      });
   }
 
   if (detailRows.length > 0) {
     for (let i = 0; i < detailRows.length; i += chunkSize) {
-      await knex('person_details').insert(detailRows.slice(i, i + chunkSize));
+      await knex(Tables.PERSON_DETAILS).insert(detailRows.slice(i, i + chunkSize));
     }
   }
 
   if (addressRows.length > 0) {
-    await knex('person_addresses').insert(addressRows);
+    await knex(Tables.PERSON_ADDRESSES).insert(addressRows);
   }
 
   for (let i = 0; i < memberRows.length; i += chunkSize) {
-    await knex('family_members').insert(memberRows.slice(i, i + chunkSize));
+    await knex(Tables.FAMILY_MEMBERS).insert(memberRows.slice(i, i + chunkSize));
   }
 
   const spouseRows = spouses.map((pair) =>
@@ -195,27 +196,28 @@ export async function seed(knex: Knex): Promise<void> {
     ),
   );
   for (let i = 0; i < spouseRows.length; i += chunkSize) {
-    await knex('person_spouses').insert(spouseRows.slice(i, i + chunkSize));
+    await knex(Tables.PERSON_SPOUSES).insert(spouseRows.slice(i, i + chunkSize));
   }
 
   const rootPersonId = resolveId(slugToId, meta.rootPersonId);
-  await knex('families').where({ id: familyId }).update({
+  await knex(Tables.FAMILIES).where({ id: familyId }).update({
     root_person_id: rootPersonId,
   });
 
-  const total = Number((await knex('persons').count({ count: '*' }))[0]?.count ?? 0);
+  const total = Number((await knex(Tables.PERSONS).count({ count: '*' }))[0]?.count ?? 0);
   const alive = Number(
-    (await knex('persons').where({ status: 'alive' }).count({ count: '*' }))[0]?.count ?? 0,
+    (await knex(Tables.PERSONS).where({ status: 'alive' }).count({ count: '*' }))[0]?.count ?? 0,
   );
   const deceased = Number(
-    (await knex('persons').where({ status: 'deceased' }).count({ count: '*' }))[0]?.count ?? 0,
+    (await knex(Tables.PERSONS).where({ status: 'deceased' }).count({ count: '*' }))[0]?.count ?? 0,
   );
-  const spouseCount = Number((await knex('person_spouses').count({ count: '*' }))[0]?.count ?? 0);
+  const spouseCount = Number((await knex(Tables.PERSON_SPOUSES).count({ count: '*' }))[0]?.count ?? 0);
   const adminCount = Number(
-    (await knex('family_members').where({ role: 'admin' }).count({ count: '*' }))[0]?.count ?? 0,
+    (await knex(Tables.FAMILY_MEMBERS).where({ role: 'admin' }).count({ count: '*' }))[0]?.count ?? 0,
   );
-  const detailCount = Number((await knex('person_details').count({ count: '*' }))[0]?.count ?? 0);
-  const addressCount = Number((await knex('person_addresses').count({ count: '*' }))[0]?.count ?? 0);
+  const detailCount = Number((await knex(Tables.PERSON_DETAILS).count({ count: '*' }))[0]?.count ?? 0);
+  const addressCount = Number((await knex(Tables.PERSON_ADDRESSES).count({ count: '*' }))[0]?.count ?? 0);
+  const lineageCount = Number((await knex(Tables.PERSON_LINEAGE).count({ count: '*' }))[0]?.count ?? 0);
 
   if (total !== meta.totalPersons) {
     throw new Error(`Seed validation failed: expected ${meta.totalPersons} persons, got ${total}`);
@@ -240,7 +242,7 @@ export async function seed(knex: Knex): Promise<void> {
   const fatherId = slugToId.get('father');
 
   console.log(
-    `Seed OK: persons=${total}, alive=${alive}, deceased=${deceased}, spouses=${spouseCount}, details=${detailCount}, addresses=${addressCount}, admins=${adminCount}`,
+    `Seed OK: persons=${total}, alive=${alive}, deceased=${deceased}, spouses=${spouseCount}, lineage=${lineageCount}, details=${detailCount}, addresses=${addressCount}, admins=${adminCount}`,
   );
   console.log(`familyId=${familyId}, rootPersonId=${rootPersonId} (slug: ${meta.rootPersonId})`);
   console.log(`slug map: demo-mr=${demoMrId}, me=${meId}, father=${fatherId}`);

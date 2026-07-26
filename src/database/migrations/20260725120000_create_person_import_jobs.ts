@@ -1,12 +1,13 @@
 import type { Knex } from 'knex';
+import { Tables } from '../../shared/database/tables';
 
 export async function up(knex: Knex): Promise<void> {
-  await knex.schema.createTable('person_import_jobs', (table) => {
+  await knex.schema.createTable(Tables.PERSON_IMPORT_JOBS, (table) => {
     table.string('id', 40).primary();
     table.integer('family_id').unsigned().notNullable();
-    table.foreign('family_id').references('families.id').onDelete('CASCADE');
+    table.foreign('family_id').references(`${Tables.FAMILIES}.id`).onDelete('CASCADE');
     table.integer('created_by_person_id').unsigned().notNullable();
-    table.foreign('created_by_person_id').references('persons.id').onDelete('CASCADE');
+    table.foreign('created_by_person_id').references(`${Tables.PERSONS}.id`).onDelete('CASCADE');
 
     table.boolean('dry_run').notNullable().defaultTo(false);
     table.enum('format', ['csv', 'json']).notNullable();
@@ -28,11 +29,11 @@ export async function up(knex: Knex): Promise<void> {
     table.timestamp('started_at').nullable();
     table.timestamp('finished_at').nullable();
 
-    table.index(['family_id', 'created_at'], 'person_import_jobs_family_created_idx');
-    table.index(['status', 'created_at'], 'person_import_jobs_status_created_idx');
+    table.index(['family_id', 'created_at'], 'fr_person_import_jobs_family_created_idx');
+    table.index(['status', 'created_at'], 'fr_person_import_jobs_status_created_idx');
   });
 }
 
 export async function down(knex: Knex): Promise<void> {
-  await knex.schema.dropTableIfExists('person_import_jobs');
+  await knex.schema.dropTableIfExists(Tables.PERSON_IMPORT_JOBS);
 }
