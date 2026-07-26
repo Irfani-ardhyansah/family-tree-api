@@ -25,7 +25,7 @@ DROP TABLE IF EXISTS knex_migrations_lock;
 | `npm run dev` | Start API with nodemon |
 | `npm run build` / `npm start` | Compile and run production build |
 | `npm run migrate` | Run latest migrations |
-| `npm run seed` | Seed demo family from `docs/seed/mock-family-seed.json` |
+| `npm run seed` | Seed demo family from `docs/reference/seed/mock-family-seed.json` |
 | `npm run db:setup` | migrate + seed |
 
 ## Smoke checks
@@ -42,9 +42,17 @@ curl -X POST http://localhost:3000/api/v1/logs/events \
   -d '{"action":"page.view","path":"/tree"}'
 ```
 
+## Docs
+
+Indeks & mapping folder: [`docs/README.md`](docs/README.md)
+
+- `docs/reference/` — dokumentasi resmi (setup, schema, API)
+- `docs/requests/from-fe/{done,pending}/` — spek dari FE ke BE
+- `docs/requests/to-fe/{done,pending}/` — prompt ke FE
+
 ## Database design
 
-See [`docs/DATABASE-DESIGN.md`](docs/DATABASE-DESIGN.md) for the full schema rationale.
+See [`docs/reference/DATABASE-DESIGN.md`](docs/reference/DATABASE-DESIGN.md) for the full schema rationale.
 
 Key rules:
 - `persons` = core only; all IDs are **unsigned integers**

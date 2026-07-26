@@ -1221,10 +1221,10 @@ curl -s "http://localhost:3000/api/v1/persons?view=tree&focusPersonId=83&lineage
 | Dokumen | Isi |
 |---|---|
 | [`PERSON-API-TREE.md`](./PERSON-API-TREE.md) | Detail pagination & tree graph |
-| [`BE-AUTH-API-PLAN.md`](./BE-AUTH-API-PLAN.md) | Rencana BE lengkap + aturan login code |
+| [`../requests/from-fe/done/BE-AUTH-API-PLAN.md`](../requests/from-fe/done/BE-AUTH-API-PLAN.md) | Rencana BE lengkap + aturan login code |
 | [`adr/001-auth-tokens.md`](./adr/001-auth-tokens.md) | JWT payload & refresh rotation |
 | [`DATABASE-DESIGN.md`](./DATABASE-DESIGN.md) | Schema DB |
-| [`../postman/README.md`](../postman/README.md) | Postman collection |
+| [`../../postman/README.md`](../../postman/README.md) | Postman collection |
 
 ---
 

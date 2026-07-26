@@ -5,7 +5,7 @@ import { Tables } from '../../shared/database/tables';
  * Unified application log store.
  * Covers API CRUD/audit, auth events, FE navigation/clicks, and system errors.
  *
- * See docs/DATABASE-DESIGN.md
+ * See docs/reference/DATABASE-DESIGN.md
  */
 export async function up(knex: Knex): Promise<void> {
   await knex.schema.createTable(Tables.APP_LOGS, (table) => {

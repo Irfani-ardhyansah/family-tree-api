@@ -47,9 +47,9 @@ AuthZ: hanya role=admin untuk POST import + GET job. Template boleh semua login.
 
 ## Flow UI wajib
 1. Halaman/modal Import Persons (gate: hanya admin; hide/disable untuk member)
-2. Tombol Download template → GET /import/template (atau static copy dari docs/templates/persons-import-template.csv)
+2. Tombol Download template → GET /import/template (atau static copy dari docs/reference/templates/persons-import-template.csv)
 3. Help singkat: "Isi ayah & ibu di baris anak pakai fatherTempId/motherTempId. Jangan isi daftar anak."
-4. Link contoh: docs/templates/persons-import-example.csv
+4. Link contoh: docs/reference/templates/persons-import-example.csv
 5. Dropzone accept .csv,.json
 6. Tombol "Cek data" → POST dryRun=true → poll job → preview atau errors
 7. Tombol "Import" disabled sampai dry-run completed valid → POST dryRun=false (file/payload sama) → poll dengan progress bar
@@ -117,9 +117,9 @@ async function waitForImportJob(jobId: string, onProgress: (j: PersonImportJobRe
 }
 
 ## Referensi repo API
-- docs/PERSONS-IMPORT-API.md (spek penuh)
-- docs/templates/persons-import-*.csv|json
-- docs/FE-API-INTEGRATION.md § tree graph
+- docs/reference/PERSONS-IMPORT-API.md (spek penuh)
+- docs/reference/templates/persons-import-*.csv|json
+- docs/reference/FE-API-INTEGRATION.md § tree graph
 
 ## Acceptance criteria
 - [ ] Admin bisa download template, dry-run, lihat error per baris

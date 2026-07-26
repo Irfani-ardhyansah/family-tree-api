@@ -55,7 +55,7 @@ type SeedPayload = {
 };
 
 function loadSeedPayload(): SeedPayload {
-  const seedPath = path.resolve(__dirname, '../../../docs/seed/mock-family-seed.json');
+  const seedPath = path.resolve(__dirname, '../../../docs/reference/seed/mock-family-seed.json');
   const raw = fs.readFileSync(seedPath, 'utf8');
   return JSON.parse(raw) as SeedPayload;
 }

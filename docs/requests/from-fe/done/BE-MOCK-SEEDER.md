@@ -1,7 +1,7 @@
 # FamilyRoots — Dokumentasi Mock Data → BE Seeder
 
 Sumber FE: `src/data/mockFamilyData.ts`  
-Artifact JSON siap import: [`seed/mock-family-seed.json`](./seed/mock-family-seed.json)
+Artifact JSON siap import: [`mock-family-seed.json`](../../../reference/seed/mock-family-seed.json)
 
 Dokumen ini untuk AI/engineer **Backend** saat mengerjakan **Part 1 (schema + seed)** di [`BE-AUTH-API-PLAN.md`](./BE-AUTH-API-PLAN.md).
 
@@ -324,7 +324,7 @@ Enums:
 
 ```
 Kerjakan PART 1 schema + seeder FamilyRoots.
-Sumber data: docs/BE-MOCK-SEEDER.md + docs/seed/mock-family-seed.json
+Sumber data: docs/requests/from-fe/done/BE-MOCK-SEEDER.md + docs/reference/seed/mock-family-seed.json
 - Buat 1 family: family-ardhyansah-demo, rootPersonId = me
 - Import semua 95 persons (hormati fatherId/motherId/spouseIds)
 - Jangan simpan login code sebagai password; login code derived
@@ -365,7 +365,7 @@ BuildLoginCode(father) == "BA200175"
 
 | File | Isi |
 |---|---|
-| `docs/seed/mock-family-seed.json` | Full dump 95 persons + spouses + recommendedTestLogins |
+| `docs/reference/seed/mock-family-seed.json` | Full dump 95 persons + spouses + recommendedTestLogins |
 | `src/data/mockFamilyData.ts` | Source of truth FE |
 | `src/utils/loginCode.ts` | Algoritma login code (harus bit-identical di BE) |
-| `docs/BE-AUTH-API-PLAN.md` | Rencana API auth (Part 1 memakai dokumen ini) |
+| `docs/requests/from-fe/done/BE-AUTH-API-PLAN.md` | Rencana API auth (Part 1 memakai dokumen ini) |

@@ -418,7 +418,7 @@
         },
         {
           "name": "Media",
-          "description": "Eager upload foto. Storage dipisah: `events/` · `memoriam/` · `persons/`. Lihat docs/MEDIA-UPLOAD-API.md.\n\nFlow: Upload → preview → Delete/Cleanup → submit entity dengan `mediaIds` / `mediaId`.",
+          "description": "Eager upload foto. Storage dipisah: `events/` · `memoriam/` · `persons/`. Lihat docs/requests/from-fe/done/MEDIA-UPLOAD-API.md.\n\nFlow: Upload → preview → Delete/Cleanup → submit entity dengan `mediaIds` / `mediaId`.",
           "item": [
             {
               "name": "Upload — event",
@@ -1211,7 +1211,7 @@
         },
         {
           "name": "Events — Acara & Gathering",
-          "description": "Acara keluarga — `focusPersonId` wajib. Lihat docs/MAP-EVENTS-MEMORIAM-API.md.",
+          "description": "Acara keluarga — `focusPersonId` wajib. Lihat docs/reference/MAP-EVENTS-MEMORIAM-API.md.",
           "item": [
             {
               "name": "List events",
@@ -1712,7 +1712,7 @@
         },
         {
           "name": "Dashboard",
-          "description": "Agregat ringkasan keluarga untuk halaman Dashboard. Perspektif via resolveReadFocusMiddleware (person_options / ?focusPersonId=). Lihat docs/DASHBOARD-API.md.",
+          "description": "Agregat ringkasan keluarga untuk halaman Dashboard. Perspektif via resolveReadFocusMiddleware (person_options / ?focusPersonId=). Lihat docs/requests/from-fe/done/DASHBOARD-API.md.",
           "item": [
             {
               "name": "Get dashboard",

@@ -5,7 +5,7 @@ import { Tables } from '../../shared/database/tables';
  * Core + Family Roots domain schema.
  * Prefixes: core_ (shared/auth), fr_ (Family Roots).
  *
- * See docs/DATABASE-DESIGN.md
+ * See docs/reference/DATABASE-DESIGN.md
  */
 export async function up(knex: Knex): Promise<void> {
   // Legacy / unprefixed leftovers from earlier iterations

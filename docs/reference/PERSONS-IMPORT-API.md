@@ -10,11 +10,11 @@ Bulk import anggota keluarga agar **sekalian membentuk tree graph** (ayah, ibu, 
 
 Related:
 
-- `docs/PERSONS-IMPORT-FE-PROMPT.md` — prompt siap tempel untuk pengerjaan FE
-- `docs/FE-API-INTEGRATION.md` — persons list/tree/CRUD
-- `docs/templates/persons-import-template.csv`
-- `docs/templates/persons-import-example.csv`
-- `docs/templates/persons-import-example.json`
+- `docs/requests/to-fe/done/PERSONS-IMPORT-FE-PROMPT.md` — prompt siap tempel untuk pengerjaan FE
+- `docs/reference/FE-API-INTEGRATION.md` — persons list/tree/CRUD
+- `docs/reference/templates/persons-import-template.csv`
+- `docs/reference/templates/persons-import-example.csv`
+- `docs/reference/templates/persons-import-example.json`
 
 ---
 
@@ -244,7 +244,7 @@ GET /api/v1/persons?view=tree
 Jangan isi `fatherTempId` + `fatherId` bersamaan (sama untuk ibu).  
 Jangan sediakan kolom `children`.
 
-CSV header resmi = isi `GET /import/template` / `docs/templates/persons-import-template.csv`.
+CSV header resmi = isi `GET /import/template` / `docs/reference/templates/persons-import-template.csv`.
 
 ---
 
@@ -363,5 +363,5 @@ export type PersonImportJobResponse = {
 |-------|--------|
 | Template CSV/JSON | ✅ |
 | Migration + worker + endpoints | ✅ |
-| FE prompt | ✅ `PERSONS-IMPORT-FE-PROMPT.md` |
+| FE prompt | ✅ `docs/requests/to-fe/done/PERSONS-IMPORT-FE-PROMPT.md` |
 | Postman | ⏳ opsional |

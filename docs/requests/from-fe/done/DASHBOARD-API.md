@@ -10,9 +10,9 @@ Dokumen ini untuk tim **Backend** (atau AI BE) mengimplementasikan endpoint yang
 
 Related docs:
 
-- `docs/MAP-EVENTS-MEMORIAM-API.md` — events & memoriam (sumber data agregat)
-- `docs/MEDIA-UPLOAD-API.md` — resolusi fokus baca & media
-- `docs/FE-API-INTEGRATION.md` — kontrak response & auth FE
+- `docs/reference/MAP-EVENTS-MEMORIAM-API.md` — events & memoriam (sumber data agregat)
+- `docs/requests/from-fe/done/MEDIA-UPLOAD-API.md` — resolusi fokus baca & media
+- `docs/reference/FE-API-INTEGRATION.md` — kontrak response & auth FE
 
 ---
 

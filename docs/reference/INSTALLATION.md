@@ -87,7 +87,7 @@ MEDIA_MAX_FILE_BYTES=5242880
 | `CORS_ORIGINS` | Direkomendasikan | Origin FE, contoh `http://localhost:5173` |
 | `MEDIA_*` | Jika pakai upload | Storage lokal untuk media |
 
-Lihat semua default di [`.env.example`](../.env.example).
+Lihat semua default di [`.env.example`](../../.env.example).
 
 ---
 
@@ -127,7 +127,7 @@ Knex menjalankan file di `src/database/seeds/` berurutan:
 | `01_mock_family_data.ts` | Family, 95 persons, spouses, details, addresses, family members |
 | `02_events_memoriam_data.ts` | Sample family events + in-memoriam (tributes / prayers) |
 
-Sumber data keluarga: [`docs/seed/mock-family-seed.json`](./seed/mock-family-seed.json).
+Sumber data keluarga: [`docs/reference/seed/mock-family-seed.json`](./seed/mock-family-seed.json).
 
 ### Output sukses (contoh)
 
@@ -198,7 +198,7 @@ curl -s "http://localhost:3000/api/v1/persons?page=1&limit=5" \
 3. Aktifkan environment **FamilyRoots — Local**
 4. Jalankan **Auth → Login** lalu endpoint lain
 
-Detail: [`postman/README.md`](../postman/README.md).
+Detail: [`postman/README.md`](../../postman/README.md).
 
 ### Unit test
 
@@ -235,7 +235,7 @@ Kode login **derived** (tidak disimpan sebagai password) dari `fullName` + `birt
 
 Contoh: `Mochamad Irfani Ardhyansah` + `1999-03-21` → `MIA210399`.
 
-Detail aturan: [`BE-MOCK-SEEDER.md`](./BE-MOCK-SEEDER.md), [`BE-AUTH-API-PLAN.md`](./BE-AUTH-API-PLAN.md).
+Detail aturan: [`BE-MOCK-SEEDER.md`](../requests/from-fe/done/BE-MOCK-SEEDER.md), [`BE-AUTH-API-PLAN.md`](../requests/from-fe/done/BE-AUTH-API-PLAN.md).
 
 ---
 
@@ -312,7 +312,7 @@ npm run db:setup
 
 Seeder memvalidasi jumlah persons / alive / deceased / spouses / admin. Jika gagal:
 
-1. Pastikan `docs/seed/mock-family-seed.json` utuh
+1. Pastikan `docs/reference/seed/mock-family-seed.json` utuh
 2. Pastikan migration sudah `latest` sebelum seed
 3. Coba reset DB lalu `npm run db:setup`
 
@@ -342,14 +342,15 @@ Upload membutuhkan direktori storage. Default `./uploads/media` dibuat/dipakai s
 
 | Dokumen | Isi |
 |---|---|
-| [`../readme.md`](../readme.md) | Ringkasan setup & arsitektur |
+| [`../../readme.md`](../../readme.md) | Ringkasan setup & arsitektur |
 | [`DATABASE-DESIGN.md`](./DATABASE-DESIGN.md) | Desain schema |
-| [`BE-MOCK-SEEDER.md`](./BE-MOCK-SEEDER.md) | Spec mock → seeder + akun uji |
+| [`../requests/from-fe/done/BE-MOCK-SEEDER.md`](../requests/from-fe/done/BE-MOCK-SEEDER.md) | Spec mock → seeder + akun uji |
 | [`seed/mock-family-seed.json`](./seed/mock-family-seed.json) | Artifact data seed |
 | [`FE-API-INTEGRATION.md`](./FE-API-INTEGRATION.md) | Integrasi FE + smoke curl |
-| [`../postman/README.md`](../postman/README.md) | Postman collection |
-| [`MEDIA-UPLOAD-API.md`](./MEDIA-UPLOAD-API.md) | Upload media |
+| [`../../postman/README.md`](../../postman/README.md) | Postman collection |
+| [`../requests/from-fe/done/MEDIA-UPLOAD-API.md`](../requests/from-fe/done/MEDIA-UPLOAD-API.md) | Upload media |
 | [`PERSONS-IMPORT-API.md`](./PERSONS-IMPORT-API.md) | Import persons (CSV/JSON) |
+| [`../README.md`](../README.md) | Indeks & mapping folder docs |
 
 ### Checklist first install
 

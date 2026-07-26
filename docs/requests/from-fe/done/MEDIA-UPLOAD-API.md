@@ -10,8 +10,8 @@ Dokumen ini untuk tim **Backend** (atau AI BE) mengimplementasikan endpoint yang
 
 Related docs:
 
-- `docs/MAP-EVENTS-MEMORIAM-API.md` — CRUD events, contributions, tributes (sudah menerima `photoUrls`)
-- `docs/FE-API-INTEGRATION.md` — kontrak response & auth FE
+- `docs/reference/MAP-EVENTS-MEMORIAM-API.md` — CRUD events, contributions, tributes (sudah menerima `photoUrls`)
+- `docs/reference/FE-API-INTEGRATION.md` — kontrak response & auth FE
 
 ---
 

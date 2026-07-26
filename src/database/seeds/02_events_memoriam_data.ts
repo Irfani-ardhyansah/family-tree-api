@@ -10,7 +10,7 @@ type SeedPayload = {
 };
 
 function loadSlugToIdMap(): Map<string, number> {
-  const seedPath = path.resolve(__dirname, '../../../docs/seed/mock-family-seed.json');
+  const seedPath = path.resolve(__dirname, '../../../docs/reference/seed/mock-family-seed.json');
   const payload = JSON.parse(fs.readFileSync(seedPath, 'utf8')) as SeedPayload;
   const map = new Map<string, number>();
   payload.persons.forEach((person, index) => {

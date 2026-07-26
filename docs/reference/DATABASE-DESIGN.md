@@ -12,7 +12,7 @@ Prefix tabel:
 | `mt_` | Money Track (future) |
 | `hh_` | Household (future) |
 
-Sumber konstanta di kode: [`src/shared/database/tables.ts`](../src/shared/database/tables.ts).
+Sumber konstanta di kode: [`src/shared/database/tables.ts`](../../src/shared/database/tables.ts).
 
 ---
 
