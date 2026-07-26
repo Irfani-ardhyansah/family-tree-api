@@ -83,10 +83,23 @@ export type TreeViewMeta = {
   recommendClientFilter: boolean;
 };
 
+/** Mode list only — tree ignore param ini. */
+export type PersonListScope = 'branch' | 'family';
+
 export type PersonListQuery = {
   page?: number;
   limit?: number;
   view?: 'list' | 'tree';
+  /**
+   * `branch` (default) — hanya cabang genealogi focus (root/pasangan).
+   * `family` — semua person aktif di family (termasuk di luar cabang fokus).
+   */
+  scope?: PersonListScope;
+  /**
+   * Cari nama (fullName + nickname), match **per kata** (AND, urutan bebas).
+   * Contoh: `q=Mulyono Basuki` cocok `Basuki Mulyono`.
+   */
+  q?: string;
 };
 
 export type PersonListResponse = ReadFocusMeta & {
@@ -95,6 +108,10 @@ export type PersonListResponse = ReadFocusMeta & {
   selfPersonId?: number;
   /** Mode list: anchor config keluarga di DB. Mode tree: sama dengan `focusPersonId`. */
   rootPersonId: number | null;
+  /** Mode list: scope data yang dipakai. */
+  scope?: PersonListScope;
+  /** Mode list: echo query search (jika dikirim). */
+  q?: string;
   persons: PersonResponse[];
   pagination?: PaginationMeta;
   treeGraph?: TreeGraphMeta;

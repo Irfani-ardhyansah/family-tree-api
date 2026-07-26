@@ -83,6 +83,17 @@ export class LogsService {
       if (normalized === '/persons/map' && method === 'GET') {
         return 'person.map.read';
       }
+      if (normalized.startsWith('/persons/import')) {
+        if (normalized === '/persons/import/template' && method === 'GET') {
+          return 'person.import.template';
+        }
+        if (normalized.startsWith('/persons/import/jobs/') && method === 'GET') {
+          return 'person.import.job.read';
+        }
+        if (normalized === '/persons/import' && method === 'POST') {
+          return 'person.import.enqueue';
+        }
+      }
       if (method === 'POST') return 'person.create';
       if (method === 'PUT' || method === 'PATCH') return 'person.update';
       if (method === 'DELETE') return 'person.delete';

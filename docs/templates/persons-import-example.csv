@@ -1,0 +1,9 @@
+tempId,fullName,nickname,gender,birthDate,deathDate,status,religion,occupation,phone,phoneAlt,street,district,city,province,postalCode,country,fatherTempId,motherTempId,spouseTempIds,role
+kakek,H. Slamet Widodo,Slamet,male,1950-03-12,,alive,islam,Petani,081200000001,,Jl. Melati 1,Cibeunying,Bandung,Jawa Barat,40121,Indonesia,,,nenek,member
+nenek,Hj. Siti Aminah,Aminah,female,1952-08-20,,alive,islam,Ibu Rumah Tangga,081200000002,,Jl. Melati 1,Cibeunying,Bandung,Jawa Barat,40121,Indonesia,,,kakek,member
+ayah,Budi Widodo,Budi,male,1975-01-15,,alive,islam,Pegawai Negeri,081200000011,,Jl. Kenanga 5,Coblong,Bandung,Jawa Barat,40132,Indonesia,kakek,nenek,ibu,member
+ibu,Rina Kartika,Rina,female,1978-06-30,,alive,islam,Guru,081200000012,,Jl. Kenanga 5,Coblong,Bandung,Jawa Barat,40132,Indonesia,,,ayah,member
+paman,Agus Widodo,Agus,male,1977-11-02,,alive,islam,Wiraswasta,081200000021,,,,,,,,kakek,nenek,,member
+anak1,Dimas Widodo,Dimas,male,2000-04-21,,alive,islam,Mahasiswa,081200000031,,,,,,,,ayah,ibu,,member
+anak2,Dewi Widodo,Dewi,female,2003-09-08,,alive,islam,Pelajar,,,,,,,,,ayah,ibu,,member
+buyut,H. Mulyono Widodo,,male,1925-01-01,1990-05-10,deceased,islam,Petani,,,,,,,,,,,,member

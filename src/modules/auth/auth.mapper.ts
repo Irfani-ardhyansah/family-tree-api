@@ -79,6 +79,8 @@ export function toAuthPersonSummary(
 ): AuthPersonSummary {
   const birthDate = formatBirthDate(row.birth_date);
 
+  const role = row.role === 'admin' ? 'admin' : 'member';
+
   return {
     id: row.id,
     fullName: row.full_name,
@@ -87,6 +89,8 @@ export function toAuthPersonSummary(
     birthDate,
     status: row.status,
     photoUrl: row.photo_url,
+    role,
+    isAdmin: role === 'admin',
     isMarried: spouseIds.length > 0,
     isLegal: isLegalAge(birthDate),
     spouseIds,

@@ -30,6 +30,18 @@ describe('logsService.inferAuditAction', () => {
     expect(logsService.inferAuditAction('GET', '/api/v1/persons/map')).toBe('person.map.read');
   });
 
+  it('maps persons import actions', () => {
+    expect(logsService.inferAuditAction('GET', '/api/v1/persons/import/template')).toBe(
+      'person.import.template',
+    );
+    expect(logsService.inferAuditAction('POST', '/api/v1/persons/import')).toBe(
+      'person.import.enqueue',
+    );
+    expect(
+      logsService.inferAuditAction('GET', '/api/v1/persons/import/jobs/imp_abc'),
+    ).toBe('person.import.job.read');
+  });
+
   it('maps events CRUD and read', () => {
     expect(logsService.inferAuditAction('GET', '/api/v1/events')).toBe('event.read');
     expect(logsService.inferAuditAction('POST', '/api/v1/events')).toBe('event.create');

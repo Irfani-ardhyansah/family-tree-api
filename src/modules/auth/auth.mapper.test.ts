@@ -10,6 +10,7 @@ function person(partial: Partial<PersonAuthRow> & Pick<PersonAuthRow, 'id' | 'fu
     birth_date: '1999-03-21',
     status: 'alive',
     photo_url: null,
+    role: 'member',
     ...partial,
   };
 }
@@ -110,6 +111,16 @@ describe('auth.mapper', () => {
       expect(summary.spouseIds).toEqual([84]);
       expect(summary.isMarried).toBe(true);
       expect(summary.allowedFocusPersons.map((p) => p.id)).toEqual([83, 84]);
+    });
+
+    it('exposes role and isAdmin from family_members', () => {
+      const admin = toAuthPersonSummary(person({ id: 1, full_name: 'Admin', role: 'admin' }));
+      const member = toAuthPersonSummary(person({ id: 2, full_name: 'Member', role: 'member' }));
+
+      expect(admin.role).toBe('admin');
+      expect(admin.isAdmin).toBe(true);
+      expect(member.role).toBe('member');
+      expect(member.isAdmin).toBe(false);
     });
   });
 });

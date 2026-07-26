@@ -165,6 +165,8 @@ Content-Type: application/json
       "birthDate": "1999-03-21",
       "status": "alive",
       "photoUrl": null,
+      "role": "admin",
+      "isAdmin": true,
       "isMarried": true,
       "isLegal": true,
       "spouseIds": [84],
@@ -196,6 +198,8 @@ Content-Type: application/json
 | `expiresIn` | Detik — access token TTL (default 3600) |
 | `remember` | `true` → refresh TTL 30 hari; `false` → 1 hari |
 | `person.id` | Simpan sebagai `userId` / `personId` |
+| `role` | `"admin"` \| `"member"` — level di family (`family_members.role`) |
+| `isAdmin` | `true` jika `role === "admin"` — pakai untuk gate UI (import, dll.) |
 | `isMarried` | `true` jika punya pasangan aktif di `person_spouses` |
 | `isLegal` | `true` jika usia **di atas 17 tahun** (≥ 18, birthday sudah lewat) |
 | `spouseIds` | ID pasangan — untuk pivot pohon (fokus ke diri vs pasangan). Kosong `[]` jika belum menikah |
@@ -224,6 +228,8 @@ Ganti session mock (`familyroots_auth`, `familyroots_auth_user`) dengan pasangan
     "birthDate": "1999-03-21",
     "status": "alive",
     "photoUrl": null,
+    "role": "admin",
+    "isAdmin": true,
     "isMarried": true,
     "isLegal": true,
     "spouseIds": [84],
@@ -375,7 +381,9 @@ Setelah PATCH, FE **tidak wajib** kirim `?focusPersonId=` di setiap API — BE b
 - Response **selalu** include top-level `focusPersonId` + `allowedFocusPersonIds`
 - **`generationLabel`** dihitung relatif ke `focusPersonId`
 - **`isSelf`** = user login (`selfPersonId`); **`isFocus`** = person pivot
-- **List & detail** difilter ke **cabang genealogi** fokus: leluhur + keturunan + node pasangan (tanpa expand ke bloodline orang tua pasangan)
+- **List (default):** difilter ke **cabang genealogi** fokus: leluhur + keturunan + node pasangan (tanpa expand ke bloodline orang tua pasangan)
+- **List `?scope=family`:** semua person aktif di family (termasuk di luar cabang root/pasangan)
+- **Detail:** person apa pun di family yang sama (boleh dibuka dari list `scope=family`)
 - **Tree (v1):** mengembalikan **semua person aktif** — tanpa filter params
 - **Tree (v2):** kirim filter params → BE return **subgraph** (selaras `filterPersons()` di `treeLayout.ts`)
 - `meta.recommendClientFilter` → `true` jika family ≥ 200 person; FE auto-switch ke v2
@@ -391,8 +399,15 @@ Mock FE mungkin pakai `id: string`. API mengembalikan **integer**. Update type &
 
 ```http
 GET /api/v1/persons?page=1&limit=20&focusPersonId=84
+GET /api/v1/persons?scope=family&page=1&limit=50
+GET /api/v1/persons?scope=family&q=Mulyono%20Basuki&page=1&limit=20
 Authorization: Bearer <accessToken>
 ```
+
+| Param list | Default | Keterangan |
+|---|---|---|
+| `scope` | `branch` | `branch` = cabang fokus (root/pasangan). `family` = semua anggota family aktif |
+| `q` | — | Search nama/nickname **per kata** (semua kata harus ada, urutan bebas). `Mulyono Basuki` ≈ `Basuki Mulyono`. Bukan partial huruf |
 
 | Query | Default | Max |
 |---|---|---|
@@ -897,6 +912,8 @@ export type AuthPersonSummary = {
   birthDate: string;
   status: PersonStatus;
   photoUrl: string | null;
+  role: 'admin' | 'member';
+  isAdmin: boolean;
   isMarried: boolean;
   isLegal: boolean;
   spouseIds: number[];

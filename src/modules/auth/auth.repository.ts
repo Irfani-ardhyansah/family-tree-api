@@ -2,38 +2,40 @@ import db from '../../config/database';
 import { PersonAuthRow, RefreshTokenRow } from './auth.types';
 
 export class AuthRepository {
+  private authPersonSelect() {
+    return [
+      'p.id',
+      'p.family_id',
+      'p.full_name',
+      'p.nickname',
+      'p.gender',
+      'p.birth_date',
+      'p.status',
+      'd.photo_url',
+      db.raw("COALESCE(fm.role, 'member') as role"),
+    ];
+  }
+
   async findAlivePersons(): Promise<PersonAuthRow[]> {
     return db('persons as p')
       .leftJoin('person_details as d', 'd.person_id', 'p.id')
+      .leftJoin('family_members as fm', function joinMembers() {
+        this.on('fm.person_id', '=', 'p.id').andOn('fm.family_id', '=', 'p.family_id');
+      })
       .where('p.status', 'alive')
       .whereNull('p.deleted_at')
-      .select<PersonAuthRow[]>([
-        'p.id',
-        'p.family_id',
-        'p.full_name',
-        'p.nickname',
-        'p.gender',
-        'p.birth_date',
-        'p.status',
-        'd.photo_url',
-      ]);
+      .select<PersonAuthRow[]>(this.authPersonSelect());
   }
 
   async findPersonById(personId: number): Promise<PersonAuthRow | undefined> {
     return db('persons as p')
       .leftJoin('person_details as d', 'd.person_id', 'p.id')
+      .leftJoin('family_members as fm', function joinMembers() {
+        this.on('fm.person_id', '=', 'p.id').andOn('fm.family_id', '=', 'p.family_id');
+      })
       .where('p.id', personId)
       .whereNull('p.deleted_at')
-      .first<PersonAuthRow>([
-        'p.id',
-        'p.family_id',
-        'p.full_name',
-        'p.nickname',
-        'p.gender',
-        'p.birth_date',
-        'p.status',
-        'd.photo_url',
-      ]);
+      .first<PersonAuthRow>(this.authPersonSelect());
   }
 
   async findSpouseIdsByPersonId(personId: number): Promise<number[]> {
@@ -57,18 +59,12 @@ export class AuthRepository {
 
     return db('persons as p')
       .leftJoin('person_details as d', 'd.person_id', 'p.id')
+      .leftJoin('family_members as fm', function joinMembers() {
+        this.on('fm.person_id', '=', 'p.id').andOn('fm.family_id', '=', 'p.family_id');
+      })
       .whereIn('p.id', personIds)
       .whereNull('p.deleted_at')
-      .select<PersonAuthRow[]>([
-        'p.id',
-        'p.family_id',
-        'p.full_name',
-        'p.nickname',
-        'p.gender',
-        'p.birth_date',
-        'p.status',
-        'd.photo_url',
-      ]);
+      .select<PersonAuthRow[]>(this.authPersonSelect());
   }
 
   async insertRefreshToken(input: {

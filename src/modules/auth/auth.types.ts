@@ -16,6 +16,10 @@ export type AuthPersonSummary = {
   birthDate: string;
   status: 'alive' | 'deceased';
   photoUrl: string | null;
+  /** Level keanggotaan family — dari `family_members.role`. */
+  role: 'admin' | 'member';
+  /** Shortcut FE: `role === 'admin'`. */
+  isAdmin: boolean;
   isMarried: boolean;
   isLegal: boolean;
   spouseIds: number[];
@@ -55,6 +59,8 @@ export type PersonAuthRow = {
   birth_date: Date | string;
   status: 'alive' | 'deceased';
   photo_url: string | null;
+  /** Dari join `family_members.role`; default member jika belum ada row. */
+  role: 'admin' | 'member';
 };
 
 export type RefreshTokenRow = {

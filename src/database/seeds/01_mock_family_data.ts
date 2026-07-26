@@ -231,8 +231,8 @@ export async function seed(knex: Knex): Promise<void> {
       `Seed validation failed: expected ${spouses.length} canonical spouse rows, got ${spouseCount}`,
     );
   }
-  if (adminCount !== 2) {
-    throw new Error(`Seed validation failed: expected 2 admins (me, demo-mr), got ${adminCount}`);
+  if (adminCount !== 1) {
+    throw new Error(`Seed validation failed: expected 1 admin (me / Irfani), got ${adminCount}`);
   }
 
   const demoMrId = slugToId.get('demo-mr');

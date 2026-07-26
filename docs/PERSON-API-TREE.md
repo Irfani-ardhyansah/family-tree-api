@@ -16,10 +16,14 @@ Validasi (middleware `resolveReadFocusMiddleware`):
 - `403 PERSON_READ_FOCUS_FORBIDDEN` jika ID lain
 - `404 PERSON_NOT_FOUND` jika ID tidak ada di family
 
-**Filter cabang (list & detail):** `GET /persons` (mode list) dan `GET /persons/:id` hanya mengembalikan person dalam cabang `focusPersonId`:
+**Filter cabang (list default):** `GET /persons` mode list tanpa `scope` / `scope=branch` hanya mengembalikan person dalam cabang `focusPersonId`:
 - Leluhur (naik via `fatherId` / `motherId`)
 - Keturunan (turun)
 - Pasangan dari node di bloodline (node saja — **tidak** include leluhur pasangan)
+
+**List full family:** `GET /persons?scope=family` → semua person aktif di family (di luar cabang fokus ikut).
+
+**Detail:** `GET /persons/:id` boleh person apa pun di family yang sama.
 
 **Mode tree (v1 — full):** tanpa filter params → **semua person aktif** di family.
 
@@ -53,6 +57,13 @@ Response **selalu** menyertakan (top-level):
 |---|---|---|---|
 | `page` | `1` | — | Halaman (1-based) |
 | `limit` | `20` | `100` | Item per halaman |
+| `scope` | `branch` | — | `branch` = cabang fokus (root/pasangan). `family` = **semua** person aktif di family (termasuk di luar cabang fokus) |
+| `q` | — | — | Cari `fullName` + `nickname`, **per kata** (AND, urutan bebas). Max 100 karakter |
+
+Contoh:
+- `GET /api/v1/persons?page=1&limit=20` → default cabang fokus
+- `GET /api/v1/persons?scope=family&page=1&limit=50` → daftar seluruh anggota family
+- `GET /api/v1/persons?scope=family&q=Mulyono%20Basuki` → cocok juga `Basuki Mulyono` (bukan partial huruf: `Mul` ≠ `Mulyono`)
 
 ### Query params (mode tree — existing)
 
@@ -94,7 +105,8 @@ Contoh:
     "allowedFocusPersonIds": [83, 84],
     "view": "list",
     "rootPersonId": 83,
-    "persons": [ /* slice halaman ini, cabang fokus */ ],
+    "scope": "branch",
+    "persons": [ /* slice halaman ini */ ],
     "pagination": {
       "page": 1,
       "limit": 20,
@@ -110,7 +122,8 @@ Contoh:
 | Field | Arti |
 |---|---|
 | `rootPersonId` | Anchor config keluarga di DB (admin) |
-| `pagination.total` | Jumlah person **dalam cabang fokus**, bukan seluruh keluarga |
+| `pagination.total` | `scope=branch`: jumlah di cabang fokus. `scope=family`: jumlah semua person aktif di family |
+| `scope` | Echo param yang dipakai (`branch` \| `family`) |
 
 ---
 

@@ -22,6 +22,10 @@ import {
   validatePatchAddressInput,
 } from './person-map.service';
 import {
+  matchesPersonWordSearch,
+  parseListSearchQuery,
+} from './person-list-search.service';
+import {
   getVisiblePersonIds,
   PERSPECTIVE_VIEW_DEFAULTS,
 } from './perspective-subgraph.service';
@@ -36,6 +40,7 @@ import {
   PersonGraphNode,
   PersonListQuery,
   PersonListResponse,
+  PersonListScope,
   PersonMapResponse,
   PersonReadResponse,
   ReadFocusMeta,
@@ -44,6 +49,21 @@ import {
 
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 100;
+
+function parseScopeParam(raw: unknown): PersonListScope {
+  const value = Array.isArray(raw) ? raw[0] : raw;
+  if (value === undefined || value === null || value === '') {
+    return 'branch';
+  }
+  if (value === 'branch' || value === 'family') {
+    return value;
+  }
+  throw new AppError(
+    400,
+    ErrorCodes.PERSON_VALIDATION_FAILED,
+    'Parameter scope harus branch atau family.',
+  );
+}
 
 function validateUpsertInput(input: unknown): UpsertPersonInput {
   if (!input || typeof input !== 'object') {
@@ -114,6 +134,8 @@ function parseListQuery(raw: Record<string, unknown>): PersonListQuery {
       ? DEFAULT_LIMIT
       : Number(Array.isArray(limitRaw) ? limitRaw[0] : limitRaw);
   const view = viewRaw === 'tree' ? 'tree' : 'list';
+  const scope = parseScopeParam(raw.scope);
+  const q = parseListSearchQuery(raw.q);
 
   if (!Number.isInteger(page) || page < 1) {
     throw new AppError(400, ErrorCodes.PERSON_VALIDATION_FAILED, 'Parameter page tidak valid.');
@@ -127,7 +149,7 @@ function parseListQuery(raw: Record<string, unknown>): PersonListQuery {
     );
   }
 
-  return { page, limit, view };
+  return { page, limit, view, scope, q };
 }
 
 export class PersonsService {
@@ -253,13 +275,24 @@ export class PersonsService {
       };
     }
 
-    const branchRows = await this.loadBranchRows(familyId, labelPerspectiveId, graph);
-    const { rows, pagination } = this.paginateRows(branchRows, query.page!, query.limit!);
+    const scope = query.scope ?? 'branch';
+    const sourceRows =
+      scope === 'family'
+        ? await personsRepository.findAllByFamily(familyId)
+        : await this.loadBranchRows(familyId, labelPerspectiveId, graph);
+
+    const filteredRows = query.q
+      ? sourceRows.filter((row) => matchesPersonWordSearch(row, query.q!))
+      : sourceRows;
+
+    const { rows, pagination } = this.paginateRows(filteredRows, query.page!, query.limit!);
 
     return {
       ...readFocus,
       view: 'list',
       rootPersonId,
+      scope,
+      ...(query.q ? { q: query.q } : {}),
       persons: this.mapRows(rows, viewerId, labelPerspectiveId, graph, spouseMap),
       pagination,
     };
@@ -278,15 +311,6 @@ export class PersonsService {
 
     if (!row) {
       throw new AppError(404, ErrorCodes.PERSON_NOT_FOUND, 'Person tidak ditemukan.');
-    }
-
-    const branchIds = collectFocusBranchIds(readFocus.focusPersonId, graph);
-    if (!branchIds.has(personId)) {
-      throw new AppError(
-        404,
-        ErrorCodes.PERSON_NOT_FOUND,
-        'Person tidak ada dalam cabang fokus saat ini.',
-      );
     }
 
     return {

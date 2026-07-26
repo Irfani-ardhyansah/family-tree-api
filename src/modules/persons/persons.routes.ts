@@ -1,11 +1,25 @@
 import { Router } from 'express';
 import { requireAuth } from '../../shared/middleware/requireAuth.middleware';
+import { personImportController } from './import/person-import.controller';
+import { personImportUploadMiddleware } from './import/person-import.upload.middleware';
 import { personsController } from './persons.controller';
 import { resolveReadFocusMiddleware } from './read-focus.middleware';
 
 const personsRoutes = Router();
 
 personsRoutes.use(requireAuth);
+
+personsRoutes.get('/import/template', (req, res) => {
+  personImportController.template(req, res);
+});
+
+personsRoutes.post('/import', personImportUploadMiddleware, (req, res, next) => {
+  void personImportController.create(req, res, next);
+});
+
+personsRoutes.get('/import/jobs/:jobId', (req, res, next) => {
+  void personImportController.getJob(req, res, next);
+});
 
 personsRoutes.get('/map', resolveReadFocusMiddleware, (req, res, next) => {
   void personsController.map(req, res, next);
