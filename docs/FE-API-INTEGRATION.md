@@ -595,7 +595,7 @@ Jangan pakai list paginated untuk render pohon — relasi parent/spouse bisa ter
 |---|---|
 | `nickname`, `deathDate`, `religion`, `photoUrl`, … | Bisa `null` |
 | `address` | `null` jika tidak ada alamat |
-| `fatherId`, `motherId` | `null` jika tidak diisi |
+| `fatherId`, `motherId` | Bisa `null` di data lama/pendiri; **create/update API wajib mengisi keduanya** |
 
 ---
 
@@ -721,17 +721,66 @@ Semua butuh Bearer. Validasi error → `400 PERSON_VALIDATION_FAILED`.
 | Field | Required |
 |---|---|
 | `fullName`, `gender`, `birthDate` | ✅ |
+| `fatherId`, `motherId` | ✅ (integer > 0, orang berbeda, anggota family aktif) |
 | Lainnya | Opsional |
+
+**Validasi orang tua (create & update):**
+
+| Kondisi | `error.code` | `error.message` (contoh) |
+|---------|--------------|--------------------------|
+| `fatherId` hilang / bukan integer positif | `PERSON_VALIDATION_FAILED` | `Ayah wajib dipilih.` |
+| `motherId` hilang / bukan integer positif | `PERSON_VALIDATION_FAILED` | `Ibu wajib dipilih.` |
+| `fatherId === motherId` | `PERSON_VALIDATION_FAILED` | `Ayah dan ibu tidak boleh orang yang sama.` |
+| Parent di luar family / tidak ada | `PERSON_VALIDATION_FAILED` | `Relasi person tidak valid atau di luar keluarga.` |
+| Parent lahir ≥ anak | `PERSON_VALIDATION_FAILED` | `Tanggal lahir ayah/ibu harus sebelum tanggal lahir person.` |
+| Self sebagai parent (update) | `PERSON_VALIDATION_FAILED` | `Person tidak boleh menjadi ayah atau ibu dirinya sendiri.` |
+
+Contoh response:
+
+```json
+{
+  "error": {
+    "code": "PERSON_VALIDATION_FAILED",
+    "message": "Ayah wajib dipilih.",
+    "requestId": null
+  }
+}
+```
+
+**FE — agar pesan tampil di form Create/Edit Person:**
+
+1. Field `fatherId` / `motherId` wajib di form (required client-side + kirim selalu di body POST/PUT).
+2. Di mutation error handler, jika `error.code === 'PERSON_VALIDATION_FAILED'`, tampilkan **`error.message`** (toast / alert / form-level error). Jangan hanya map code → pesan generik.
+3. Opsional map pesan ke field:
+   - message mengandung `"Ayah"` → set error di field ayah
+   - message mengandung `"Ibu"` → set error di field ibu  
+   (atau tampilkan satu banner form — cukup untuk MVP).
+4. Setelah sukses create/update, invalidate query persons/tree seperti biasa.
 
 ### Update — `PUT /api/v1/persons/:id`
 
-Kirim shape yang sama (full replace fields yang divalidasi BE).
+Kirim shape yang sama (full replace fields yang divalidasi BE). **`fatherId` dan `motherId` wajib** — tidak boleh di-omit atau `null`.
 
 ### Delete — `DELETE /api/v1/persons/:id`
 
 Soft delete. **200:** `{ "data": { "deleted": true } }`
 
-**403** jika user hapus diri sendiri yang juga `rootPersonId`.
+| HTTP | Code | Kapan |
+|------|------|--------|
+| 403 | `PERSON_DELETE_FORBIDDEN` | User hapus diri sendiri yang juga `rootPersonId` |
+| 409 | `PERSON_HAS_CHILDREN` | Person masih punya anak aktif (`fatherId` / `motherId` mengarah ke orang ini) |
+
+Contoh error anak masih ada — tampilkan `error.message` ke user:
+
+```json
+{
+  "error": {
+    "code": "PERSON_HAS_CHILDREN",
+    "message": "Tidak dapat menghapus H. Slamet Widodo karena masih memiliki 2 anak. Hapus atau pindahkan relasi anak terlebih dahulu.",
+    "requestId": null
+  }
+}
+```
 
 ---
 
@@ -1095,8 +1144,10 @@ Setelah CRUD person sukses, **invalidate** query `['persons']`.
 
 ### Fase 5 — Admin CRUD (jika `role === 'admin'`)
 - [ ] Create / update / delete person
+- [ ] Form create/update: `fatherId` + `motherId` wajib; kirim di body
 - [ ] Invalidate cache tree + list setelah mutate
-- [ ] Handle `PERSON_DELETE_FORBIDDEN`
+- [ ] Handle `PERSON_VALIDATION_FAILED` → tampilkan `error.message` (ayah/ibu wajib, dll.)
+- [ ] Handle `PERSON_DELETE_FORBIDDEN` dan `PERSON_HAS_CHILDREN` (tampilkan `error.message`)
 
 ### Fase 6 — Observability (opsional)
 - [ ] Router hook → `POST /logs/events` `page.view` untuk **semua** route:

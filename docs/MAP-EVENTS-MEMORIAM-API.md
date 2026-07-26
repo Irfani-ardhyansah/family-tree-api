@@ -102,7 +102,37 @@ isEventVisibleInPerspective(personIds, visibleSubgraph):
 | DELETE | `/api/v1/events/:id?focusPersonId={id}` |
 | POST | `/api/v1/events/:id/contributions?focusPersonId={id}` |
 
-Filter list: `type`, `year`, `month`, `dateFrom`, `dateTo`, `q`, `page`, `limit`.
+Filter list: `type`, `year`, `month`, `dateFrom`, `dateTo`, `q`, `page`, `limit`, `view`.
+
+| Query | Default | Max / aturan |
+|-------|---------|--------------|
+| `page` | `1` | — (diabaikan saat `view=calendar`) |
+| `limit` | `20` | `100` (diabaikan saat `view=calendar`) |
+| `view` | — | `calendar` saja |
+
+#### Range `dateFrom` / `dateTo` (overlap)
+
+Filter memakai **overlap** rentang acara, bukan hanya `date` di dalam window:
+
+```
+event.date <= dateTo
+AND COALESCE(event.endDate, event.date) >= dateFrom
+```
+
+Contoh: acara **2026-01-28 – 2026-02-02** ikut ter-return untuk
+`dateFrom=2026-02-01&dateTo=2026-02-28`.
+
+#### Mode `view=calendar`
+
+Untuk layout kalender FE (lebih ringan di server & payload):
+
+- Wajib `dateFrom` + `dateTo`
+- Rentang inklusif maksimal **62 hari**
+- Mengembalikan **semua** event yang overlap (tanpa page cut diam-diam; safety cap **500**)
+- Item ringan: `id`, `title`, `type`, `date`, `endDate`, `location`, `personIds`,
+  `isRestricted`, `canAccess`, `canManage`
+  (tanpa `description`, `photoUrls`, `attendeeIds`, `contributions`, `createdById`)
+- Layout kartu FE tetap pakai list tanpa `view` (response penuh + pagination biasa)
 
 ### Error codes
 
@@ -187,6 +217,10 @@ curl -s "http://localhost:3000/api/v1/persons/map?focusPersonId=84" -H "Authoriz
 
 # Events — restricted detail
 curl -s "http://localhost:3000/api/v1/events?focusPersonId=83" -H "Authorization: Bearer $TOKEN" | jq '.data.events[] | {id,title,isRestricted,canAccess}'
+
+# Events — calendar (semua overlap Februari 2026, payload ringan)
+curl -s "http://localhost:3000/api/v1/events?focusPersonId=83&view=calendar&dateFrom=2026-02-01&dateTo=2026-02-28" \
+  -H "Authorization: Bearer $TOKEN" | jq '.data.events | length'
 
 # Memoriam
 curl -s "http://localhost:3000/api/v1/memoriam/deceased?focusPersonId=83" -H "Authorization: Bearer $TOKEN" | jq '.data.deceased | length'

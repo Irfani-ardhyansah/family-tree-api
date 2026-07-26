@@ -94,6 +94,22 @@ function validateUpsertInput(input: unknown): UpsertPersonInput {
     throw new AppError(400, ErrorCodes.PERSON_VALIDATION_FAILED, 'Status tidak valid.');
   }
 
+  if (typeof body.fatherId !== 'number' || !Number.isInteger(body.fatherId) || body.fatherId <= 0) {
+    throw new AppError(400, ErrorCodes.PERSON_VALIDATION_FAILED, 'Ayah wajib dipilih.');
+  }
+
+  if (typeof body.motherId !== 'number' || !Number.isInteger(body.motherId) || body.motherId <= 0) {
+    throw new AppError(400, ErrorCodes.PERSON_VALIDATION_FAILED, 'Ibu wajib dipilih.');
+  }
+
+  if (body.fatherId === body.motherId) {
+    throw new AppError(
+      400,
+      ErrorCodes.PERSON_VALIDATION_FAILED,
+      'Ayah dan ibu tidak boleh orang yang sama.',
+    );
+  }
+
   return {
     fullName: body.fullName.trim(),
     nickname: typeof body.nickname === 'string' ? body.nickname : null,
@@ -111,8 +127,8 @@ function validateUpsertInput(input: unknown): UpsertPersonInput {
     phone: typeof body.phone === 'string' ? body.phone : null,
     phoneAlt: typeof body.phoneAlt === 'string' ? body.phoneAlt : null,
     address: (body.address as UpsertPersonInput['address']) ?? null,
-    fatherId: typeof body.fatherId === 'number' ? body.fatherId : null,
-    motherId: typeof body.motherId === 'number' ? body.motherId : null,
+    fatherId: body.fatherId,
+    motherId: body.motherId,
     spouseIds: Array.isArray(body.spouseIds)
       ? body.spouseIds.filter((id): id is number => typeof id === 'number')
       : undefined,
@@ -407,6 +423,15 @@ export class PersonsService {
         403,
         ErrorCodes.PERSON_DELETE_FORBIDDEN,
         'Tidak dapat menghapus akun root keluarga.',
+      );
+    }
+
+    const childCount = await personsRepository.countActiveChildren(familyId, personId);
+    if (childCount > 0) {
+      throw new AppError(
+        409,
+        ErrorCodes.PERSON_HAS_CHILDREN,
+        `Tidak dapat menghapus ${existing.full_name} karena masih memiliki ${childCount} anak. Hapus atau pindahkan relasi anak terlebih dahulu.`,
       );
     }
 

@@ -273,6 +273,18 @@ export class PersonsRepository {
       .update({ deleted_at: db.fn.now() });
   }
 
+  /** Anak aktif yang masih mereferensikan person sebagai ayah/ibu. */
+  async countActiveChildren(familyId: number, personId: number): Promise<number> {
+    const result = await db('persons')
+      .where({ family_id: familyId })
+      .whereNull('deleted_at')
+      .andWhere(function whereParent() {
+        this.where('father_id', personId).orWhere('mother_id', personId);
+      })
+      .count<{ count: number }[]>({ count: '*' });
+    return Number(result[0]?.count ?? 0);
+  }
+
   async patchAddress(personId: number, address: PersonAddress): Promise<void> {
     await db.transaction(async (trx) => {
       await this.upsertAddress(trx, personId, address);

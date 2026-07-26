@@ -33,8 +33,10 @@ export class EventsRepository {
     if (filters.month) {
       query = query.whereRaw('MONTH(`date`) = ?', [filters.month]);
     }
+    // Overlap range: event.date <= dateTo AND COALESCE(end_date, date) >= dateFrom
+    // (multi-day events that start before the window but end inside still match)
     if (filters.dateFrom) {
-      query = query.where('date', '>=', filters.dateFrom);
+      query = query.whereRaw('COALESCE(`end_date`, `date`) >= ?', [filters.dateFrom]);
     }
     if (filters.dateTo) {
       query = query.where('date', '<=', filters.dateTo);

@@ -29,6 +29,20 @@ export type EventItem = {
   canManage: boolean;
 };
 
+/** Lightweight item for `view=calendar` (no gallery / contributions). */
+export type CalendarEventItem = {
+  id: number;
+  title: string;
+  type: EventType;
+  date: string;
+  endDate: string | null;
+  location: string | null;
+  personIds: number[];
+  isRestricted: boolean;
+  canAccess: boolean;
+  canManage: boolean;
+};
+
 export type EventListQuery = {
   type?: EventType;
   year?: number;
@@ -36,13 +50,15 @@ export type EventListQuery = {
   dateFrom?: string;
   dateTo?: string;
   q?: string;
+  /** `calendar` = all overlap events in range, light payload, no silent page cut. */
+  view?: 'calendar';
   page: number;
   limit: number;
 };
 
 export type EventListResponse = ReadFocusMeta & {
   selfPersonId: number;
-  events: EventItem[];
+  events: EventItem[] | CalendarEventItem[];
   pagination: PaginationMeta;
 };
 

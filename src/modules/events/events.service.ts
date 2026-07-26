@@ -17,6 +17,7 @@ import {
 } from './event-access.service';
 import { eventsRepository } from './events.repository';
 import {
+  CalendarEventItem,
   CreateContributionInput,
   EventDetailResponse,
   EventItem,
@@ -30,6 +31,10 @@ import {
 const EVENT_TYPES: EventType[] = ['wedding', 'birth', 'death', 'birthday', 'reunion', 'other'];
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 100;
+/** Safety cap for calendar view (all overlap events in range). */
+const CALENDAR_MAX_EVENTS = 500;
+/** Inclusive day span max for `view=calendar` (≈ month grid + padding). */
+const CALENDAR_MAX_SPAN_DAYS = 62;
 
 function formatDate(value: Date | string): string {
   if (value instanceof Date) {
@@ -42,7 +47,34 @@ function formatDateTime(value: Date): string {
   return value.toISOString();
 }
 
+/** Inclusive day count between YYYY-MM-DD strings (UTC date parts). */
+function inclusiveDaySpan(dateFrom: string, dateTo: string): number {
+  const fromMs = Date.UTC(
+    Number(dateFrom.slice(0, 4)),
+    Number(dateFrom.slice(5, 7)) - 1,
+    Number(dateFrom.slice(8, 10)),
+  );
+  const toMs = Date.UTC(
+    Number(dateTo.slice(0, 4)),
+    Number(dateTo.slice(5, 7)) - 1,
+    Number(dateTo.slice(8, 10)),
+  );
+  return Math.floor((toMs - fromMs) / 86_400_000) + 1;
+}
+
 function parseListQuery(raw: Record<string, unknown>): EventListQuery {
+  const isCalendar =
+    raw.view !== undefined &&
+    String(Array.isArray(raw.view) ? raw.view[0] : raw.view).trim() === 'calendar';
+
+  if (raw.view !== undefined && !isCalendar) {
+    throw new AppError(
+      400,
+      ErrorCodes.EVENT_VALIDATION_FAILED,
+      'Parameter view tidak valid. Gunakan view=calendar.',
+    );
+  }
+
   const pageRaw = raw.page;
   const limitRaw = raw.limit;
 
@@ -51,18 +83,27 @@ function parseListQuery(raw: Record<string, unknown>): EventListQuery {
   const limit =
     limitRaw === undefined ? DEFAULT_LIMIT : Number(Array.isArray(limitRaw) ? limitRaw[0] : limitRaw);
 
-  if (!Number.isInteger(page) || page < 1) {
-    throw new AppError(400, ErrorCodes.EVENT_VALIDATION_FAILED, 'Parameter page tidak valid.');
-  }
-  if (!Number.isInteger(limit) || limit < 1 || limit > MAX_LIMIT) {
-    throw new AppError(
-      400,
-      ErrorCodes.EVENT_VALIDATION_FAILED,
-      `Parameter limit harus 1–${MAX_LIMIT}.`,
-    );
+  if (!isCalendar) {
+    if (!Number.isInteger(page) || page < 1) {
+      throw new AppError(400, ErrorCodes.EVENT_VALIDATION_FAILED, 'Parameter page tidak valid.');
+    }
+    if (!Number.isInteger(limit) || limit < 1 || limit > MAX_LIMIT) {
+      throw new AppError(
+        400,
+        ErrorCodes.EVENT_VALIDATION_FAILED,
+        `Parameter limit harus 1–${MAX_LIMIT}.`,
+      );
+    }
   }
 
-  const query: EventListQuery = { page, limit };
+  const query: EventListQuery = {
+    page: isCalendar ? 1 : page,
+    limit: isCalendar ? CALENDAR_MAX_EVENTS : limit,
+  };
+
+  if (isCalendar) {
+    query.view = 'calendar';
+  }
 
   if (raw.type !== undefined) {
     const type = String(Array.isArray(raw.type) ? raw.type[0] : raw.type).trim() as EventType;
@@ -102,6 +143,32 @@ function parseListQuery(raw: Record<string, unknown>): EventListQuery {
       throw new AppError(400, ErrorCodes.EVENT_VALIDATION_FAILED, 'Parameter dateTo tidak valid.');
     }
     query.dateTo = dateTo;
+  }
+
+  if (query.dateFrom && query.dateTo && query.dateFrom > query.dateTo) {
+    throw new AppError(
+      400,
+      ErrorCodes.EVENT_VALIDATION_FAILED,
+      'Parameter dateFrom tidak boleh setelah dateTo.',
+    );
+  }
+
+  if (isCalendar) {
+    if (!query.dateFrom || !query.dateTo) {
+      throw new AppError(
+        400,
+        ErrorCodes.EVENT_VALIDATION_FAILED,
+        'view=calendar wajib disertai dateFrom dan dateTo.',
+      );
+    }
+    const span = inclusiveDaySpan(query.dateFrom, query.dateTo);
+    if (span > CALENDAR_MAX_SPAN_DAYS) {
+      throw new AppError(
+        400,
+        ErrorCodes.EVENT_VALIDATION_FAILED,
+        `Rentang dateFrom–dateTo untuk view=calendar maksimal ${CALENDAR_MAX_SPAN_DAYS} hari.`,
+      );
+    }
   }
 
   if (raw.q !== undefined) {
@@ -246,6 +313,26 @@ function mapEventRow(
   };
 }
 
+function mapCalendarEventRow(
+  row: EventRow,
+  personIds: number[],
+  attendeeIds: number[],
+  viewerPersonId: number,
+): CalendarEventItem {
+  return {
+    id: row.id,
+    title: row.title,
+    type: row.type,
+    date: formatDate(row.date),
+    endDate: row.end_date ? formatDate(row.end_date) : null,
+    location: row.location,
+    personIds,
+    isRestricted: isRestrictedEvent(attendeeIds),
+    canAccess: canAccessEvent(attendeeIds, viewerPersonId),
+    canManage: canManageEvent(row.created_by_person_id, viewerPersonId),
+  };
+}
+
 export class EventsService {
   private async assertPersonIdsInFamily(familyId: number, personIds: number[]): Promise<void> {
     for (const personId of personIds) {
@@ -281,6 +368,45 @@ export class EventsService {
 
     const rows = await eventsRepository.findByFamily(familyId, query);
     const eventIds = rows.map((row) => row.id);
+
+    if (query.view === 'calendar') {
+      const [personMap, attendeeMap] = await Promise.all([
+        eventsRepository.findPersonIdsByEventIds(eventIds),
+        eventsRepository.findAttendeeIdsByEventIds(eventIds),
+      ]);
+
+      const filtered = rows.filter((row) => {
+        const personIds = personMap.get(row.id) ?? [];
+        return isEventVisibleInPerspective(personIds, visibleIds);
+      });
+
+      const total = filtered.length;
+      const pageRows = filtered.slice(0, CALENDAR_MAX_EVENTS);
+      const truncated = total > CALENDAR_MAX_EVENTS;
+      const events = pageRows.map((row) =>
+        mapCalendarEventRow(
+          row,
+          personMap.get(row.id) ?? [],
+          attendeeMap.get(row.id) ?? [],
+          viewerId,
+        ),
+      );
+
+      return {
+        ...readFocus,
+        selfPersonId: viewerId,
+        events,
+        pagination: {
+          page: 1,
+          limit: pageRows.length,
+          total,
+          totalPages: total === 0 ? 0 : truncated ? 2 : 1,
+          hasNext: truncated,
+          hasPrev: false,
+        },
+      };
+    }
+
     const { personMap, attendeeMap, photoMap, contributionMap } = await this.loadEventBundle(
       familyId,
       eventIds,
