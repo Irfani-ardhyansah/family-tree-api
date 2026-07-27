@@ -16,6 +16,12 @@ export const Tables = {
   PERSON_OPTIONS: 'core_person_options',
   APP_LOGS: 'core_app_logs',
   MEDIA: 'core_media',
+  MODULE_STATUSES: 'core_module_statuses',
+  ADMIN_AUDIT_LOGS: 'core_admin_audit_logs',
+  BROADCASTS: 'core_broadcasts',
+  NOTIFICATIONS: 'core_notifications',
+  BACKUP_JOBS: 'core_backup_jobs',
+  PUSH_SUBSCRIPTIONS: 'core_push_subscriptions',
 
   // fr_ (Family Roots)
   PERSON_LINEAGE: 'fr_person_lineage',

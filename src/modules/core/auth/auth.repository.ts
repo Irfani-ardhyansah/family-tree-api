@@ -70,14 +70,24 @@ export class AuthRepository {
 
   async insertRefreshToken(input: {
     personId: number;
+    familyId: number;
     tokenHash: string;
     expiresAt: Date;
-  }): Promise<void> {
-    await db(Tables.REFRESH_TOKENS).insert({
+    device?: string | null;
+    browser?: string | null;
+    ipAddress?: string | null;
+  }): Promise<number> {
+    const [id] = await db(Tables.REFRESH_TOKENS).insert({
       person_id: input.personId,
+      family_id: input.familyId,
       token_hash: input.tokenHash,
       expires_at: input.expiresAt,
+      device: input.device ?? null,
+      browser: input.browser ?? null,
+      ip_address: input.ipAddress ?? null,
+      last_active_at: db.fn.now(),
     });
+    return Number(id);
   }
 
   async findActiveRefreshToken(tokenHash: string): Promise<RefreshTokenRow | undefined> {

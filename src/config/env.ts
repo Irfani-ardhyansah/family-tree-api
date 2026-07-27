@@ -76,4 +76,13 @@ export const env = {
     pendingTtlMs: Number(optional('MEDIA_PENDING_TTL_MS', String(24 * 60 * 60 * 1000))),
     ttlIntervalMs: Number(optional('MEDIA_TTL_INTERVAL_MS', String(60 * 60 * 1000))),
   },
+  /**
+   * Web Push (VAPID). If public/private kosong di non-production → push no-op.
+   * Generate: `npx web-push generate-vapid-keys`
+   */
+  webPush: {
+    publicKey: optional('VAPID_PUBLIC_KEY', ''),
+    privateKey: optional('VAPID_PRIVATE_KEY', ''),
+    subject: optional('VAPID_SUBJECT', 'mailto:admin@familyroots.local'),
+  },
 } as const;

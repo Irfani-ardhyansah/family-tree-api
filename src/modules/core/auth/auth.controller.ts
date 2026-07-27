@@ -42,7 +42,7 @@ export class AuthController {
 
   async refresh(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const result = await authService.refresh(req.body?.refreshToken);
+      const result = await authService.refresh(req, req.body?.refreshToken);
       sendData(res, result);
     } catch (error) {
       next(error);

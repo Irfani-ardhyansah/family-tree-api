@@ -3,6 +3,9 @@ import { AppError } from '../../../shared/errors/AppError';
 import { ErrorCodes } from '../../../shared/errors/errorCodes';
 import { LogCategory, LogStatus } from '../logs/logs.types';
 import { logsService } from '../logs/logs.service';
+import { adminAuditService } from '../admin/admin-audit.service';
+import { moduleStatusService } from '../admin/module-status.service';
+import { parseUserAgent } from '../admin/parse-user-agent';
 import { buildLoginCode, isValidFormat, normalize } from './login-code.service';
 import { authRepository } from './auth.repository';
 import { toAuthMeResponse, toAuthPersonSummary, formatBirthDate } from './auth.mapper';
@@ -17,23 +20,42 @@ const CODE_NOT_FOUND_MESSAGE =
 const CODE_INVALID_FORMAT_MESSAGE =
   'Format kode salah. Contoh: MR170845 atau MIA210399 …';
 
+function getClientIp(req: Request): string | null {
+  const forwarded = req.headers['x-forwarded-for'];
+  if (typeof forwarded === 'string' && forwarded.length > 0) {
+    return forwarded.split(',')[0]?.trim() ?? null;
+  }
+  return req.ip ?? null;
+}
+
 export class AuthService {
   private async issueTokenPair(
     person: PersonAuthRow,
     remember: boolean,
-  ): Promise<{ accessToken: string; refreshToken: string; expiresIn: number }> {
+    req?: Request,
+  ): Promise<{
+    accessToken: string;
+    refreshToken: string;
+    expiresIn: number;
+    sessionId: number;
+  }> {
     const refreshToken = tokenService.generateRefreshToken();
     const tokenHash = tokenService.hashRefreshToken(refreshToken);
     const expiresAt = tokenService.getRefreshExpiry(remember);
+    const ua = parseUserAgent(req?.headers['user-agent']);
 
-    await authRepository.insertRefreshToken({
+    const sessionId = await authRepository.insertRefreshToken({
       personId: person.id,
+      familyId: person.family_id,
       tokenHash,
       expiresAt,
+      device: ua.device,
+      browser: ua.browser,
+      ipAddress: req ? getClientIp(req) : null,
     });
 
     const { accessToken, expiresIn } = tokenService.signAccessToken(person.id, person.family_id);
-    return { accessToken, refreshToken, expiresIn };
+    return { accessToken, refreshToken, expiresIn, sessionId };
   }
 
   async login(req: Request, rawCode: unknown, remember = false): Promise<LoginResponse> {
@@ -70,7 +92,7 @@ export class AuthService {
       throw new AppError(401, ErrorCodes.CODE_NOT_FOUND, CODE_NOT_FOUND_MESSAGE);
     }
 
-    const tokens = await this.issueTokenPair(person, remember);
+    const tokens = await this.issueTokenPair(person, remember, req);
     const spouseIds = await authRepository.findSpouseIdsByPersonId(person.id);
     const spouseRows = await authRepository.findPersonsByIds(spouseIds);
     await personOptionsService.ensureDefaultReadFocusPersonId(person.id);
@@ -86,7 +108,16 @@ export class AuthService {
       httpMethod: 'POST',
       path: '/api/v1/auth/login',
       message: 'Login berhasil',
-      metadata: { remember },
+      metadata: { remember, sessionId: tokens.sessionId },
+    });
+
+    await adminAuditService.record({
+      familyId: person.family_id,
+      actorPersonId: person.id,
+      moduleId: 'auth',
+      action: 'login',
+      summary: 'Login berhasil',
+      after: { sessionId: tokens.sessionId, remember },
     });
 
     return {
@@ -110,10 +141,20 @@ export class AuthService {
     );
     const readFocus = buildReadFocusMeta(personId, spouseIds, storedFocus);
 
+    const [accessVersion, moduleList] = await Promise.all([
+      moduleStatusService.getAccessVersion(person.family_id),
+      moduleStatusService.list(person.family_id),
+    ]);
+
     return {
       ...toAuthMeResponse(person, spouseIds, spouseRows),
       readFocusPersonId: readFocus.focusPersonId,
       allowedFocusPersonIds: readFocus.allowedFocusPersonIds,
+      accessVersion,
+      moduleStatuses: moduleList.items.map((item) => ({
+        moduleId: item.moduleId,
+        enabled: item.enabled,
+      })),
     };
   }
 
@@ -130,7 +171,7 @@ export class AuthService {
     return personOptionsService.upsertOption(personId, spouseIds, input);
   }
 
-  async refresh(refreshToken: unknown): Promise<RefreshResponse> {
+  async refresh(req: Request, refreshToken: unknown): Promise<RefreshResponse> {
     if (typeof refreshToken !== 'string' || refreshToken.trim().length === 0) {
       throw new AppError(400, ErrorCodes.REFRESH_TOKEN_REQUIRED, 'Refresh token wajib diisi.');
     }
@@ -151,9 +192,7 @@ export class AuthService {
     await authRepository.revokeRefreshToken(tokenHash);
 
     const remember = false;
-    const tokens = await this.issueTokenPair(person, remember);
-
-    return tokens;
+    return this.issueTokenPair(person, remember, req);
   }
 
   async logout(req: Request, refreshToken: unknown): Promise<void> {
@@ -170,6 +209,16 @@ export class AuthService {
       path: '/api/v1/auth/logout',
       message: 'Logout berhasil',
     });
+
+    if (req.auth) {
+      await adminAuditService.record({
+        familyId: req.auth.familyId,
+        actorPersonId: req.auth.personId,
+        moduleId: 'auth',
+        action: 'logout',
+        summary: 'Logout berhasil',
+      });
+    }
   }
 }
 

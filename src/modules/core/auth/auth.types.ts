@@ -31,16 +31,26 @@ export type AuthMeBase = AuthPersonSummary & {
   familyId: number;
 };
 
+export type AuthModuleStatus = {
+  moduleId: string;
+  enabled: boolean;
+};
+
 export type AuthMeResponse = AuthMeBase & {
   /** Fokus baca aktif — dari person_options atau default diri sendiri */
   readFocusPersonId: number;
   allowedFocusPersonIds: number[];
+  /** Naik saat admin toggle modul — FE re-fetch permission bila berubah. */
+  accessVersion: number;
+  moduleStatuses: AuthModuleStatus[];
 };
 
 export type LoginResponse = {
   accessToken: string;
   refreshToken: string;
   expiresIn: number;
+  /** Id baris `core_refresh_tokens` — simpan di FE untuk `X-Session-Id`. */
+  sessionId: number;
   person: AuthPersonSummary;
 };
 
@@ -48,6 +58,7 @@ export type RefreshResponse = {
   accessToken: string;
   refreshToken: string;
   expiresIn: number;
+  sessionId: number;
 };
 
 export type PersonAuthRow = {
@@ -66,7 +77,12 @@ export type PersonAuthRow = {
 export type RefreshTokenRow = {
   id: number;
   person_id: number;
+  family_id: number | null;
   token_hash: string;
   expires_at: Date;
   revoked_at: Date | null;
+  device: string | null;
+  browser: string | null;
+  ip_address: string | null;
+  last_active_at: Date | null;
 };

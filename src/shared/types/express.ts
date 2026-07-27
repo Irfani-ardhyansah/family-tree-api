@@ -5,6 +5,9 @@ declare global {
       auth?: {
         personId: number;
         familyId: number;
+        /** Set by requireAdmin when role === admin */
+        isAdmin?: boolean;
+        role?: 'admin' | 'member';
       };
       /** Set by resolveReadFocusMiddleware on GET /persons */
       readFocus?: {

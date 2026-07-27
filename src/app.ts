@@ -3,10 +3,13 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 import { createCorsMiddleware } from './config/cors';
 import { env } from './config/env';
+import adminRoutes from './modules/core/admin/admin.routes';
 import authRoutes from './modules/core/auth/auth.routes';
 import healthRoutes from './modules/core/health/health.routes';
 import logsRoutes from './modules/core/logs/logs.routes';
 import mediaRoutes from './modules/core/media/media.routes';
+import notificationsRoutes from './modules/core/notifications/notifications.routes';
+import pushRoutes from './modules/core/push/push.routes';
 import { mediaStorage } from './modules/core/media/media.storage';
 import dashboardRoutes from './modules/family-roots/dashboard/dashboard.routes';
 import eventsRoutes from './modules/family-roots/events/events.routes';
@@ -61,6 +64,9 @@ export function createApp() {
 
   app.use('/api/v1/health', healthRoutes);
   app.use('/api/v1/auth', authRoutes);
+  app.use('/api/v1/admin', adminRoutes);
+  app.use('/api/v1/notifications', notificationsRoutes);
+  app.use('/api/v1/push', pushRoutes);
   app.use('/api/v1/logs', logsRoutes);
   app.use('/api/v1/persons', personsRoutes);
   app.use('/api/v1/events', eventsRoutes);
