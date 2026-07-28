@@ -36,6 +36,15 @@ export type AuthModuleStatus = {
   enabled: boolean;
 };
 
+export type SecondaryPasswordStatus = {
+  /** Sudah pernah set password kedua? */
+  isSet: boolean;
+  /** FE harus tampilkan form setup (blokir lanjut ke app sensitif). */
+  mustSetup: boolean;
+  /** Modul yang dilindungi password kedua. */
+  unlocks: Array<'admin' | 'money' | 'household'>;
+};
+
 export type AuthMeResponse = AuthMeBase & {
   /** Fokus baca aktif — dari person_options atau default diri sendiri */
   readFocusPersonId: number;
@@ -43,6 +52,7 @@ export type AuthMeResponse = AuthMeBase & {
   /** Naik saat admin toggle modul — FE re-fetch permission bila berubah. */
   accessVersion: number;
   moduleStatuses: AuthModuleStatus[];
+  secondaryPassword: SecondaryPasswordStatus;
 };
 
 export type LoginResponse = {
@@ -52,6 +62,7 @@ export type LoginResponse = {
   /** Id baris `core_refresh_tokens` — simpan di FE untuk `X-Session-Id`. */
   sessionId: number;
   person: AuthPersonSummary;
+  secondaryPassword: SecondaryPasswordStatus;
 };
 
 export type RefreshResponse = {

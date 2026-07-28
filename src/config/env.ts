@@ -85,4 +85,6 @@ export const env = {
     privateKey: optional('VAPID_PRIVATE_KEY', ''),
     subject: optional('VAPID_SUBJECT', 'mailto:admin@familyroots.local'),
   },
+  /** Unlock TTL setelah verifikasi password kedua (detik). Default 15 menit. */
+  secondaryUnlockTtlSeconds: Number(optional('SECONDARY_UNLOCK_TTL', '900')),
 } as const;

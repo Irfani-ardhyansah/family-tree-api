@@ -306,7 +306,10 @@ export class PersonsService {
       };
     }
 
-    const scope = query.scope ?? 'branch';
+    // Parent picker (`gender=male|female`) harus melihat seluruh anggota family,
+    // termasuk person "bebas"/belum tersambung ke tree (orphan). Override branch default.
+    const scope =
+      query.gender != null ? 'family' : (query.scope ?? 'branch');
     const sourceRows =
       scope === 'family'
         ? await personsRepository.findAllByFamily(familyId)

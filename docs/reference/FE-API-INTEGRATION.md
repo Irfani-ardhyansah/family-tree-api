@@ -406,7 +406,8 @@ Authorization: Bearer <accessToken>
 
 | Param list | Default | Keterangan |
 |---|---|---|
-| `scope` | `branch` | `branch` = cabang fokus (root/pasangan). `family` = semua anggota family aktif |
+| `scope` | `branch` | `branch` = cabang fokus (root/pasangan). `family` = semua anggota family aktif (termasuk belum terhubung tree) |
+| `gender` | — | `male` / `female` — picker ayah/ibu. **Jika diisi, BE otomatis pakai `scope=family`** |
 | `q` | — | Search nama/nickname **per kata** (semua kata harus ada, urutan bebas). `Mulyono Basuki` ≈ `Basuki Mulyono`. Bukan partial huruf |
 
 | Query | Default | Max |

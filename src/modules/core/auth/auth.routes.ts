@@ -29,4 +29,16 @@ authRoutes.patch('/me/options', requireAuth, (req, res, next) => {
   void authController.upsertOption(req, res, next);
 });
 
+authRoutes.post('/secondary-password/setup', requireAuth, (req, res, next) => {
+  void authController.setupSecondaryPassword(req, res, next);
+});
+
+authRoutes.post('/secondary-password/verify', requireAuth, (req, res, next) => {
+  void authController.verifySecondaryPassword(req, res, next);
+});
+
+authRoutes.post('/secondary-password/change', requireAuth, (req, res, next) => {
+  void authController.changeSecondaryPassword(req, res, next);
+});
+
 export default authRoutes;

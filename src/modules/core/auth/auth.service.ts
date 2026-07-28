@@ -14,6 +14,7 @@ import { tokenService } from './token.service';
 import { personOptionsService } from '../person-options/person-options.service';
 import { PersonOptionsResponse } from '../person-options/person-options.types';
 import { buildReadFocusMeta } from '../../family-roots/persons/read-focus.service';
+import { secondaryPasswordService } from './secondary-password.service';
 
 const CODE_NOT_FOUND_MESSAGE =
   'Kode tidak ditemukan. Periksa singkatan nama dan tanggal lahir Anda.';
@@ -120,9 +121,12 @@ export class AuthService {
       after: { sessionId: tokens.sessionId, remember },
     });
 
+    const secondaryPassword = await secondaryPasswordService.getStatus(person.id);
+
     return {
       ...tokens,
       person: toAuthPersonSummary(person, spouseIds, spouseRows),
+      secondaryPassword,
     };
   }
 
@@ -141,9 +145,10 @@ export class AuthService {
     );
     const readFocus = buildReadFocusMeta(personId, spouseIds, storedFocus);
 
-    const [accessVersion, moduleList] = await Promise.all([
+    const [accessVersion, moduleList, secondaryPassword] = await Promise.all([
       moduleStatusService.getAccessVersion(person.family_id),
       moduleStatusService.list(person.family_id),
+      secondaryPasswordService.getStatus(personId),
     ]);
 
     return {
@@ -155,6 +160,7 @@ export class AuthService {
         moduleId: item.moduleId,
         enabled: item.enabled,
       })),
+      secondaryPassword,
     };
   }
 

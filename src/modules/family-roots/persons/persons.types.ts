@@ -102,6 +102,7 @@ export type PersonListQuery = {
   q?: string;
   /**
    * Filter gender — untuk picker ayah (`male`) / ibu (`female`).
+   * Jika diisi, list otomatis memakai `scope=family` (termasuk person belum terhubung tree).
    */
   gender?: 'male' | 'female';
 };

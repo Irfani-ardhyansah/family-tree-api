@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { requireAuth } from '../../../shared/middleware/requireAuth.middleware';
 import { requireAdmin } from '../../../shared/middleware/requireAdmin.middleware';
+import { requireModuleUnlock } from '../../../shared/middleware/requireModuleUnlock.middleware';
 import { mediaUploadMiddleware } from '../media/media.upload.middleware';
 import { adminController } from './admin.controller';
 
@@ -10,6 +11,7 @@ adminRoutes.use(requireAuth);
 adminRoutes.use((req, res, next) => {
   void requireAdmin(req, res, next);
 });
+adminRoutes.use(requireModuleUnlock('admin'));
 
 adminRoutes.get('/dashboard', (req, res, next) => {
   void adminController.getDashboard(req, res, next);

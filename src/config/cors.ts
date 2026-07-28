@@ -13,7 +13,13 @@ export function createCorsMiddleware() {
 
   const options: CorsOptions = {
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Request-Id', 'X-Session-Id'],
+    allowedHeaders: [
+      'Content-Type',
+      'Authorization',
+      'X-Request-Id',
+      'X-Session-Id',
+      'X-Module-Unlock',
+    ],
     exposedHeaders: ['X-Request-Id'],
     credentials: true,
     optionsSuccessStatus: 204,
