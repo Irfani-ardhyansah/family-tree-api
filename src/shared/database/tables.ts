@@ -37,6 +37,22 @@ export const Tables = {
   MEMORIAM_TRIBUTE_PHOTOS: 'fr_memoriam_tribute_photos',
   MEMORIAM_PRAYERS: 'fr_memoriam_prayers',
   PERSON_IMPORT_JOBS: 'fr_person_import_jobs',
+
+  // mt_ (Money Track)
+  MONEY_WORKSPACES: 'mt_workspaces',
+  MONEY_PERSONS: 'mt_persons',
+  MONEY_COUPLE_LINKS: 'mt_couple_links',
+  MONEY_ACCOUNTS: 'mt_accounts',
+  MONEY_POCKETS: 'mt_pockets',
+  MONEY_CATEGORIES: 'mt_categories',
+  MONEY_TRANSACTIONS: 'mt_transactions',
+  MONEY_TRANSFERS: 'mt_transfers',
+  MONEY_CASH_WITHDRAWALS: 'mt_cash_withdrawals',
+  MONEY_WISHLIST_ITEMS: 'mt_wishlist_items',
+  MONEY_DEBTS: 'mt_debts',
+  MONEY_DEBT_PAYMENTS: 'mt_debt_payments',
+  MONEY_BUDGETS: 'mt_budgets',
+  MONEY_AUDIT_LOGS: 'mt_audit_logs',
 } as const;
 
 export type TableName = (typeof Tables)[keyof typeof Tables];

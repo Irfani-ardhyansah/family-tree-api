@@ -1,6 +1,14 @@
-export type MediaPurpose = 'event' | 'event_contribution' | 'memoriam_tribute' | 'person';
+export type MediaPurpose =
+  | 'event'
+  | 'event_contribution'
+  | 'memoriam_tribute'
+  | 'person'
+  | 'money_transaction'
+  | 'money_cash_withdrawal'
+  | 'money_wishlist';
 export type MediaStatus = 'pending' | 'attached' | 'deleted';
 export type MediaAttachedToType = 'event' | 'event_contribution' | 'tribute' | 'person';
+
 
 export type MediaRow = {
   id: string;

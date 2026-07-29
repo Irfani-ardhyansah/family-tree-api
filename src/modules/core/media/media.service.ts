@@ -44,7 +44,7 @@ function parsePurpose(raw: unknown): MediaPurpose {
     throw new AppError(
       400,
       ErrorCodes.MEDIA_VALIDATION_FAILED,
-      'purpose harus event | event_contribution | memoriam_tribute | person.',
+      'purpose harus event | event_contribution | memoriam_tribute | person | money_transaction | money_cash_withdrawal | money_wishlist.',
     );
   }
   return raw as MediaPurpose;
@@ -131,6 +131,15 @@ export class MediaService {
           'Anda tidak terhubung dengan mendiang ini.',
         );
       }
+      return;
+    }
+
+    if (
+      purpose === 'money_transaction' ||
+      purpose === 'money_cash_withdrawal' ||
+      purpose === 'money_wishlist'
+    ) {
+      // Money attachments: contextId optional / opaque — no FR event ACL.
       return;
     }
 
