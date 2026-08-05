@@ -40,6 +40,7 @@ export async function seed(knex: Knex): Promise<void> {
       family_id: familyId,
       mode: 'couple',
       couple_linked_at: trx.fn.now(),
+      has_sample_data: true,
     });
 
     const [irfanMoneyId] = await trx(Tables.MONEY_PERSONS).insert({

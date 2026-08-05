@@ -35,6 +35,9 @@ moneyRoutes.post('/couple-link', (req, res, next) => {
 moneyRoutes.delete('/couple-link', (req, res, next) => {
   void setupController.coupleUnlink(req, res, next);
 });
+moneyRoutes.post('/workspace/reset', (req, res, next) => {
+  void setupController.resetWorkspace(req, res, next);
+});
 
 // Dashboard
 moneyRoutes.get('/dashboard', (req, res, next) => {
@@ -69,6 +72,9 @@ moneyRoutes.post('/pockets', (req, res, next) => {
 });
 moneyRoutes.patch('/pockets/:id', (req, res, next) => {
   void pocketsController.update(req, res, next);
+});
+moneyRoutes.delete('/pockets/:id', (req, res, next) => {
+  void pocketsController.remove(req, res, next);
 });
 moneyRoutes.post('/pockets/:id/archive', (req, res, next) => {
   void pocketsController.archive(req, res, next);
@@ -115,6 +121,9 @@ moneyRoutes.post('/transfers', (req, res, next) => {
 moneyRoutes.get('/transfers/:id', (req, res, next) => {
   void transfersController.getById(req, res, next);
 });
+moneyRoutes.patch('/transfers/:id', (req, res, next) => {
+  void transfersController.update(req, res, next);
+});
 moneyRoutes.delete('/transfers/:id', (req, res, next) => {
   void transfersController.remove(req, res, next);
 });
@@ -125,6 +134,9 @@ moneyRoutes.post('/cash-withdrawals', (req, res, next) => {
 });
 moneyRoutes.get('/cash-withdrawals', (req, res, next) => {
   void cashWithdrawalsController.list(req, res, next);
+});
+moneyRoutes.patch('/cash-withdrawals/:id', (req, res, next) => {
+  void cashWithdrawalsController.update(req, res, next);
 });
 moneyRoutes.delete('/cash-withdrawals/:id', (req, res, next) => {
   void cashWithdrawalsController.remove(req, res, next);

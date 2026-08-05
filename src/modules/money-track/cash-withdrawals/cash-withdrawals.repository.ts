@@ -46,6 +46,21 @@ export class CashWithdrawalsRepository {
     return (await this.findById(input.workspaceId, Number(id)))!;
   }
 
+  async update(
+    workspaceId: number,
+    id: number,
+    patch: Partial<{
+      amount: number;
+      date: string;
+      note: string | null;
+      attachment_media_id: string | null;
+    }>,
+  ): Promise<void> {
+    await db(Tables.MONEY_CASH_WITHDRAWALS)
+      .where({ id, workspace_id: workspaceId })
+      .update({ ...patch, updated_at: db.fn.now() });
+  }
+
   async delete(workspaceId: number, id: number): Promise<number> {
     return db(Tables.MONEY_CASH_WITHDRAWALS)
       .where({ id, workspace_id: workspaceId })

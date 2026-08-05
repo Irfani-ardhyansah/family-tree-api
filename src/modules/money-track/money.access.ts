@@ -11,12 +11,29 @@ export function toIso(value: Date | string | null | undefined): string | null {
   return Number.isNaN(d.getTime()) ? String(value) : d.toISOString();
 }
 
+/**
+ * Calendar date-only (YYYY-MM-DD). Never use UTC `toISOString().slice(0,10)` on a
+ * Date — mysql2 DATE as local midnight would shift WIB → previous UTC day.
+ */
 export function toDateOnly(value: Date | string): string {
-  if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}/.test(value)) {
-    return value.slice(0, 10);
+  if (typeof value === 'string') {
+    const match = value.match(/^(\d{4}-\d{2}-\d{2})/);
+    if (match) return match[1]!;
   }
-  const d = value instanceof Date ? value : new Date(value);
-  return d.toISOString().slice(0, 10);
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    const y = value.getFullYear();
+    const m = String(value.getMonth() + 1).padStart(2, '0');
+    const d = String(value.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) {
+    return String(value).slice(0, 10);
+  }
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
 }
 
 export function asNumber(value: number | string | null | undefined): number | null {

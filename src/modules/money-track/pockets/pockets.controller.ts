@@ -43,6 +43,19 @@ export class PocketsController {
     }
   }
 
+  async remove(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const data = await pocketsService.remove(
+        req.auth!.personId,
+        req.auth!.familyId,
+        req.params.id,
+      );
+      sendData(res, data);
+    } catch (error) {
+      next(error);
+    }
+  }
+
   async archive(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const data = await pocketsService.archive(

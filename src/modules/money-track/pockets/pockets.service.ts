@@ -1,3 +1,4 @@
+import db from '../../../config/database';
 import { AppError } from '../../../shared/errors/AppError';
 import { ErrorCodes } from '../../../shared/errors/errorCodes';
 import { moneyAccessRepository } from '../money-access.repository';
@@ -15,6 +16,7 @@ import {
   toIso,
 } from '../money.access';
 import { computePocketBalances } from '../money.balance';
+import { deletePocketsCascade } from '../money.cascade';
 import {
   MONEY_POCKET_CATEGORIES,
   MONEY_POCKET_OWNER_TYPES,
@@ -50,8 +52,9 @@ function toDto(
       name: account.name,
       type: account.type,
     },
-    // Sembunyikan aksi hapus/archive di FE jika sistem, sudah archived, atau masih ada saldo
     canArchive: !isSystem && !archived && balance === 0,
+    // Hard delete diizinkan untuk semua pocket (termasuk system) — hapus ledger terkait.
+    canDelete: true,
   };
 }
 
@@ -214,6 +217,25 @@ export class PocketsService {
     ))!;
     const balances = await computePocketBalances([pocketId]);
     return toDto(updated, account, balances.get(pocketId) ?? 0);
+  }
+
+  async remove(
+    authPersonId: number,
+    familyId: number,
+    pocketIdRaw: string,
+  ): Promise<{ deleted: true }> {
+    const ctx = await resolveMoneyContext(authPersonId, familyId);
+    const pocketId = parsePositiveInt(pocketIdRaw, 'id');
+    const existing = await pocketsRepository.findById(ctx.workspace.id, pocketId);
+    if (!existing) {
+      throw new AppError(404, ErrorCodes.MONEY_POCKET_NOT_FOUND, 'Pocket tidak ditemukan.');
+    }
+
+    await db.transaction(async (trx) => {
+      await deletePocketsCascade(ctx.workspace.id, [pocketId], trx);
+    });
+
+    return { deleted: true };
   }
 
   async archive(

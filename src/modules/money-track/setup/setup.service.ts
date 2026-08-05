@@ -3,18 +3,26 @@ import { AppError } from '../../../shared/errors/AppError';
 import { ErrorCodes } from '../../../shared/errors/errorCodes';
 import { moneyAccessRepository } from '../money-access.repository';
 import {
+  asBool,
   assertPersonInWorkspace,
   inferWorkspaceMode,
   parseEnum,
   parseNonEmptyString,
   parseOptionalPositiveInt,
   parsePositiveInt,
+  resolveMoneyContext,
   toIso,
   toMoneyPersonDto,
   tryResolveMoneyContext,
 } from '../money.access';
-import { MONEY_PERSON_ROLES, type MoneyPersonRole } from '../money.constants';
-import type { MoneySetupResponse } from '../money.types';
+import {
+  MONEY_PERSON_ROLES,
+  MONEY_WORKSPACE_RESET_CONFIRM,
+  MONEY_WORKSPACE_RESET_MODES,
+  type MoneyPersonRole,
+  type MoneyWorkspaceResetMode,
+} from '../money.constants';
+import type { MoneySetupResponse, MoneyWorkspaceResetResponse } from '../money.types';
 import { setupRepository } from './setup.repository';
 
 type SetupPersonInput = {
@@ -33,6 +41,7 @@ export class SetupService {
         persons: [],
         coupleLinkedAt: null,
         needsOpeningBalances: false,
+        hasSampleData: false,
       };
     }
 
@@ -45,6 +54,7 @@ export class SetupService {
       persons: persons.map(toMoneyPersonDto),
       coupleLinkedAt: toIso(ctx.workspace.couple_linked_at),
       needsOpeningBalances: openingCount === 0,
+      hasSampleData: asBool(ctx.workspace.has_sample_data),
     };
   }
 
@@ -204,6 +214,90 @@ export class SetupService {
     });
 
     return this.getStatus(authPersonId, familyId);
+  }
+
+  async resetWorkspace(
+    authPersonId: number,
+    familyId: number,
+    body: unknown,
+  ): Promise<MoneyWorkspaceResetResponse> {
+    const ctx = await resolveMoneyContext(authPersonId, familyId);
+    if (!body || typeof body !== 'object') {
+      throw new AppError(422, ErrorCodes.VALIDATION_ERROR, 'Body tidak valid.');
+    }
+    const raw = body as Record<string, unknown>;
+
+    const mode = parseEnum(raw.mode, 'mode', MONEY_WORKSPACE_RESET_MODES);
+    if (raw.confirm !== MONEY_WORKSPACE_RESET_CONFIRM) {
+      throw new AppError(
+        422,
+        ErrorCodes.VALIDATION_ERROR,
+        `confirm harus tepat "${MONEY_WORKSPACE_RESET_CONFIRM}".`,
+      );
+    }
+
+    const keepSetup = this.parseKeepSetup(raw.keepSetup);
+
+    if (mode === 'reseed' && !keepSetup) {
+      throw new AppError(
+        422,
+        ErrorCodes.VALIDATION_ERROR,
+        'mode=reseed membutuhkan keepSetup=true (persons harus dipertahankan).',
+      );
+    }
+
+    let deleted: Record<string, number> = {};
+
+    await db.transaction(async (trx) => {
+      if (!keepSetup) {
+        deleted = await setupRepository.deleteWorkspace(ctx.workspace.id, trx);
+        return;
+      }
+
+      const persons = await moneyAccessRepository.listPersons(ctx.workspace.id);
+      deleted = await setupRepository.wipeKeepSetup(ctx.workspace.id, trx);
+
+      if (mode === 'reseed') {
+        await setupRepository.seedCategories(ctx.workspace.id, trx);
+        for (const person of persons) {
+          await setupRepository.createCashAccountWithPocket(
+            { workspaceId: ctx.workspace.id, personId: person.id },
+            trx,
+          );
+        }
+        // Reseed = demo structure kembali → tombol Hapus Data Contoh boleh muncul lagi.
+        await setupRepository.updateWorkspace(
+          ctx.workspace.id,
+          { has_sample_data: true },
+          trx,
+        );
+      } else {
+        // Wipe: sticky false permanen (meski user isi data real setelahnya).
+        await setupRepository.updateWorkspace(
+          ctx.workspace.id,
+          { has_sample_data: false },
+          trx,
+        );
+      }
+    });
+
+    const status = await this.getStatus(authPersonId, familyId);
+    return {
+      ...status,
+      reset: {
+        mode: mode as MoneyWorkspaceResetMode,
+        keepSetup,
+        hasSampleData: status.hasSampleData,
+        deleted,
+      },
+    };
+  }
+
+  private parseKeepSetup(value: unknown): boolean {
+    if (value === undefined || value === null || value === '') return true;
+    if (value === true || value === 'true' || value === '1') return true;
+    if (value === false || value === 'false' || value === '0') return false;
+    throw new AppError(422, ErrorCodes.VALIDATION_ERROR, 'keepSetup harus boolean.');
   }
 
   private parseSetupPersons(body: unknown): SetupPersonInput[] {

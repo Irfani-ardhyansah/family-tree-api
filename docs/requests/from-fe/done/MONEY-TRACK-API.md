@@ -17,9 +17,11 @@ Related: [`MONEY-TRANSACTIONS-FILTER-API.md`](./MONEY-TRANSACTIONS-FILTER-API.md
 
 | Area | BE | FE |
 |------|----|----|
-| Layout + mock dashboard / pages | — | 🟡 mock UI |
-| Domain CRUD + money flows | **to-be** | pending wire |
-| Secondary unlock di `/money/*` | to-be | ✅ header sudah dikirim FE |
+| Setup / accounts / pockets / categories / txn | ✅ | 🟡 read wired (API mode) |
+| Transfers, cash, opening/balancing, dashboard | ✅ | 🟡 dashboard + lists read |
+| Wishlist, debts, budgets, audit, reminders | ✅ | 🟡 wishlist/debts/balancing read |
+| Secondary unlock di `/money/*` | ✅ | ✅ header `X-Module-Unlock` |
+| Write/CRUD dari FE | ✅ | pending (modal masih dummy write) |
 
 ---
 
@@ -106,6 +108,7 @@ Pocket          id, accountId, ownerType (person|joint),
                 category (transaksi|tabungan|investasi|custom),
                 name, goalAmount?, goalDate?, archivedAt?
 Category        id, name, type (income|expense), icon?, sortOrder, isSystem?
+                // icon FE: id Feather MIT (mis. "coffee", "truck") — emoji lama tetap diterima
 Transaction     id, pocketId, categoryId?, type, amount, date, note?,
                 attachmentMediaId?, createdByPersonId
 Transfer        id, kind (interpersonal|interpocket), fromPocketId, toPocketId,
@@ -115,7 +118,8 @@ CashWithdrawal  id, fromAccountId, fromPocketId?, toCashAccountId,
 WishlistItem    id, personId?, name, estimatedPrice, priority,
                 linkedPocketId?, imageMediaId?, purchasedAt?
 Debt            id, personId, counterpartyName, direction (utang|piutang),
-                amount, date, dueDate?, status (open|partial|paid), note?
+                directionLabel, amount, date, dueDate?, status (open|partial|paid),
+                note?, paidTotal?, remaining?, remainingLabel?
 DebtPayment     id, debtId, amount, date, note?, createdByPersonId
 Budget          id, categoryId, yearMonth (YYYY-MM), limitAmount
 AuditLog        id, actorPersonId, action, entityType, entityId, before, after, createdAt
@@ -142,9 +146,15 @@ Cash withdrawal: kurangi sumber → tambah cash account person (bukan expense).
     { "id": 1, "name": "Irfan", "role": "husband", "userId": 10 }
   ],
   "coupleLinkedAt": "2026-07-01T00:00:00.000Z",
-  "needsOpeningBalances": false
+  "needsOpeningBalances": false,
+  "hasSampleData": true
 }
 ```
+
+| Field | Arti |
+|-------|------|
+| `needsOpeningBalances` | Workspace masih perlu input opening balance (batch / pocket pending) |
+| `hasSampleData` | Workspace masih berisi **seed/data contoh**. FE tampilkan tombol **Hapus Data Contoh** hanya jika `true`. Setelah wipe sukses → permanen `false` (meski user isi data real kemudian). |
 
 ### 3.2 Bootstrap persons
 
@@ -187,7 +197,7 @@ Usulan: joint pockets → archived read-only (BE finalkan aturan).
 | `GET` | `/money/accounts?personId=` |
 | `POST` | `/money/accounts` |
 | `PATCH` | `/money/accounts/:id` |
-| `DELETE` | `/money/accounts/:id` → `409` jika masih punya pocket aktif / saldo ≠ 0 |
+| `DELETE` | `/money/accounts/:id?cascade=true` |
 
 ```json
 {
@@ -199,7 +209,14 @@ Usulan: joint pockets → archived read-only (BE finalkan aturan).
 ```
 
 `type`: `bank` | `ewallet` | `cash`  
-Account `cash`: **satu per person**, auto-create saat setup — tidak boleh dihapus.
+Account `cash`: **satu per person**, auto-create saat setup — **boleh dihapus** jika user konfirmasi cascade.
+
+| Query | Nilai | Arti |
+|-------|-------|------|
+| `cascade=true` | disarankan FE selalu kirim | Hapus account **beserta** pocket (aktif+archived), transaksi/transfer/cash-withdrawal terkait, dll. di dalam account itu |
+| tanpa cascade / `false` | | `409 CONFLICT` jika masih ada pocket / data terkait |
+
+**FE:** tombol Hapus di modal account selalu tampil (termasuk cash). Konfirmasi menjelaskan cascade delete.
 
 ---
 
@@ -210,8 +227,13 @@ Account `cash`: **satu per person**, auto-create saat setup — tidak boleh diha
 | `GET` | `/money/pockets?personId=&ownerType=&includeArchived=` |
 | `POST` | `/money/pockets` |
 | `PATCH` | `/money/pockets/:id` |
+| `DELETE` | `/money/pockets/:id` — hard delete pocket + data terkait; tidak bisa dipulihkan |
 | `POST` | `/money/pockets/:id/archive` |
-| `POST` | `/money/pockets/:id/unarchive` |
+| `POST` | `/money/pockets/:id/unarchive` — set `archivedAt` kembali ke `null` |
+
+`includeArchived=true` — sertakan pocket dengan `archivedAt != null` (default: hanya aktif).
+
+**Hapus pocket (FE):** selalu pakai `DELETE` (bukan archive). Archive/unarchive tetap tersedia bila BE butuh soft-hide terpisah.
 
 ```json
 {
@@ -240,6 +262,8 @@ Account `cash`: **satu per person**, auto-create saat setup — tidak boleh diha
 
 **Seed expense:** Makan, Transport, Tagihan, Hiburan, Belanja, Kesehatan, Pendidikan, Lainnya  
 **Seed income:** Gaji, Bonus, Freelance, Hasil Investasi, Lainnya
+
+**Icon:** string id Feather MIT di FE (mis. `"coffee"`, `"truck"`). Emoji lama dari seed/mock tetap diterima sebagai fallback tampilan.
 
 ---
 
@@ -298,20 +322,27 @@ Account `cash`: **satu per person**, auto-create saat setup — tidak boleh diha
       "signed": "neg"
     }
   ],
-  "alerts": [
+  "alerts": [],
+  "reminders": [
     {
-      "type": "balance_mismatch",
-      "message": "Kantong Transaksi — Irfan tidak sinkron Rp 120.000",
-      "pocketId": 101,
-      "diffAmount": 120000
+      "id": "debt_due:9",
+      "type": "debt_due",
+      "title": "Piutang Budi jatuh tempo",
+      "body": "Sisa piutang Rp 800.000",
+      "dueAt": "2026-08-01T00:00:00.000Z",
+      "relatedType": "debt",
+      "relatedId": 9,
+      "link": "/money/debts/9"
     }
-  ],
-  "reminders": []
+  ]
 }
 ```
 
 `recentActivity.kind`: `income` | `expense` | `transfer` | `cash_withdrawal`  
 `signed`: `pos` | `neg` | `neutral`
+
+`alerts` — `balance_mismatch` (kosong dulu sampai balancing mismatch diisi).  
+`reminders` — `debt_due` / `budget_near` / `budget_over` saja; jangan di-copy ke `alerts`.
 
 ---
 
@@ -319,11 +350,16 @@ Account `cash`: **satu per person**, auto-create saat setup — tidak boleh diha
 
 | Method | Path |
 |--------|------|
-| `GET` | `/money/transactions?from=&to=&personId=&pocketId=&type=&categoryId=&page=&pageSize=` |
+| `GET` | `/money/transactions?from=&to=&personId=&pocketId=&type=&categoryId=&q=&uncategorized=&page=&pageSize=` |
 | `GET` | `/money/transactions/:id` |
 | `POST` | `/money/transactions` |
 | `PATCH` | `/money/transactions/:id` |
 | `DELETE` | `/money/transactions/:id` — audit wajib |
+| `GET` | `/money/activity?kind=&from=&to=&personId=&pocketId=&categoryId=&q=&uncategorized=&page=&pageSize=` — unified feed (txn + transfer + cash) |
+
+List/detail transaksi menyertakan enrichment: `categoryName`, `categoryIcon`, `pocketName`, `accountName`, `personId`, `personName`.
+
+`kind` di activity: `all` \| `income` \| `expense` \| `transfer` \| `cash_withdrawal`.
 
 ```json
 {
@@ -480,6 +516,23 @@ Jika `linkedPocketId` set: response include `progressAmount`, `progressPct`.
 }
 ```
 
+Response list/detail juga mengirim label siap tampil:
+
+```json
+{
+  "id": 9,
+  "direction": "piutang",
+  "directionLabel": "Piutang",
+  "amount": 1000000,
+  "paidTotal": 200000,
+  "remaining": 800000,
+  "remainingLabel": "Sisa piutang"
+}
+```
+
+`directionLabel`: `"Piutang"` | `"Utang"`  
+`remainingLabel`: `"Sisa piutang"` | `"Sisa utang"`
+
 Payment:
 
 ```json
@@ -531,25 +584,39 @@ Wajib untuk create/update/delete: transaction, transfer, cash withdrawal, adjust
 ## 16. Reminders
 
 `GET /money/reminders`  
-(atau digabung `dashboard.reminders` / `dashboard.alerts`)
+(juga di `dashboard.reminders`)
 
 ```json
 {
   "items": [
     {
-      "id": 1,
+      "id": "debt_due:9",
       "type": "debt_due",
       "title": "Piutang Budi jatuh tempo",
-      "body": "Sisa Rp 800.000",
-      "severityAt": "2026-08-01",
+      "body": "Sisa piutang Rp 800.000",
+      "dueAt": "2026-08-01T00:00:00.000Z",
       "relatedType": "debt",
-      "relatedId": 9
+      "relatedId": 9,
+      "link": "/money/debts/9"
+    },
+    {
+      "id": "budget_near:3",
+      "type": "budget_near",
+      "title": "Budget Makan hampir habis",
+      "body": "Terpakai Rp 900.000 / Rp 1.000.000 (90%)",
+      "dueAt": null,
+      "relatedType": "budget",
+      "relatedId": 3,
+      "link": "/money/budgets?yearMonth=2026-07"
     }
   ]
 }
 ```
 
-`type`: `debt_due` | `budget_near` | `budget_over` | `balance_mismatch`  
+`type` di reminders: `debt_due` | `budget_near` | `budget_over`  
+`type` di alerts (dashboard): `balance_mismatch` — terpisah, jangan duplikasi debt/budget ke `alerts`.  
+Debt body: `Sisa piutang Rp …` / `Sisa utang Rp …` (bukan cuma “Sisa”).  
+`link` relatif untuk navigasi FE (`/money/debts/{id}`, `/money/budgets?yearMonth=YYYY-MM`).  
 Tidak perlu push channel di v1.
 
 ---
@@ -605,3 +672,7 @@ Urutan usulan:
 - [x] Audit log  
 - [x] Reminders in-app  
 - [x] Media purpose `money-*`  
+- [x] `hasSampleData` + wipe sticky clear  
+- [x] `DELETE /accounts/:id?cascade=true`  
+- [x] `DELETE /pockets/:id` hard delete  
+

@@ -35,6 +35,16 @@ export class TransfersRepository {
     return (await this.findById(input.workspaceId, Number(id)))!;
   }
 
+  async update(
+    workspaceId: number,
+    transferId: number,
+    patch: Partial<{ amount: number; date: string; note: string | null }>,
+  ): Promise<void> {
+    await db(Tables.MONEY_TRANSFERS)
+      .where({ id: transferId, workspace_id: workspaceId })
+      .update({ ...patch, updated_at: db.fn.now() });
+  }
+
   async delete(workspaceId: number, transferId: number): Promise<number> {
     return db(Tables.MONEY_TRANSFERS)
       .where({ id: transferId, workspace_id: workspaceId })

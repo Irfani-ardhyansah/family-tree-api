@@ -171,6 +171,107 @@ export class CashWithdrawalsService {
     return toDto(row);
   }
 
+  async update(
+    authPersonId: number,
+    familyId: number,
+    idRaw: string,
+    body: unknown,
+  ): Promise<MoneyCashWithdrawalDto> {
+    const ctx = await resolveMoneyContext(authPersonId, familyId);
+    const id = parsePositiveInt(idRaw, 'id');
+    const existing = await cashWithdrawalsRepository.findById(ctx.workspace.id, id);
+    if (!existing) {
+      throw new AppError(
+        404,
+        ErrorCodes.MONEY_CASH_WITHDRAWAL_NOT_FOUND,
+        'Cash withdrawal tidak ditemukan.',
+      );
+    }
+    if (!body || typeof body !== 'object') {
+      throw new AppError(422, ErrorCodes.VALIDATION_ERROR, 'Body tidak valid.');
+    }
+    const raw = body as Record<string, unknown>;
+
+    if (
+      raw.fromAccountId !== undefined ||
+      raw.fromPocketId !== undefined ||
+      raw.toCashAccountId !== undefined ||
+      raw.toCashPocketId !== undefined
+    ) {
+      throw new AppError(
+        422,
+        ErrorCodes.VALIDATION_ERROR,
+        'Account/pocket sumber-tujuan tidak dapat diubah. Hapus lalu buat ulang.',
+      );
+    }
+
+    const patch: Partial<{
+      amount: number;
+      date: string;
+      note: string | null;
+      attachment_media_id: string | null;
+    }> = {};
+
+    if (raw.amount !== undefined) {
+      patch.amount = parseAmount(raw.amount, 'amount');
+    }
+    if (raw.date !== undefined) {
+      const date = parseOptionalDateOnly(raw.date, 'date');
+      if (date == null) {
+        throw new AppError(422, ErrorCodes.VALIDATION_ERROR, 'date wajib format YYYY-MM-DD.');
+      }
+      patch.date = date;
+    }
+    if (raw.note !== undefined) {
+      patch.note = parseOptionalString(raw.note, 'note', 500) ?? null;
+    }
+    if (raw.attachmentMediaId !== undefined) {
+      if (raw.attachmentMediaId === null || raw.attachmentMediaId === '') {
+        patch.attachment_media_id = null;
+      } else if (typeof raw.attachmentMediaId === 'string') {
+        patch.attachment_media_id = raw.attachmentMediaId;
+      } else {
+        throw new AppError(
+          422,
+          ErrorCodes.VALIDATION_ERROR,
+          'attachmentMediaId harus string.',
+        );
+      }
+    }
+
+    if (Object.keys(patch).length === 0) {
+      return toDto(existing);
+    }
+
+    if (patch.amount != null && patch.amount !== (asNumber(existing.amount) ?? 0)) {
+      const currentBalance = await computePocketBalance(existing.from_pocket_id);
+      const available = currentBalance + (asNumber(existing.amount) ?? 0);
+      if (available < patch.amount) {
+        throw new AppError(
+          422,
+          ErrorCodes.INSUFFICIENT_BALANCE,
+          'Saldo pocket sumber tidak mencukupi untuk amount baru.',
+        );
+      }
+    }
+
+    const before = toDto(existing);
+    await cashWithdrawalsRepository.update(ctx.workspace.id, id, patch);
+    const updated = (await cashWithdrawalsRepository.findById(ctx.workspace.id, id))!;
+
+    await writeMoneyAudit({
+      workspaceId: ctx.workspace.id,
+      actorPersonId: ctx.actor.id,
+      action: 'update',
+      entityType: AUDIT_ENTITY_TYPES.CASH_WITHDRAWAL,
+      entityId: id,
+      before,
+      after: toDto(updated),
+    });
+
+    return toDto(updated);
+  }
+
   async remove(
     authPersonId: number,
     familyId: number,

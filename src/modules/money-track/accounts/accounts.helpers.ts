@@ -1,12 +1,12 @@
 import db from '../../../config/database';
 import { Tables } from '../../../shared/database/tables';
-import { CASH_POCKET_NAME } from '../money.constants';
 import type { MoneyPocketRow } from '../money.types';
 
-export async function createTunaiPocketForAccount(input: {
+export async function createSystemPocketForAccount(input: {
   workspaceId: number;
   accountId: number;
   ownerPersonId: number;
+  name: string;
 }): Promise<MoneyPocketRow> {
   const [id] = await db(Tables.MONEY_POCKETS).insert({
     workspace_id: input.workspaceId,
@@ -14,7 +14,7 @@ export async function createTunaiPocketForAccount(input: {
     owner_type: 'person',
     owner_person_id: input.ownerPersonId,
     category: 'transaksi',
-    name: CASH_POCKET_NAME,
+    name: input.name,
     goal_amount: null,
     goal_date: null,
     is_system: true,

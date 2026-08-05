@@ -54,6 +54,7 @@ export type MoneyReminderType = (typeof MONEY_REMINDER_TYPES)[number];
 
 export const CASH_ACCOUNT_NAME = 'Tunai';
 export const CASH_POCKET_NAME = 'Tunai';
+export const EWALLET_POCKET_NAME = 'Utama';
 
 export const BUDGET_NEAR_THRESHOLD_PCT = 80;
 
@@ -92,3 +93,9 @@ export const AUDIT_ENTITY_TYPES = {
   ADJUSTMENT: 'adjustment',
   DEBT_PAYMENT: 'debt_payment',
 } as const;
+
+export const MONEY_WORKSPACE_RESET_MODES = ['wipe', 'reseed'] as const;
+export type MoneyWorkspaceResetMode = (typeof MONEY_WORKSPACE_RESET_MODES)[number];
+
+/** Required confirm string for POST /money/workspace/reset */
+export const MONEY_WORKSPACE_RESET_CONFIRM = 'RESET_MONEY_WORKSPACE';

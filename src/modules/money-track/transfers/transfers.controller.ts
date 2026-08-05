@@ -29,6 +29,20 @@ export class TransfersController {
     }
   }
 
+  async update(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const data = await transfersService.update(
+        req.auth!.personId,
+        req.auth!.familyId,
+        req.params.id,
+        req.body,
+      );
+      sendData(res, data);
+    } catch (error) {
+      next(error);
+    }
+  }
+
   async remove(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const data = await transfersService.remove(

@@ -46,6 +46,19 @@ export class SetupController {
       next(error);
     }
   }
+
+  async resetWorkspace(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const data = await setupService.resetWorkspace(
+        req.auth!.personId,
+        req.auth!.familyId,
+        req.body,
+      );
+      sendData(res, data);
+    } catch (error) {
+      next(error);
+    }
+  }
 }
 
 export const setupController = new SetupController();

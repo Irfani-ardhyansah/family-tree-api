@@ -1,3 +1,4 @@
+import db from '../../../config/database';
 import { AppError } from '../../../shared/errors/AppError';
 import { ErrorCodes } from '../../../shared/errors/errorCodes';
 import { moneyAccessRepository } from '../money-access.repository';
@@ -9,42 +10,40 @@ import {
   resolveMoneyContext,
 } from '../money.access';
 import { computePocketBalances } from '../money.balance';
-import { MONEY_ACCOUNT_TYPES } from '../money.constants';
+import { deleteAccountCascade } from '../money.cascade';
+import {
+  CASH_POCKET_NAME,
+  EWALLET_POCKET_NAME,
+  MONEY_ACCOUNT_TYPES,
+} from '../money.constants';
 import type { MoneyAccountDto, MoneyAccountRow } from '../money.types';
-import { setupRepository } from '../setup/setup.repository';
-import { createTunaiPocketForAccount } from './accounts.helpers';
+import { createSystemPocketForAccount } from './accounts.helpers';
 import { accountsRepository } from './accounts.repository';
 
 function resolveDeleteability(
-  row: MoneyAccountRow,
   pocketIds: number[],
   activePocketCount: number,
   balances: Map<number, number>,
 ): { canDelete: boolean; deleteBlockedReason: string | null } {
-  if (row.type === 'cash') {
-    return {
-      canDelete: false,
-      deleteBlockedReason: 'Account cash tidak boleh dihapus.',
-    };
-  }
+  // Tanpa cascade: harus kosong. Dengan ?cascade=true FE boleh hapus termasuk cash.
   if (activePocketCount > 0) {
     return {
       canDelete: false,
-      deleteBlockedReason: 'Account masih punya pocket aktif.',
+      deleteBlockedReason: 'Account masih punya pocket aktif. Pakai cascade=true untuk hapus paksa.',
     };
   }
   for (const id of pocketIds) {
     if ((balances.get(id) ?? 0) !== 0) {
       return {
         canDelete: false,
-        deleteBlockedReason: 'Account masih punya saldo di pocket.',
+        deleteBlockedReason: 'Account masih punya saldo di pocket. Pakai cascade=true untuk hapus paksa.',
       };
     }
   }
   if (pocketIds.length > 0) {
     return {
       canDelete: false,
-      deleteBlockedReason: 'Account masih punya pocket (termasuk archived).',
+      deleteBlockedReason: 'Account masih punya pocket. Pakai cascade=true untuk hapus paksa.',
     };
   }
   return { canDelete: true, deleteBlockedReason: null };
@@ -55,7 +54,6 @@ async function toDto(row: MoneyAccountRow): Promise<MoneyAccountDto> {
   const activePocketCount = await accountsRepository.countPockets(row.id);
   const balances = await computePocketBalances(pocketIds);
   const { canDelete, deleteBlockedReason } = resolveDeleteability(
-    row,
     pocketIds,
     activePocketCount,
     balances,
@@ -141,24 +139,14 @@ export class AccountsService {
       bankName: type === 'cash' ? null : bankName,
     });
 
-    if (type === 'cash') {
-      await createTunaiPocketForAccount({
+    // cash → Tunai, ewallet → Utama; bank tanpa pocket otomatis.
+    if (type === 'cash' || type === 'ewallet') {
+      await createSystemPocketForAccount({
         workspaceId: ctx.workspace.id,
         accountId: account.id,
         ownerPersonId: personId,
+        name: type === 'cash' ? CASH_POCKET_NAME : EWALLET_POCKET_NAME,
       });
-    } else {
-      const nonCashCount = await setupRepository.countActiveNonCashAccounts(
-        ctx.workspace.id,
-        personId,
-      );
-      if (nonCashCount === 1) {
-        await setupRepository.createDefaultPocketsForAccount({
-          workspaceId: ctx.workspace.id,
-          accountId: account.id,
-          ownerPersonId: personId,
-        });
-      }
     }
 
     return toDto(account);
@@ -216,7 +204,8 @@ export class AccountsService {
     authPersonId: number,
     familyId: number,
     accountIdRaw: string,
-  ): Promise<{ deleted: true }> {
+    query: Record<string, unknown>,
+  ): Promise<{ deleted: true; cascade: boolean }> {
     const ctx = await resolveMoneyContext(authPersonId, familyId);
     const accountId = parsePositiveInt(accountIdRaw, 'id');
     const existing = await accountsRepository.findById(ctx.workspace.id, accountId);
@@ -224,19 +213,30 @@ export class AccountsService {
       throw new AppError(404, ErrorCodes.MONEY_ACCOUNT_NOT_FOUND, 'Account tidak ditemukan.');
     }
 
+    const cascade =
+      query.cascade === true ||
+      query.cascade === 1 ||
+      query.cascade === '1' ||
+      query.cascade === 'true';
+
+    if (cascade) {
+      await db.transaction(async (trx) => {
+        await deleteAccountCascade(ctx.workspace.id, accountId, trx);
+      });
+      return { deleted: true, cascade: true };
+    }
+
     const dto = await toDto(existing);
     if (!dto.canDelete) {
-      const status = existing.type === 'cash' ? 403 : 409;
-      const code = existing.type === 'cash' ? ErrorCodes.FORBIDDEN : ErrorCodes.CONFLICT;
       throw new AppError(
-        status,
-        code,
+        409,
+        ErrorCodes.CONFLICT,
         dto.deleteBlockedReason ?? 'Account tidak dapat dihapus.',
       );
     }
 
     await accountsRepository.delete(ctx.workspace.id, accountId);
-    return { deleted: true };
+    return { deleted: true, cascade: false };
   }
 }
 

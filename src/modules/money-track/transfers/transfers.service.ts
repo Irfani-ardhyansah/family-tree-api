@@ -5,6 +5,7 @@ import {
   parseAmount,
   parseDateOnly,
   parseEnum,
+  parseOptionalDateOnly,
   parseOptionalString,
   parsePositiveInt,
   resolveMoneyContext,
@@ -116,6 +117,85 @@ export class TransfersService {
     });
 
     return toDto(row);
+  }
+
+  async update(
+    authPersonId: number,
+    familyId: number,
+    idRaw: string,
+    body: unknown,
+  ): Promise<MoneyTransferDto> {
+    const ctx = await resolveMoneyContext(authPersonId, familyId);
+    const id = parsePositiveInt(idRaw, 'id');
+    const existing = await transfersRepository.findById(ctx.workspace.id, id);
+    if (!existing) {
+      throw new AppError(
+        404,
+        ErrorCodes.MONEY_TRANSFER_NOT_FOUND,
+        'Transfer tidak ditemukan.',
+      );
+    }
+    if (!body || typeof body !== 'object') {
+      throw new AppError(422, ErrorCodes.VALIDATION_ERROR, 'Body tidak valid.');
+    }
+    const raw = body as Record<string, unknown>;
+
+    if (raw.kind !== undefined || raw.fromPocketId !== undefined || raw.toPocketId !== undefined) {
+      throw new AppError(
+        422,
+        ErrorCodes.VALIDATION_ERROR,
+        'kind/fromPocketId/toPocketId tidak dapat diubah. Hapus lalu buat ulang.',
+      );
+    }
+
+    const patch: Partial<{ amount: number; date: string; note: string | null }> = {};
+
+    if (raw.amount !== undefined) {
+      patch.amount = parseAmount(raw.amount, 'amount');
+    }
+    if (raw.date !== undefined) {
+      const date = parseOptionalDateOnly(raw.date, 'date');
+      if (date == null) {
+        throw new AppError(422, ErrorCodes.VALIDATION_ERROR, 'date wajib format YYYY-MM-DD.');
+      }
+      patch.date = date;
+    }
+    if (raw.note !== undefined) {
+      patch.note = parseOptionalString(raw.note, 'note', 500) ?? null;
+    }
+
+    if (Object.keys(patch).length === 0) {
+      return toDto(existing);
+    }
+
+    if (patch.amount != null && patch.amount !== (asNumber(existing.amount) ?? 0)) {
+      const currentBalance = await computePocketBalance(existing.from_pocket_id);
+      // Saldo sumber sudah dikurangi amount lama; cek apakah naik amount masih cukup.
+      const available = currentBalance + (asNumber(existing.amount) ?? 0);
+      if (available < patch.amount) {
+        throw new AppError(
+          422,
+          ErrorCodes.INSUFFICIENT_BALANCE,
+          'Saldo pocket sumber tidak mencukupi untuk amount baru.',
+        );
+      }
+    }
+
+    const before = toDto(existing);
+    await transfersRepository.update(ctx.workspace.id, id, patch);
+    const updated = (await transfersRepository.findById(ctx.workspace.id, id))!;
+
+    await writeMoneyAudit({
+      workspaceId: ctx.workspace.id,
+      actorPersonId: ctx.actor.id,
+      action: 'update',
+      entityType: AUDIT_ENTITY_TYPES.TRANSFER,
+      entityId: id,
+      before,
+      after: toDto(updated),
+    });
+
+    return toDto(updated);
   }
 
   async remove(

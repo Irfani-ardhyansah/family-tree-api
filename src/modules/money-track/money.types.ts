@@ -18,6 +18,8 @@ export type MoneyWorkspaceRow = {
   family_id: number;
   mode: MoneyWorkspaceMode;
   couple_linked_at: Date | string | null;
+  /** Sticky: true while demo/sample data may still be shown; cleared permanently after wipe. */
+  has_sample_data: boolean | number;
   created_at: Date | string;
   updated_at: Date | string;
 };
@@ -145,6 +147,17 @@ export type MoneySetupResponse = {
   persons: MoneyPersonDto[];
   coupleLinkedAt: string | null;
   needsOpeningBalances: boolean;
+  /** FE: tampilkan "Hapus Data Contoh" hanya jika true. Permanen false setelah wipe. */
+  hasSampleData: boolean;
+};
+
+export type MoneyWorkspaceResetResponse = MoneySetupResponse & {
+  reset: {
+    mode: 'wipe' | 'reseed';
+    keepSetup: boolean;
+    hasSampleData: boolean;
+    deleted: Record<string, number>;
+  };
 };
 
 export type MoneyAccountDto = {
@@ -153,7 +166,10 @@ export type MoneyAccountDto = {
   name: string;
   type: MoneyAccountType;
   bankName: string | null;
-  /** false → FE sembunyikan icon hapus */
+  /**
+   * true jika boleh dihapus tanpa cascade (kosong).
+   * FE tetap boleh selalu tampilkan Hapus dengan `?cascade=true`.
+   */
   canDelete: boolean;
   deleteBlockedReason: string | null;
 };
@@ -177,8 +193,10 @@ export type MoneyPocketDto = {
   archivedAt: string | null;
   balance: number;
   account: MoneyPocketAccountDto;
-  /** false → FE sembunyikan aksi archive/hapus (pocket sistem / sudah archived) */
+  /** false → FE sembunyikan aksi archive (pocket sistem / sudah archived / masih ada saldo) */
   canArchive: boolean;
+  /** false → FE sembunyikan aksi hard-delete (pocket sistem) */
+  canDelete: boolean;
 };
 
 export type MoneyCategoryDto = {

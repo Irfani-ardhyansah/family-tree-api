@@ -49,6 +49,7 @@ export class AccountsController {
         req.auth!.personId,
         req.auth!.familyId,
         req.params.id,
+        req.query as Record<string, unknown>,
       );
       sendData(res, data);
     } catch (error) {
