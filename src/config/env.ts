@@ -50,6 +50,11 @@ export const env = {
     user: optional('DB_USER', 'root'),
     password: process.env.DB_PASSWORD ?? '',
     name: optional('DB_NAME', 'family_tree'),
+    /**
+     * MySQL TLS. Default on in production (cloud), off otherwise.
+     * Homelab / Docker local MySQL: set DB_SSL=false.
+     */
+    ssl: optional('DB_SSL', isProduction ? 'true' : 'false') === 'true',
     /** Equivalent DSN: mysql://user:pass@host:3306/dbname */
     get dsn(): string {
       const auth = this.password ? `${this.user}:${this.password}` : this.user;

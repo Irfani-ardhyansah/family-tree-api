@@ -1,0 +1,59 @@
+services:
+  db:
+    image: mysql:8.0
+    container_name: family-suite-db
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${DB_NAME:-family_tree}
+      MYSQL_USER: ${DB_USER:-family}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-changeme}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootchangeme}
+    ports:
+      # Opsional: akses MySQL dari host. Hapus jika tidak perlu.
+      - "${DB_PUBLISH_PORT:-3306}:3306"
+    volumes:
+      - family_suite_mysql:/var/lib/mysql
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "mysqladmin",
+          "ping",
+          "-h",
+          "127.0.0.1",
+          "-u${DB_USER:-family}",
+          "-p${DB_PASSWORD:-changeme}",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  api:
+    build: .
+    image: family-suite-api:latest
+    container_name: family-suite-api
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_SSL: "false"
+    ports:
+      - "${PORT:-3000}:3000"
+    volumes:
+      - family_suite_uploads:/app/uploads
+      - family_suite_logs:/app/logs
+
+volumes:
+  family_suite_mysql:
+  family_suite_uploads:
+  family_suite_logs:

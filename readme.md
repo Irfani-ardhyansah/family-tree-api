@@ -2,6 +2,18 @@
 
 Express + TypeScript + Knex + MySQL API for the FamilyRoots family tree app.
 
+## Docker (homelab / STB)
+
+```bash
+cp .env.docker.example .env
+# edit JWT_SECRET, CORS_ORIGINS, MEDIA_PUBLIC_BASE_URL (IP STB)
+docker compose up -d --build
+# optional demo data sekali: RUN_SEED=true docker compose up -d
+curl http://localhost:3000/api/v1/health
+```
+
+Container API: `family-suite-api` · MySQL: `family-suite-db`.
+
 ## Setup
 
 1. `cp .env.example .env` and set DB credentials
