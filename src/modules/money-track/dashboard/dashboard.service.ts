@@ -276,18 +276,17 @@ export class MoneyDashboardService {
         continue;
       }
       const amount = asNumber(x.amount) ?? 0;
+      const fromLabel = from
+        ? [from.name, accountMap.get(from.account_id)?.name].filter(Boolean).join(' · ')
+        : undefined;
+      const toLabel = to
+        ? [to.name, accountMap.get(to.account_id)?.name].filter(Boolean).join(' · ')
+        : undefined;
       items.push({
         id: `xfer:${x.id}`,
         kind: 'transfer',
         title: x.note || 'Transfer',
-        meta: [
-          formatDayMonth(x.date),
-          from?.name,
-          '→',
-          to?.name,
-        ]
-          .filter(Boolean)
-          .join(' · '),
+        meta: [formatDayMonth(x.date), fromLabel, '→', toLabel].filter(Boolean).join(' · '),
         amount,
         signed: 'neutral',
         sortDate: toDateOnly(x.date),
@@ -297,6 +296,7 @@ export class MoneyDashboardService {
 
     for (const c of cashRows) {
       const from = pocketMap.get(c.from_pocket_id);
+      const toCash = pocketMap.get(c.to_cash_pocket_id);
       if (filterPersonId != null && from?.owner_person_id !== filterPersonId) {
         continue;
       }
@@ -304,15 +304,22 @@ export class MoneyDashboardService {
         ? personMap.get(from.owner_person_id)
         : undefined;
       const amount = asNumber(c.amount) ?? 0;
+      const fromLabel = from
+        ? `${from.name} · ${accountMap.get(c.from_account_id)?.name ?? ''}`.replace(
+            / · $/,
+            '',
+          )
+        : undefined;
       items.push({
         id: `cash:${c.id}`,
         kind: 'cash_withdrawal',
         title: c.note || 'Tarik tunai',
         meta: [
           formatDayMonth(c.date),
-          from?.name,
+          fromLabel,
+          '→',
+          toCash?.name ?? 'Cash',
           person?.name,
-          accountMap.get(c.from_account_id)?.name,
         ]
           .filter(Boolean)
           .join(' · '),

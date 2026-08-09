@@ -135,6 +135,9 @@ moneyRoutes.post('/cash-withdrawals', (req, res, next) => {
 moneyRoutes.get('/cash-withdrawals', (req, res, next) => {
   void cashWithdrawalsController.list(req, res, next);
 });
+moneyRoutes.get('/cash-withdrawals/:id', (req, res, next) => {
+  void cashWithdrawalsController.getById(req, res, next);
+});
 moneyRoutes.patch('/cash-withdrawals/:id', (req, res, next) => {
   void cashWithdrawalsController.update(req, res, next);
 });

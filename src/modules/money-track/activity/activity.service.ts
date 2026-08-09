@@ -34,6 +34,7 @@ type RawActivityRow = {
   title: string | null;
   category_id: number | null;
   pocket_id: number | null;
+  to_pocket_id: number | null;
   amount: number | string;
   date: string;
   sort_id: number;
@@ -112,6 +113,7 @@ export class ActivityService {
                t.note AS title,
                t.category_id AS category_id,
                t.pocket_id AS pocket_id,
+               NULL AS to_pocket_id,
                t.amount AS amount,
                t.date AS date,
                t.id AS sort_id
@@ -161,6 +163,7 @@ export class ActivityService {
                x.note AS title,
                NULL AS category_id,
                x.from_pocket_id AS pocket_id,
+               x.to_pocket_id AS to_pocket_id,
                x.amount AS amount,
                x.date AS date,
                x.id AS sort_id
@@ -200,6 +203,7 @@ export class ActivityService {
                c.note AS title,
                NULL AS category_id,
                c.from_pocket_id AS pocket_id,
+               c.to_cash_pocket_id AS to_pocket_id,
                c.amount AS amount,
                c.date AS date,
                c.id AS sort_id
@@ -217,8 +221,8 @@ export class ActivityService {
         bindings.push(to);
       }
       if (pocketId != null) {
-        sql += ` AND c.from_pocket_id = ?`;
-        bindings.push(pocketId);
+        sql += ` AND (c.from_pocket_id = ? OR c.to_cash_pocket_id = ?)`;
+        bindings.push(pocketId, pocketId);
       }
       if (personId != null) {
         sql += ` AND p.owner_person_id = ?`;
@@ -252,9 +256,9 @@ export class ActivityService {
     );
     const rows = (listResult[0] ?? listResult) as RawActivityRow[];
 
-    const pocketIds = rows
-      .map((r) => r.pocket_id)
-      .filter((id): id is number => id != null);
+    const pocketIds = rows.flatMap((r) =>
+      [r.pocket_id, r.to_pocket_id].filter((id): id is number => id != null),
+    );
     const categoryIds = rows
       .map((r) => r.category_id)
       .filter((id): id is number => id != null);
@@ -277,6 +281,13 @@ export class ActivityService {
       else if (kindVal === 'cash_withdrawal') link = `/money/cash-withdrawals/${row.sort_id}`;
       else link = `/money/transactions/${row.sort_id}`;
 
+      const fromLabel = pocketLabel(row.pocket_id, maps);
+      const toId = row.to_pocket_id;
+      const toLabel =
+        kindVal === 'transfer' || kindVal === 'cash_withdrawal'
+          ? pocketLabel(toId, maps) || (kindVal === 'cash_withdrawal' ? 'Cash' : null)
+          : null;
+
       return {
         id: row.feed_id,
         kind: kindVal,
@@ -289,12 +300,21 @@ export class ActivityService {
               : kindVal === 'transfer'
                 ? 'Transfer'
                 : 'Tarik tunai'),
-        categoryName: category?.name ?? null,
+        categoryName:
+          category?.name ??
+          (kindVal === 'transfer'
+            ? 'Transfer'
+            : kindVal === 'cash_withdrawal'
+              ? 'Tarik tunai'
+              : null),
         categoryId: row.category_id,
         personId: personIdVal,
         personName: person?.name ?? null,
-        pocketLabel: pocketLabel(row.pocket_id, maps),
+        pocketLabel: fromLabel,
         pocketId: row.pocket_id,
+        fromPocketLabel: fromLabel || null,
+        toPocketId: toId,
+        toPocketLabel: toLabel,
         amount,
         date: toDateOnly(row.date),
         signed,

@@ -244,8 +244,12 @@ export type MoneyActivityItemDto = {
   categoryId: number | null;
   personId: number | null;
   personName: string | null;
+  /** Kantong asal (atau satu-satunya kantong untuk income/expense). */
   pocketLabel: string;
   pocketId: number | null;
+  fromPocketLabel?: string | null;
+  toPocketId?: number | null;
+  toPocketLabel?: string | null;
   amount: number;
   date: string;
   signed: 'pos' | 'neg' | 'neutral';
@@ -257,6 +261,8 @@ export type MoneyTransferDto = {
   kind: MoneyTransferKind;
   fromPocketId: number;
   toPocketId: number;
+  fromPocketLabel?: string | null;
+  toPocketLabel?: string | null;
   amount: number;
   date: string;
   note: string | null;
@@ -269,6 +275,8 @@ export type MoneyCashWithdrawalDto = {
   fromPocketId: number;
   toCashAccountId: number;
   toCashPocketId: number;
+  fromPocketLabel?: string | null;
+  toPocketLabel?: string | null;
   amount: number;
   date: string;
   note: string | null;

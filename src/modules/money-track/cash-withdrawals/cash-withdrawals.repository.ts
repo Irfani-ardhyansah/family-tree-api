@@ -50,6 +50,10 @@ export class CashWithdrawalsRepository {
     workspaceId: number,
     id: number,
     patch: Partial<{
+      from_account_id: number;
+      from_pocket_id: number;
+      to_cash_account_id: number;
+      to_cash_pocket_id: number;
       amount: number;
       date: string;
       note: string | null;

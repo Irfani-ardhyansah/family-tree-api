@@ -16,6 +16,19 @@ export class CashWithdrawalsController {
     }
   }
 
+  async getById(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const data = await cashWithdrawalsService.getById(
+        req.auth!.personId,
+        req.auth!.familyId,
+        req.params.id,
+      );
+      sendData(res, data);
+    } catch (error) {
+      next(error);
+    }
+  }
+
   async create(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const data = await cashWithdrawalsService.create(

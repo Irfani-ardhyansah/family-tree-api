@@ -14,17 +14,32 @@ import {
 import { writeMoneyAudit } from '../money.audit';
 import { computePocketBalance } from '../money.balance';
 import { AUDIT_ENTITY_TYPES, MONEY_TRANSFER_KINDS } from '../money.constants';
+import { loadEnrichmentMaps, pocketLabel } from '../money.enrichment';
 import { assertTransferKindAllowed } from '../money.helpers';
-import type { MoneyTransferDto, MoneyTransferRow } from '../money.types';
+import type {
+  MoneyTransferDto,
+  MoneyTransferRow,
+  MoneyWorkspaceRow,
+} from '../money.types';
 import { pocketsRepository } from '../pockets/pockets.repository';
 import { transfersRepository } from './transfers.repository';
 
-function toDto(row: MoneyTransferRow): MoneyTransferDto {
+async function toDto(
+  workspaceId: number,
+  row: MoneyTransferRow,
+): Promise<MoneyTransferDto> {
+  const maps = await loadEnrichmentMaps(
+    workspaceId,
+    [row.from_pocket_id, row.to_pocket_id],
+    [],
+  );
   return {
     id: Number(row.id),
     kind: row.kind,
     fromPocketId: row.from_pocket_id,
     toPocketId: row.to_pocket_id,
+    fromPocketLabel: pocketLabel(row.from_pocket_id, maps) || null,
+    toPocketLabel: pocketLabel(row.to_pocket_id, maps) || null,
     amount: asNumber(row.amount) ?? 0,
     date: toDateOnly(row.date),
     note: row.note,
@@ -48,7 +63,7 @@ export class TransfersService {
         'Transfer tidak ditemukan.',
       );
     }
-    return toDto(row);
+    return toDto(ctx.workspace.id, row);
   }
 
   async create(
@@ -68,33 +83,14 @@ export class TransfersService {
     const date = parseDateOnly(raw.date, 'date');
     const note = parseOptionalString(raw.note, 'note', 500) ?? null;
 
-    const from = await pocketsRepository.findById(ctx.workspace.id, fromPocketId);
-    const to = await pocketsRepository.findById(ctx.workspace.id, toPocketId);
-    if (!from || from.archived_at) {
-      throw new AppError(
-        404,
-        ErrorCodes.MONEY_POCKET_NOT_FOUND,
-        'Pocket sumber tidak ditemukan atau sudah di-archive.',
-      );
-    }
-    if (!to || to.archived_at) {
-      throw new AppError(
-        404,
-        ErrorCodes.MONEY_POCKET_NOT_FOUND,
-        'Pocket tujuan tidak ditemukan atau sudah di-archive.',
-      );
-    }
-
-    assertTransferKindAllowed(kind, ctx.workspace, from, to);
-
-    const balance = await computePocketBalance(fromPocketId);
-    if (balance < amount) {
-      throw new AppError(
-        422,
-        ErrorCodes.INSUFFICIENT_BALANCE,
-        'Saldo pocket sumber tidak mencukupi.',
-      );
-    }
+    await this.assertPocketsAndBalance(
+      ctx.workspace,
+      kind,
+      fromPocketId,
+      toPocketId,
+      amount,
+      null,
+    );
 
     const row = await transfersRepository.create({
       workspaceId: ctx.workspace.id,
@@ -107,16 +103,17 @@ export class TransfersService {
       createdByPersonId: ctx.actor.id,
     });
 
+    const after = await toDto(ctx.workspace.id, row);
     await writeMoneyAudit({
       workspaceId: ctx.workspace.id,
       actorPersonId: ctx.actor.id,
       action: 'create',
       entityType: AUDIT_ENTITY_TYPES.TRANSFER,
       entityId: Number(row.id),
-      after: toDto(row),
+      after,
     });
 
-    return toDto(row);
+    return after;
   }
 
   async update(
@@ -140,50 +137,68 @@ export class TransfersService {
     }
     const raw = body as Record<string, unknown>;
 
-    if (raw.kind !== undefined || raw.fromPocketId !== undefined || raw.toPocketId !== undefined) {
-      throw new AppError(
-        422,
-        ErrorCodes.VALIDATION_ERROR,
-        'kind/fromPocketId/toPocketId tidak dapat diubah. Hapus lalu buat ulang.',
-      );
-    }
+    const kind =
+      raw.kind !== undefined
+        ? parseEnum(raw.kind, 'kind', MONEY_TRANSFER_KINDS)
+        : existing.kind;
+    const fromPocketId =
+      raw.fromPocketId !== undefined
+        ? parsePositiveInt(raw.fromPocketId, 'fromPocketId')
+        : existing.from_pocket_id;
+    const toPocketId =
+      raw.toPocketId !== undefined
+        ? parsePositiveInt(raw.toPocketId, 'toPocketId')
+        : existing.to_pocket_id;
+    const amount =
+      raw.amount !== undefined
+        ? parseAmount(raw.amount, 'amount')
+        : (asNumber(existing.amount) ?? 0);
 
-    const patch: Partial<{ amount: number; date: string; note: string | null }> = {};
-
-    if (raw.amount !== undefined) {
-      patch.amount = parseAmount(raw.amount, 'amount');
-    }
+    let date = toDateOnly(existing.date);
     if (raw.date !== undefined) {
-      const date = parseOptionalDateOnly(raw.date, 'date');
-      if (date == null) {
+      const parsed = parseOptionalDateOnly(raw.date, 'date');
+      if (parsed == null) {
         throw new AppError(422, ErrorCodes.VALIDATION_ERROR, 'date wajib format YYYY-MM-DD.');
       }
-      patch.date = date;
+      date = parsed;
     }
+
+    let note = existing.note;
     if (raw.note !== undefined) {
-      patch.note = parseOptionalString(raw.note, 'note', 500) ?? null;
+      note = parseOptionalString(raw.note, 'note', 500) ?? null;
     }
 
-    if (Object.keys(patch).length === 0) {
-      return toDto(existing);
+    const unchanged =
+      kind === existing.kind &&
+      fromPocketId === existing.from_pocket_id &&
+      toPocketId === existing.to_pocket_id &&
+      amount === (asNumber(existing.amount) ?? 0) &&
+      date === toDateOnly(existing.date) &&
+      note === existing.note;
+    if (unchanged) {
+      return toDto(ctx.workspace.id, existing);
     }
 
-    if (patch.amount != null && patch.amount !== (asNumber(existing.amount) ?? 0)) {
-      const currentBalance = await computePocketBalance(existing.from_pocket_id);
-      // Saldo sumber sudah dikurangi amount lama; cek apakah naik amount masih cukup.
-      const available = currentBalance + (asNumber(existing.amount) ?? 0);
-      if (available < patch.amount) {
-        throw new AppError(
-          422,
-          ErrorCodes.INSUFFICIENT_BALANCE,
-          'Saldo pocket sumber tidak mencukupi untuk amount baru.',
-        );
-      }
-    }
+    await this.assertPocketsAndBalance(
+      ctx.workspace,
+      kind,
+      fromPocketId,
+      toPocketId,
+      amount,
+      existing,
+    );
 
-    const before = toDto(existing);
-    await transfersRepository.update(ctx.workspace.id, id, patch);
+    const before = await toDto(ctx.workspace.id, existing);
+    await transfersRepository.update(ctx.workspace.id, id, {
+      kind,
+      from_pocket_id: fromPocketId,
+      to_pocket_id: toPocketId,
+      amount,
+      date,
+      note,
+    });
     const updated = (await transfersRepository.findById(ctx.workspace.id, id))!;
+    const after = await toDto(ctx.workspace.id, updated);
 
     await writeMoneyAudit({
       workspaceId: ctx.workspace.id,
@@ -192,10 +207,10 @@ export class TransfersService {
       entityType: AUDIT_ENTITY_TYPES.TRANSFER,
       entityId: id,
       before,
-      after: toDto(updated),
+      after,
     });
 
-    return toDto(updated);
+    return after;
   }
 
   async remove(
@@ -214,7 +229,7 @@ export class TransfersService {
       );
     }
 
-    const before = toDto(existing);
+    const before = await toDto(ctx.workspace.id, existing);
     await transfersRepository.delete(ctx.workspace.id, id);
 
     await writeMoneyAudit({
@@ -227,6 +242,47 @@ export class TransfersService {
     });
 
     return { deleted: true };
+  }
+
+  private async assertPocketsAndBalance(
+    workspace: MoneyWorkspaceRow,
+    kind: 'interpersonal' | 'interpocket',
+    fromPocketId: number,
+    toPocketId: number,
+    amount: number,
+    existing: MoneyTransferRow | null,
+  ): Promise<void> {
+    const from = await pocketsRepository.findById(workspace.id, fromPocketId);
+    const to = await pocketsRepository.findById(workspace.id, toPocketId);
+    if (!from || from.archived_at) {
+      throw new AppError(
+        404,
+        ErrorCodes.MONEY_POCKET_NOT_FOUND,
+        'Pocket sumber tidak ditemukan atau sudah di-archive.',
+      );
+    }
+    if (!to || to.archived_at) {
+      throw new AppError(
+        404,
+        ErrorCodes.MONEY_POCKET_NOT_FOUND,
+        'Pocket tujuan tidak ditemukan atau sudah di-archive.',
+      );
+    }
+
+    assertTransferKindAllowed(kind, workspace, from, to);
+
+    const currentBalance = await computePocketBalance(fromPocketId);
+    const creditBack =
+      existing && existing.from_pocket_id === fromPocketId
+        ? (asNumber(existing.amount) ?? 0)
+        : 0;
+    if (currentBalance + creditBack < amount) {
+      throw new AppError(
+        422,
+        ErrorCodes.INSUFFICIENT_BALANCE,
+        'Saldo pocket sumber tidak mencukupi.',
+      );
+    }
   }
 }
 

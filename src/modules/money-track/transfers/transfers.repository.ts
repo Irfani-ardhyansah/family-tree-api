@@ -38,7 +38,14 @@ export class TransfersRepository {
   async update(
     workspaceId: number,
     transferId: number,
-    patch: Partial<{ amount: number; date: string; note: string | null }>,
+    patch: Partial<{
+      kind: string;
+      from_pocket_id: number;
+      to_pocket_id: number;
+      amount: number;
+      date: string;
+      note: string | null;
+    }>,
   ): Promise<void> {
     await db(Tables.MONEY_TRANSFERS)
       .where({ id: transferId, workspace_id: workspaceId })
