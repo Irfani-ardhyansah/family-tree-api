@@ -31,6 +31,8 @@ services:
       timeout: 5s
       retries: 10
       start_period: 30s
+    networks:
+      - internal
 
   api:
     build: .
@@ -52,8 +54,19 @@ services:
     volumes:
       - family_suite_uploads:/app/uploads
       - family_suite_logs:/app/logs
+    networks:
+      - internal
+      - shared_net
 
 volumes:
   family_suite_mysql:
   family_suite_uploads:
   family_suite_logs:
+
+networks:
+  internal:
+    driver: bridge
+  # Buat sekali di host: docker network create shared_net
+  # Dipakai reverse proxy / FE di compose terpisah
+  shared_net:
+    external: true

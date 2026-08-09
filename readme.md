@@ -5,6 +5,9 @@ Express + TypeScript + Knex + MySQL API for the FamilyRoots family tree app.
 ## Docker (homelab / STB)
 
 ```bash
+# sekali di host (untuk reverse proxy / FE di compose terpisah)
+docker network create shared_net
+
 cp .env.docker.example .env
 # edit JWT_SECRET, CORS_ORIGINS, MEDIA_PUBLIC_BASE_URL (IP STB)
 docker compose up -d --build
@@ -12,7 +15,8 @@ docker compose up -d --build
 curl http://localhost:3000/api/v1/health
 ```
 
-Container API: `family-suite-api` · MySQL: `family-suite-db`.
+Container API: `family-suite-api` · MySQL: `family-suite-db`.  
+API join network `shared_net` — proxy nginx ke `http://family-suite-api:3000`.
 
 ## Setup
 
