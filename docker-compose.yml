@@ -43,7 +43,7 @@ services:
       db:
         condition: service_healthy
     env_file:
-      - .env
+      - .env.docker
     environment:
       NODE_ENV: production
       DB_HOST: db

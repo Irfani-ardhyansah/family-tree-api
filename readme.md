@@ -2,16 +2,30 @@
 
 Express + TypeScript + Knex + MySQL API for the FamilyRoots family tree app.
 
+## Local development (`npm run dev`)
+
+Docker khusus server/homelab. Di laptop tetap Node biasa:
+
+```bash
+cp .env.example .env
+# set DB_HOST/DB_PORT/DB_USER/DB_PASSWORD/DB_NAME ke MySQL lokal
+npm install
+npm run migrate   # atau npm run db:setup
+npm run dev
+curl http://localhost:3000/api/v1/health
+```
+
+Pakai file `.env` (bukan `.env.docker`).
+
 ## Docker (homelab / STB)
 
 ```bash
 # sekali di host (untuk reverse proxy / FE di compose terpisah)
 docker network create shared_net
 
-cp .env.docker.example .env
+cp .env.docker.example .env.docker
 # edit JWT_SECRET, CORS_ORIGINS, MEDIA_PUBLIC_BASE_URL (IP STB)
-docker compose up -d --build
-# optional demo data sekali: RUN_SEED=true docker compose up -d
+docker compose --env-file .env.docker up -d --build
 curl http://localhost:3000/api/v1/health
 ```
 
@@ -20,7 +34,7 @@ API join network `shared_net` — proxy nginx ke `http://family-suite-api:3000`.
 
 ## Setup
 
-1. `cp .env.example .env` and set DB credentials
+1. `cp .env.example .env` and set DB credentials (local)
 2. Create empty MySQL database matching `DB_NAME`
 3. `npm install`
 4. If Knex complains about a missing old migration (`20251209150240_...`), clear the migration bookkeeping once:

@@ -5,4 +5,5 @@ uploads/
 logs/
 
 .env
+.env.docker
 .DS_Store

@@ -47,6 +47,7 @@ export const env = {
   port: Number(optional('PORT', '3000')),
   db: {
     host: optional('DB_HOST', 'localhost'),
+    port: Number(optional('DB_PORT', '3306')),
     user: optional('DB_USER', 'root'),
     password: process.env.DB_PASSWORD ?? '',
     name: optional('DB_NAME', 'family_tree'),
@@ -55,10 +56,10 @@ export const env = {
      * Homelab / Docker local MySQL: set DB_SSL=false.
      */
     ssl: optional('DB_SSL', isProduction ? 'true' : 'false') === 'true',
-    /** Equivalent DSN: mysql://user:pass@host:3306/dbname */
+    /** Equivalent DSN: mysql://user:pass@host:port/dbname */
     get dsn(): string {
       const auth = this.password ? `${this.user}:${this.password}` : this.user;
-      return `mysql://${auth}@${this.host}:3306/${this.name}`;
+      return `mysql://${auth}@${this.host}:${this.port}/${this.name}`;
     },
   },
   corsOrigins,
