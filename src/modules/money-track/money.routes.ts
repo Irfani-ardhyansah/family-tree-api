@@ -12,6 +12,7 @@ import { moneyDashboardController } from './dashboard/dashboard.controller';
 import { debtsController } from './debts/debts.controller';
 import { pocketsController } from './pockets/pockets.controller';
 import { remindersController } from './reminders/reminders.controller';
+import { monthlyReportsController } from './reports/monthly-reports.controller';
 import { setupController } from './setup/setup.controller';
 import { transactionsController } from './transactions/transactions.controller';
 import { transfersController } from './transfers/transfers.controller';
@@ -42,6 +43,11 @@ moneyRoutes.post('/workspace/reset', (req, res, next) => {
 // Dashboard
 moneyRoutes.get('/dashboard', (req, res, next) => {
   void moneyDashboardController.get(req, res, next);
+});
+
+// Monthly evaluation report
+moneyRoutes.get('/reports/monthly', (req, res, next) => {
+  void monthlyReportsController.monthly(req, res, next);
 });
 
 // Unified activity feed (txn + transfer + cash)

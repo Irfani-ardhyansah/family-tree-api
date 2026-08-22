@@ -42,7 +42,7 @@ export type SecondaryPasswordStatus = {
   /** FE harus tampilkan form setup (blokir lanjut ke app sensitif). */
   mustSetup: boolean;
   /** Modul yang dilindungi password kedua. */
-  unlocks: Array<'admin' | 'money' | 'household'>;
+  unlocks: Array<'admin' | 'core' | 'money' | 'household'>;
 };
 
 export type AuthMeResponse = AuthMeBase & {

@@ -3,7 +3,10 @@ import { AppError } from '../../shared/errors/AppError';
 import {
   assertTransferKindAllowed,
   changePercent,
+  changePercent1,
+  eachDateInRange,
   previousYearMonth,
+  round1,
   yearMonthLabel,
 } from './money.helpers';
 import type { MoneyPocketRow, MoneyWorkspaceRow } from './money.types';
@@ -99,6 +102,21 @@ describe('changePercent / yearMonth helpers', () => {
     expect(changePercent(110, 100)).toBe(10);
     expect(changePercent(0, 0)).toBe(0);
     expect(changePercent(50, 0)).toBe(100);
+  });
+
+  it('changePercent1 keeps one decimal', () => {
+    expect(changePercent1(110, 100)).toBe(10);
+    expect(changePercent1(10320000, 8050000)).toBe(28.2);
+    expect(changePercent1(50, 0)).toBe(100);
+  });
+
+  it('eachDateInRange fills calendar days', () => {
+    expect(eachDateInRange('2026-08-30', '2026-08-31')).toEqual([
+      '2026-08-30',
+      '2026-08-31',
+    ]);
+    expect(eachDateInRange('2026-02-01', '2026-02-01')).toEqual(['2026-02-01']);
+    expect(round1(22.55)).toBe(22.6);
   });
 
   it('previousYearMonth rolls over', () => {

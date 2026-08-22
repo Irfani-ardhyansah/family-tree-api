@@ -5,9 +5,15 @@ export type MediaPurpose =
   | 'person'
   | 'money_transaction'
   | 'money_cash_withdrawal'
-  | 'money_wishlist';
+  | 'money_wishlist'
+  | 'fc_document';
 export type MediaStatus = 'pending' | 'attached' | 'deleted';
-export type MediaAttachedToType = 'event' | 'event_contribution' | 'tribute' | 'person';
+export type MediaAttachedToType =
+  | 'event'
+  | 'event_contribution'
+  | 'tribute'
+  | 'person'
+  | 'fc_document';
 
 
 export type MediaRow = {

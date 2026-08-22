@@ -9,7 +9,7 @@ declare global {
         isAdmin?: boolean;
         role?: 'admin' | 'member';
         /** Sensitive modules unlocked via X-Module-Unlock */
-        moduleUnlock?: Array<'admin' | 'money' | 'household'>;
+        moduleUnlock?: Array<'admin' | 'core' | 'money' | 'household'>;
       };
       /** Set by resolveReadFocusMiddleware on GET /persons */
       readFocus?: {

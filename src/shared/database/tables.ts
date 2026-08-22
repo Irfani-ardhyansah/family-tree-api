@@ -2,8 +2,8 @@
  * Canonical DB table names for the super-app domain prefixes:
  *   core_ → Shared / Auth
  *   fr_   → Family Roots
- *   fc_   → Family Core (future)
- *   mt_   → Money Track (future)
+ *   fc_   → Family Core
+ *   mt_   → Money Track
  *   hh_   → Household (future)
  */
 export const Tables = {
@@ -37,6 +37,12 @@ export const Tables = {
   MEMORIAM_TRIBUTE_PHOTOS: 'fr_memoriam_tribute_photos',
   MEMORIAM_PRAYERS: 'fr_memoriam_prayers',
   PERSON_IMPORT_JOBS: 'fr_person_import_jobs',
+
+  // fc_ (Family Core)
+  FC_DOCUMENT_TYPES: 'fc_document_types',
+  FC_CALENDAR_EVENT_TYPES: 'fc_calendar_event_types',
+  FC_DOCUMENTS: 'fc_documents',
+  FC_DOCUMENT_FILES: 'fc_document_files',
 
   // mt_ (Money Track)
   MONEY_WORKSPACES: 'mt_workspaces',

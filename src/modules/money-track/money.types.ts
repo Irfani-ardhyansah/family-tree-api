@@ -489,3 +489,89 @@ export type MoneyPaginated<T> = {
   pageSize: number;
   total: number;
 };
+
+export type MoneyMonthlyReportResponse = {
+  period: {
+    yearMonth: string;
+    label: string;
+    from: string;
+    to: string;
+  };
+  previousPeriod: {
+    yearMonth: string;
+    label: string;
+  };
+  scope: 'all' | 'person';
+  summary: {
+    income: number;
+    expense: number;
+    net: number;
+    savingsRatePct: number;
+    incomeChangePct: number;
+    expenseChangePct: number;
+    netChangePct: number;
+    txnCount: number;
+    expenseTxnCount: number;
+    incomeTxnCount: number;
+  };
+  previousSummary: {
+    income: number;
+    expense: number;
+    net: number;
+  };
+  daily: Array<{
+    date: string;
+    income: number;
+    expense: number;
+    net: number;
+    cumulativeNet: number;
+  }>;
+  byCategory: {
+    expense: Array<{
+      categoryId: number | null;
+      categoryName: string;
+      amount: number;
+      pct: number;
+      count: number;
+    }>;
+    income: Array<{
+      categoryId: number | null;
+      categoryName: string;
+      amount: number;
+      pct: number;
+      count: number;
+    }>;
+  };
+  byPocket: Array<{
+    pocketId: number;
+    pocketName: string;
+    accountName: string;
+    personId: number | null;
+    personName: string | null;
+    income: number;
+    expense: number;
+    net: number;
+  }>;
+  byPerson: Array<{
+    personId: number;
+    personName: string;
+    income: number;
+    expense: number;
+    net: number;
+  }>;
+  moves: {
+    transfer: { count: number; amount: number };
+    cashWithdrawal: { count: number; amount: number };
+  };
+  topExpenseDays: Array<{
+    date: string;
+    expense: number;
+    income: number;
+  }>;
+  debtsOpen: {
+    utangRemaining: number;
+    piutangRemaining: number;
+    dueSoonCount: number;
+    openCount: number;
+  };
+};

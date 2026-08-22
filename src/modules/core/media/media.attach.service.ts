@@ -18,6 +18,7 @@ function purposeToAttachedType(purpose: MediaPurpose): MediaAttachedToType {
   if (purpose === 'event') return 'event';
   if (purpose === 'event_contribution') return 'event_contribution';
   if (purpose === 'person') return 'person';
+  if (purpose === 'fc_document') return 'fc_document';
   return 'tribute';
 }
 

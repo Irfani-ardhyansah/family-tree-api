@@ -1,3 +1,4 @@
+import { env } from '../../../config/env';
 import { MediaPurpose } from './media.types';
 
 export const MEDIA_PURPOSES: MediaPurpose[] = [
@@ -8,6 +9,7 @@ export const MEDIA_PURPOSES: MediaPurpose[] = [
   'money_transaction',
   'money_cash_withdrawal',
   'money_wishlist',
+  'fc_document',
 ];
 
 export const ALLOWED_MIME_TYPES = new Set([
@@ -24,14 +26,9 @@ export const MIME_TO_EXT: Record<string, string> = {
   'image/gif': 'gif',
 };
 
+/** Max attach count per purpose — sourced from .env (`MEDIA_MAX_COUNT_*`). */
 export const MAX_PHOTOS_BY_PURPOSE: Record<MediaPurpose, number> = {
-  event: 10,
-  event_contribution: 10,
-  memoriam_tribute: 8,
-  person: 1,
-  money_transaction: 3,
-  money_cash_withdrawal: 3,
-  money_wishlist: 1,
+  ...env.media.maxCountByPurpose,
 };
 
 /**
@@ -46,6 +43,7 @@ export const STORAGE_DIR_BY_PURPOSE: Record<MediaPurpose, string> = {
   money_transaction: 'money',
   money_cash_withdrawal: 'money',
   money_wishlist: 'money',
+  fc_document: 'family-core/documents',
 };
 
 export function buildStorageKey(purpose: MediaPurpose, id: string, ext: string): string {

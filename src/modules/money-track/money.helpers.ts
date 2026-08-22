@@ -82,6 +82,31 @@ export function changePercent(current: number, previous: number): number {
   return Math.round(((current - previous) / previous) * 100);
 }
 
+/** MoM % with 1 decimal. previous=0 & current>0 → 100 (FE treat as known; not null). */
+export function changePercent1(current: number, previous: number): number {
+  if (previous === 0) {
+    if (current === 0) return 0;
+    return 100;
+  }
+  return Math.round(((current - previous) / previous) * 1000) / 10;
+}
+
+export function round1(n: number): number {
+  return Math.round(n * 10) / 10;
+}
+
+/** Inclusive calendar dates from `from` to `to` (YYYY-MM-DD). */
+export function eachDateInRange(from: string, to: string): string[] {
+  const out: string[] = [];
+  const cur = new Date(`${from}T00:00:00.000Z`);
+  const end = new Date(`${to}T00:00:00.000Z`);
+  while (cur.getTime() <= end.getTime()) {
+    out.push(cur.toISOString().slice(0, 10));
+    cur.setUTCDate(cur.getUTCDate() + 1);
+  }
+  return out;
+}
+
 export function jakartaYearMonth(date = new Date()): string {
   const parts = new Intl.DateTimeFormat('en-CA', {
     timeZone: 'Asia/Jakarta',

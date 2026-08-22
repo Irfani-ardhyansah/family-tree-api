@@ -137,9 +137,10 @@ export class MediaService {
     if (
       purpose === 'money_transaction' ||
       purpose === 'money_cash_withdrawal' ||
-      purpose === 'money_wishlist'
+      purpose === 'money_wishlist' ||
+      purpose === 'fc_document'
     ) {
-      // Money attachments: contextId optional / opaque — no FR event ACL.
+      // Money / Family Core attachments: contextId optional / opaque — no FR event ACL.
       return;
     }
 

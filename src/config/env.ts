@@ -77,7 +77,22 @@ export const env = {
      * Default serves via Express static at `/media`.
      */
     publicBaseUrl: optional('MEDIA_PUBLIC_BASE_URL', `http://localhost:${optional('PORT', '3000')}/media`),
+    /** Max size per uploaded file (bytes). Default 5 MB. */
     maxFileBytes: Number(optional('MEDIA_MAX_FILE_BYTES', String(5 * 1024 * 1024))),
+    /**
+     * Max attached photos/files per purpose (count, not size).
+     * Override via MEDIA_MAX_COUNT_<PURPOSE> in .env.
+     */
+    maxCountByPurpose: {
+      event: Number(optional('MEDIA_MAX_COUNT_EVENT', '10')),
+      event_contribution: Number(optional('MEDIA_MAX_COUNT_EVENT_CONTRIBUTION', '10')),
+      memoriam_tribute: Number(optional('MEDIA_MAX_COUNT_MEMORIAM_TRIBUTE', '8')),
+      person: Number(optional('MEDIA_MAX_COUNT_PERSON', '1')),
+      money_transaction: Number(optional('MEDIA_MAX_COUNT_MONEY_TRANSACTION', '3')),
+      money_cash_withdrawal: Number(optional('MEDIA_MAX_COUNT_MONEY_CASH_WITHDRAWAL', '3')),
+      money_wishlist: Number(optional('MEDIA_MAX_COUNT_MONEY_WISHLIST', '1')),
+      fc_document: Number(optional('MEDIA_MAX_COUNT_FC_DOCUMENT', '5')),
+    },
     /** Pending media older than this are purged by the TTL job. */
     pendingTtlMs: Number(optional('MEDIA_PENDING_TTL_MS', String(24 * 60 * 60 * 1000))),
     ttlIntervalMs: Number(optional('MEDIA_TTL_INTERVAL_MS', String(60 * 60 * 1000))),
@@ -93,4 +108,12 @@ export const env = {
   },
   /** Unlock TTL setelah verifikasi password kedua (detik). Default 15 menit. */
   secondaryUnlockTtlSeconds: Number(optional('SECONDARY_UNLOCK_TTL', '900')),
+  /**
+   * AES-256 key for Family Core document numbers (32 bytes).
+   * Prefer base64 (44 chars) or hex (64 chars). Dev fallback is fixed — change in production.
+   */
+  fcDocumentNumberKey: requiredInProduction(
+    'FC_DOCUMENT_NUMBER_KEY',
+    'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=',
+  ),
 } as const;
