@@ -17,7 +17,7 @@ WORKDIR /app
 ENV NODE_ENV=production \
     PORT=3000
 
-RUN apk add --no-cache wget
+RUN apk add --no-cache wget mysql-client zip unzip
 
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev && npm cache clean --force

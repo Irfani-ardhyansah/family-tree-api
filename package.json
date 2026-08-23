@@ -16,6 +16,9 @@
     "seed": "knex seed:run",
     "seed:make": "knex seed:make",
     "db:setup": "npm run migrate && npm run seed",
+    "db:dump": "bash scripts/db-dump.sh",
+    "db:restore": "bash scripts/db-restore.sh",
+    "backup:import": "ts-node scripts/backup-import-json.ts",
     "test": "vitest run",
     "test:watch": "vitest"
   },

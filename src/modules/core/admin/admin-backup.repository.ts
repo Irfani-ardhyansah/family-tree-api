@@ -7,7 +7,8 @@ export class AdminBackupRepository {
     id: string;
     familyId: number;
     createdByPersonId: number;
-    moduleIds: AdminModuleId[];
+    /** Module ids for JSON export, or `['sql']` for full DB dump. */
+    moduleIds: Array<AdminModuleId | 'sql'>;
   }): Promise<void> {
     await db(Tables.BACKUP_JOBS).insert({
       id: input.id,

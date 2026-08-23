@@ -200,6 +200,31 @@ export class AdminController {
       next(error);
     }
   }
+
+  async downloadBackup(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const file = await adminBackupService.getDownloadFile(
+        req.auth!.familyId,
+        req.params.id ?? '',
+      );
+      res.download(file.absolutePath, file.filename);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async importBackup(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const data = await adminBackupService.importFile(
+        req.auth!.familyId,
+        req.auth!.personId,
+        req.file,
+      );
+      sendData(res, data);
+    } catch (error) {
+      next(error);
+    }
+  }
 }
 
 export const adminController = new AdminController();

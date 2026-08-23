@@ -191,8 +191,12 @@ export type AdminDashboardResponse = {
 
 export type AdminBackupStatus = 'success' | 'failed' | 'running';
 
+export type AdminBackupFormat = 'json' | 'sql';
+
 export type AdminBackupItem = {
   id: string;
+  /** `sql` = full DB mysqldump (.sql.zip); `json` = module export. */
+  format: AdminBackupFormat;
   moduleIds: AdminModuleId[];
   createdAt: string;
   status: AdminBackupStatus;

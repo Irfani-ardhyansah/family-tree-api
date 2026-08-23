@@ -4,6 +4,7 @@ import { requireAdmin } from '../../../shared/middleware/requireAdmin.middleware
 import { requireModuleUnlock } from '../../../shared/middleware/requireModuleUnlock.middleware';
 import { mediaUploadMiddleware } from '../media/media.upload.middleware';
 import { adminController } from './admin.controller';
+import { backupImportUploadMiddleware } from './backup-import.upload.middleware';
 
 const adminRoutes = Router();
 
@@ -67,6 +68,14 @@ adminRoutes.post('/settings/logo', mediaUploadMiddleware, (req, res, next) => {
 
 adminRoutes.get('/backups', (req, res, next) => {
   void adminController.listBackups(req, res, next);
+});
+
+adminRoutes.post('/backups/import', backupImportUploadMiddleware, (req, res, next) => {
+  void adminController.importBackup(req, res, next);
+});
+
+adminRoutes.get('/backups/:id/download', (req, res, next) => {
+  void adminController.downloadBackup(req, res, next);
 });
 
 adminRoutes.get('/backups/:id', (req, res, next) => {
