@@ -15,7 +15,7 @@ import {
   resolveMoneyContext,
   toDateOnly,
 } from '../money.access';
-import { writeMoneyAudit } from '../money.audit';
+import { formatAuditRp, txnAuditLabel, writeMoneyAudit } from '../money.audit';
 import { computePocketBalance } from '../money.balance';
 import {
   AUDIT_ENTITY_TYPES,
@@ -48,7 +48,29 @@ function auditSnapshot(row: MoneyTransactionRow): Record<string, unknown> {
     amount: asNumber(row.amount) ?? 0,
     date: toDateOnly(row.date),
     note: row.note,
+    attachmentMediaId: row.attachment_media_id,
+    createdByPersonId: row.created_by_person_id,
   };
+}
+
+async function resolveTxnSubject(
+  workspaceId: number,
+  categoryId: number | null,
+  note: string | null,
+  type: string,
+): Promise<string> {
+  if (categoryId != null) {
+    const cat = await categoriesRepository.findById(workspaceId, categoryId);
+    if (cat?.name) return cat.name;
+  }
+  if (note && note.trim()) return note.trim().slice(0, 80);
+  return txnAuditLabel(type);
+}
+
+function txnEntityType(type: string): string {
+  if (type === 'opening_balance') return AUDIT_ENTITY_TYPES.OPENING_BALANCE;
+  if (type === 'adjustment') return AUDIT_ENTITY_TYPES.BALANCING_ADJUSTMENT;
+  return AUDIT_ENTITY_TYPES.TRANSACTION;
 }
 
 async function toEnrichedDto(
@@ -190,11 +212,9 @@ export class TransactionsService {
       workspaceId: ctx.workspace.id,
       actorPersonId: ctx.actor.id,
       action: 'create',
-      entityType:
-        parsed.type === 'adjustment'
-          ? AUDIT_ENTITY_TYPES.ADJUSTMENT
-          : AUDIT_ENTITY_TYPES.TRANSACTION,
+      entityType: txnEntityType(parsed.type),
       entityId: Number(row.id),
+      summary: `Catat ${txnAuditLabel(parsed.type)} ${await resolveTxnSubject(ctx.workspace.id, parsed.categoryId, parsed.note, parsed.type)} ${formatAuditRp(parsed.amount)}`,
       after: auditSnapshot(row),
     });
 
@@ -254,11 +274,12 @@ export class TransactionsService {
       workspaceId: ctx.workspace.id,
       actorPersonId: ctx.actor.id,
       action: 'update',
-      entityType:
-        updated.type === 'adjustment'
-          ? AUDIT_ENTITY_TYPES.ADJUSTMENT
-          : AUDIT_ENTITY_TYPES.TRANSACTION,
+      entityType: txnEntityType(updated.type),
       entityId: id,
+      summary:
+        (asNumber(existing.amount) ?? 0) !== parsed.amount
+          ? `Ubah ${txnAuditLabel(updated.type)} ${await resolveTxnSubject(ctx.workspace.id, updated.category_id, updated.note, updated.type)} ${formatAuditRp(asNumber(existing.amount) ?? 0)} → ${formatAuditRp(parsed.amount)}`
+          : `Ubah ${txnAuditLabel(updated.type)} ${await resolveTxnSubject(ctx.workspace.id, updated.category_id, updated.note, updated.type)} ${formatAuditRp(parsed.amount)}`,
       before,
       after: auditSnapshot(updated),
     });
@@ -290,11 +311,9 @@ export class TransactionsService {
       workspaceId: ctx.workspace.id,
       actorPersonId: ctx.actor.id,
       action: 'delete',
-      entityType:
-        existing.type === 'adjustment'
-          ? AUDIT_ENTITY_TYPES.ADJUSTMENT
-          : AUDIT_ENTITY_TYPES.TRANSACTION,
+      entityType: txnEntityType(existing.type),
       entityId: id,
+      summary: `Hapus ${txnAuditLabel(existing.type)} ${await resolveTxnSubject(ctx.workspace.id, existing.category_id, existing.note, existing.type)} ${formatAuditRp(asNumber(existing.amount) ?? 0)}`,
       before,
     });
 

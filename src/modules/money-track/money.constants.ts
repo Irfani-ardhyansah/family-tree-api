@@ -90,9 +90,30 @@ export const AUDIT_ENTITY_TYPES = {
   TRANSACTION: 'transaction',
   TRANSFER: 'transfer',
   CASH_WITHDRAWAL: 'cash_withdrawal',
+  OPENING_BALANCE: 'opening_balance',
+  BALANCING_ADJUSTMENT: 'balancing_adjustment',
+  /** @deprecated use BALANCING_ADJUSTMENT — kept for old rows */
   ADJUSTMENT: 'adjustment',
+  CATEGORY: 'category',
+  POCKET: 'pocket',
+  ACCOUNT: 'account',
+  DEBT: 'debt',
   DEBT_PAYMENT: 'debt_payment',
 } as const;
+
+export const MONEY_AUDIT_ENTITY_TYPE_FILTERS = [
+  'transaction',
+  'transfer',
+  'cash_withdrawal',
+  'opening_balance',
+  'balancing_adjustment',
+  'adjustment',
+  'category',
+  'pocket',
+  'account',
+  'debt',
+  'debt_payment',
+] as const;
 
 export const MONEY_WORKSPACE_RESET_MODES = ['wipe', 'reseed'] as const;
 export type MoneyWorkspaceResetMode = (typeof MONEY_WORKSPACE_RESET_MODES)[number];

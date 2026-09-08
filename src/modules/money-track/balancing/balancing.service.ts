@@ -12,7 +12,7 @@ import {
   resolveMoneyContext,
   toDateOnly,
 } from '../money.access';
-import { writeMoneyAudit } from '../money.audit';
+import { formatAuditRp, writeMoneyAudit } from '../money.audit';
 import { computePocketBalance, computePocketBalances } from '../money.balance';
 import { AUDIT_ENTITY_TYPES } from '../money.constants';
 import type {
@@ -143,8 +143,9 @@ export class BalancingService {
       workspaceId: ctx.workspace.id,
       actorPersonId: ctx.actor.id,
       action: 'create',
-      entityType: AUDIT_ENTITY_TYPES.ADJUSTMENT,
+      entityType: AUDIT_ENTITY_TYPES.BALANCING_ADJUSTMENT,
       entityId: dto.id,
+      summary: `Sesuaikan saldo ${pocket.name} (selisih ${formatAuditRp(diff)})`,
       after: dto,
     });
 
@@ -242,8 +243,9 @@ export class BalancingService {
             workspaceId: ctx.workspace.id,
             actorPersonId: ctx.actor.id,
             action: 'create',
-            entityType: AUDIT_ENTITY_TYPES.TRANSACTION,
+            entityType: AUDIT_ENTITY_TYPES.OPENING_BALANCE,
             entityId: dto.id,
+            summary: `Catat saldo awal ${pocket.name} ${formatAuditRp(item.amount)}`,
             after: dto,
           },
           trx,

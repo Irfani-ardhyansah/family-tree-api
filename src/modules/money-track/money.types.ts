@@ -454,21 +454,23 @@ export type MoneyAuditLogRow = {
   action: 'create' | 'update' | 'delete';
   entity_type: string;
   entity_id: number;
+  summary: string;
   before: string | Record<string, unknown> | null;
   after: string | Record<string, unknown> | null;
   created_at: Date | string;
 };
 
 export type MoneyAuditLogDto = {
-  id: number;
+  id: string;
+  createdAt: string;
   actorPersonId: number;
   actorName: string;
   action: 'create' | 'update' | 'delete';
   entityType: string;
-  entityId: number;
+  entityId: string;
+  summary: string;
   before: unknown;
   after: unknown;
-  createdAt: string;
 };
 
 export type MoneyReminderDto = {

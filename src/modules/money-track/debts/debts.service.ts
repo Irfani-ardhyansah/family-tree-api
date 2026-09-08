@@ -14,7 +14,7 @@ import {
   resolveMoneyContext,
   toDateOnly,
 } from '../money.access';
-import { writeMoneyAudit } from '../money.audit';
+import { formatAuditRp, writeMoneyAudit } from '../money.audit';
 import {
   AUDIT_ENTITY_TYPES,
   MONEY_DEBT_DIRECTIONS,
@@ -134,7 +134,18 @@ export class DebtsService {
       note: parseOptionalString(raw.note, 'note', 500) ?? null,
     });
 
-    return toListDto(row, 0);
+    const dto = toListDto(row, 0);
+    await writeMoneyAudit({
+      workspaceId: ctx.workspace.id,
+      actorPersonId: ctx.actor.id,
+      action: 'create',
+      entityType: AUDIT_ENTITY_TYPES.DEBT,
+      entityId: row.id,
+      summary: `Catat ${dto.directionLabel.toLowerCase()} ${row.counterparty_name} ${formatAuditRp(asNumber(row.amount) ?? 0)}`,
+      after: dto,
+    });
+
+    return dto;
   }
 
   async update(
@@ -197,7 +208,20 @@ export class DebtsService {
       await debtsRepository.update(ctx.workspace.id, id, { status });
     }
 
-    return this.getById(authPersonId, familyId, idRaw);
+    const updated = await this.getById(authPersonId, familyId, idRaw);
+    if (Object.keys(patch).length > 0) {
+      await writeMoneyAudit({
+        workspaceId: ctx.workspace.id,
+        actorPersonId: ctx.actor.id,
+        action: 'update',
+        entityType: AUDIT_ENTITY_TYPES.DEBT,
+        entityId: id,
+        summary: `Ubah ${updated.directionLabel.toLowerCase()} ${updated.counterpartyName} ${formatAuditRp(updated.amount)}`,
+        before: toListDto(existing, paidTotal),
+        after: updated,
+      });
+    }
+    return updated;
   }
 
   async remove(
@@ -211,7 +235,18 @@ export class DebtsService {
     if (!existing) {
       throw new AppError(404, ErrorCodes.MONEY_DEBT_NOT_FOUND, 'Debt tidak ditemukan.');
     }
+    const paidTotal = await debtsRepository.sumPayments(id);
+    const before = toListDto(existing, paidTotal);
     await debtsRepository.delete(ctx.workspace.id, id);
+    await writeMoneyAudit({
+      workspaceId: ctx.workspace.id,
+      actorPersonId: ctx.actor.id,
+      action: 'delete',
+      entityType: AUDIT_ENTITY_TYPES.DEBT,
+      entityId: id,
+      summary: `Hapus ${before.directionLabel.toLowerCase()} ${before.counterpartyName} ${formatAuditRp(before.amount)}`,
+      before,
+    });
     return { deleted: true };
   }
 
@@ -266,6 +301,7 @@ export class DebtsService {
       action: 'create',
       entityType: AUDIT_ENTITY_TYPES.DEBT_PAYMENT,
       entityId: Number(payment.id),
+      summary: `Catat pembayaran ${debt.counterparty_name} ${formatAuditRp(amount)}`,
       after: paymentDto(payment),
     });
 

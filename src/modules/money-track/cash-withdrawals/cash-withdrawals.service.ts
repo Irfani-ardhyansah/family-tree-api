@@ -11,7 +11,7 @@ import {
   resolveMoneyContext,
   toDateOnly,
 } from '../money.access';
-import { writeMoneyAudit } from '../money.audit';
+import { formatAuditRp, writeMoneyAudit } from '../money.audit';
 import { computePocketBalance } from '../money.balance';
 import { AUDIT_ENTITY_TYPES } from '../money.constants';
 import { loadEnrichmentMaps, pocketLabel } from '../money.enrichment';
@@ -144,6 +144,7 @@ export class CashWithdrawalsService {
       action: 'create',
       entityType: AUDIT_ENTITY_TYPES.CASH_WITHDRAWAL,
       entityId: Number(row.id),
+      summary: `Catat tarik tunai ${formatAuditRp(amount)}`,
       after,
     });
 
@@ -249,6 +250,7 @@ export class CashWithdrawalsService {
       action: 'update',
       entityType: AUDIT_ENTITY_TYPES.CASH_WITHDRAWAL,
       entityId: id,
+      summary: `Ubah tarik tunai ${formatAuditRp(asNumber(existing.amount) ?? 0)} → ${formatAuditRp(amount)}`,
       before,
       after,
     });
@@ -281,6 +283,7 @@ export class CashWithdrawalsService {
       action: 'delete',
       entityType: AUDIT_ENTITY_TYPES.CASH_WITHDRAWAL,
       entityId: id,
+      summary: `Hapus tarik tunai ${formatAuditRp(before.amount)}`,
       before,
     });
 

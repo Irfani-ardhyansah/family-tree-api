@@ -211,6 +211,9 @@ moneyRoutes.put('/budgets', (req, res, next) => {
 moneyRoutes.get('/audit-logs', (req, res, next) => {
   void auditLogsController.list(req, res, next);
 });
+moneyRoutes.get('/audit-logs/:id', (req, res, next) => {
+  void auditLogsController.getById(req, res, next);
+});
 moneyRoutes.get('/reminders', (req, res, next) => {
   void remindersController.list(req, res, next);
 });

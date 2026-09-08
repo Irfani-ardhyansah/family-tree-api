@@ -17,7 +17,9 @@ import {
 } from '../money.access';
 import { computePocketBalances } from '../money.balance';
 import { deletePocketsCascade } from '../money.cascade';
+import { writeMoneyAudit } from '../money.audit';
 import {
+  AUDIT_ENTITY_TYPES,
   MONEY_POCKET_CATEGORIES,
   MONEY_POCKET_OWNER_TYPES,
 } from '../money.constants';
@@ -27,6 +29,21 @@ import type {
   MoneyPocketRow,
 } from '../money.types';
 import { pocketsRepository } from './pockets.repository';
+
+function pocketAuditSnapshot(row: MoneyPocketRow) {
+  return {
+    id: row.id,
+    accountId: row.account_id,
+    ownerType: row.owner_type,
+    ownerPersonId: row.owner_person_id,
+    category: row.category,
+    name: row.name,
+    goalAmount: asNumber(row.goal_amount),
+    goalDate: row.goal_date ? toDateOnly(row.goal_date) : null,
+    isSystem: asBool(row.is_system),
+    archivedAt: toIso(row.archived_at),
+  };
+}
 
 function toDto(
   row: MoneyPocketRow,
@@ -150,7 +167,17 @@ export class PocketsService {
     });
 
     const balances = await computePocketBalances([row.id]);
-    return toDto(row, account, balances.get(row.id) ?? 0);
+    const dto = toDto(row, account, balances.get(row.id) ?? 0);
+    await writeMoneyAudit({
+      workspaceId: ctx.workspace.id,
+      actorPersonId: ctx.actor.id,
+      action: 'create',
+      entityType: AUDIT_ENTITY_TYPES.POCKET,
+      entityId: row.id,
+      summary: `Catat pocket ${row.name}`,
+      after: pocketAuditSnapshot(row),
+    });
+    return dto;
   }
 
   async update(
@@ -216,7 +243,20 @@ export class PocketsService {
       updated.account_id,
     ))!;
     const balances = await computePocketBalances([pocketId]);
-    return toDto(updated, account, balances.get(pocketId) ?? 0);
+    const dto = toDto(updated, account, balances.get(pocketId) ?? 0);
+    if (Object.keys(patch).length > 0) {
+      await writeMoneyAudit({
+        workspaceId: ctx.workspace.id,
+        actorPersonId: ctx.actor.id,
+        action: 'update',
+        entityType: AUDIT_ENTITY_TYPES.POCKET,
+        entityId: pocketId,
+        summary: `Ubah pocket ${updated.name}`,
+        before: pocketAuditSnapshot(existing),
+        after: pocketAuditSnapshot(updated),
+      });
+    }
+    return dto;
   }
 
   async remove(
@@ -231,8 +271,18 @@ export class PocketsService {
       throw new AppError(404, ErrorCodes.MONEY_POCKET_NOT_FOUND, 'Pocket tidak ditemukan.');
     }
 
+    const before = pocketAuditSnapshot(existing);
     await db.transaction(async (trx) => {
       await deletePocketsCascade(ctx.workspace.id, [pocketId], trx);
+    });
+    await writeMoneyAudit({
+      workspaceId: ctx.workspace.id,
+      actorPersonId: ctx.actor.id,
+      action: 'delete',
+      entityType: AUDIT_ENTITY_TYPES.POCKET,
+      entityId: pocketId,
+      summary: `Hapus pocket ${existing.name}`,
+      before,
     });
 
     return { deleted: true };
@@ -280,7 +330,18 @@ export class PocketsService {
       updated.account_id,
     ))!;
     const balances = await computePocketBalances([pocketId]);
-    return toDto(updated, account, balances.get(pocketId) ?? 0);
+    const dto = toDto(updated, account, balances.get(pocketId) ?? 0);
+    await writeMoneyAudit({
+      workspaceId: ctx.workspace.id,
+      actorPersonId: ctx.actor.id,
+      action: 'update',
+      entityType: AUDIT_ENTITY_TYPES.POCKET,
+      entityId: pocketId,
+      summary: `Archive pocket ${updated.name}`,
+      before: pocketAuditSnapshot(existing),
+      after: pocketAuditSnapshot(updated),
+    });
+    return dto;
   }
 
   async unarchive(
@@ -313,7 +374,18 @@ export class PocketsService {
       updated.account_id,
     ))!;
     const balances = await computePocketBalances([pocketId]);
-    return toDto(updated, account, balances.get(pocketId) ?? 0);
+    const dto = toDto(updated, account, balances.get(pocketId) ?? 0);
+    await writeMoneyAudit({
+      workspaceId: ctx.workspace.id,
+      actorPersonId: ctx.actor.id,
+      action: 'update',
+      entityType: AUDIT_ENTITY_TYPES.POCKET,
+      entityId: pocketId,
+      summary: `Unarchive pocket ${updated.name}`,
+      before: pocketAuditSnapshot(existing),
+      after: pocketAuditSnapshot(updated),
+    });
+    return dto;
   }
 
   private async mapWithBalances(

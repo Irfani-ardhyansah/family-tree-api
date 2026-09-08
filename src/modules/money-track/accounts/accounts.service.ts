@@ -11,7 +11,9 @@ import {
 } from '../money.access';
 import { computePocketBalances } from '../money.balance';
 import { deleteAccountCascade } from '../money.cascade';
+import { writeMoneyAudit } from '../money.audit';
 import {
+  AUDIT_ENTITY_TYPES,
   CASH_POCKET_NAME,
   EWALLET_POCKET_NAME,
   MONEY_ACCOUNT_TYPES,
@@ -19,6 +21,16 @@ import {
 import type { MoneyAccountDto, MoneyAccountRow } from '../money.types';
 import { createSystemPocketForAccount } from './accounts.helpers';
 import { accountsRepository } from './accounts.repository';
+
+function accountAuditSnapshot(row: MoneyAccountRow) {
+  return {
+    id: row.id,
+    personId: row.person_id,
+    name: row.name,
+    type: row.type,
+    bankName: row.bank_name,
+  };
+}
 
 function resolveDeleteability(
   pocketIds: number[],
@@ -149,7 +161,17 @@ export class AccountsService {
       });
     }
 
-    return toDto(account);
+    const dto = await toDto(account);
+    await writeMoneyAudit({
+      workspaceId: ctx.workspace.id,
+      actorPersonId: ctx.actor.id,
+      action: 'create',
+      entityType: AUDIT_ENTITY_TYPES.ACCOUNT,
+      entityId: account.id,
+      summary: `Catat account ${account.name}`,
+      after: accountAuditSnapshot(account),
+    });
+    return dto;
   }
 
   async update(
@@ -197,7 +219,18 @@ export class AccountsService {
 
     await accountsRepository.update(ctx.workspace.id, accountId, patch);
     const updated = await accountsRepository.findById(ctx.workspace.id, accountId);
-    return toDto(updated!);
+    const dto = await toDto(updated!);
+    await writeMoneyAudit({
+      workspaceId: ctx.workspace.id,
+      actorPersonId: ctx.actor.id,
+      action: 'update',
+      entityType: AUDIT_ENTITY_TYPES.ACCOUNT,
+      entityId: accountId,
+      summary: `Ubah account ${updated!.name}`,
+      before: accountAuditSnapshot(existing),
+      after: accountAuditSnapshot(updated!),
+    });
+    return dto;
   }
 
   async remove(
@@ -219,9 +252,20 @@ export class AccountsService {
       query.cascade === '1' ||
       query.cascade === 'true';
 
+    const before = accountAuditSnapshot(existing);
+
     if (cascade) {
       await db.transaction(async (trx) => {
         await deleteAccountCascade(ctx.workspace.id, accountId, trx);
+      });
+      await writeMoneyAudit({
+        workspaceId: ctx.workspace.id,
+        actorPersonId: ctx.actor.id,
+        action: 'delete',
+        entityType: AUDIT_ENTITY_TYPES.ACCOUNT,
+        entityId: accountId,
+        summary: `Hapus account ${existing.name}`,
+        before,
       });
       return { deleted: true, cascade: true };
     }
@@ -236,6 +280,15 @@ export class AccountsService {
     }
 
     await accountsRepository.delete(ctx.workspace.id, accountId);
+    await writeMoneyAudit({
+      workspaceId: ctx.workspace.id,
+      actorPersonId: ctx.actor.id,
+      action: 'delete',
+      entityType: AUDIT_ENTITY_TYPES.ACCOUNT,
+      entityId: accountId,
+      summary: `Hapus account ${existing.name}`,
+      before,
+    });
     return { deleted: true, cascade: false };
   }
 }

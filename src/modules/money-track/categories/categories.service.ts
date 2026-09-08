@@ -9,9 +9,21 @@ import {
   parsePositiveInt,
   resolveMoneyContext,
 } from '../money.access';
-import { MONEY_CATEGORY_TYPES } from '../money.constants';
+import { writeMoneyAudit } from '../money.audit';
+import { AUDIT_ENTITY_TYPES, MONEY_CATEGORY_TYPES } from '../money.constants';
 import type { MoneyCategoryDto, MoneyCategoryRow } from '../money.types';
 import { categoriesRepository } from './categories.repository';
+
+function categoryAuditSnapshot(row: MoneyCategoryRow) {
+  return {
+    id: row.id,
+    name: row.name,
+    type: row.type,
+    icon: row.icon,
+    sortOrder: row.sort_order,
+    isSystem: asBool(row.is_system),
+  };
+}
 
 async function toDto(row: MoneyCategoryRow): Promise<MoneyCategoryDto> {
   const isSystem = asBool(row.is_system);
@@ -91,7 +103,17 @@ export class CategoriesService {
       icon,
       sortOrder,
     });
-    return toDto(row);
+    const dto = await toDto(row);
+    await writeMoneyAudit({
+      workspaceId: ctx.workspace.id,
+      actorPersonId: ctx.actor.id,
+      action: 'create',
+      entityType: AUDIT_ENTITY_TYPES.CATEGORY,
+      entityId: row.id,
+      summary: `Catat category ${row.name}`,
+      after: categoryAuditSnapshot(row),
+    });
+    return dto;
   }
 
   async update(
@@ -135,7 +157,20 @@ export class CategoriesService {
     }
 
     const updated = await categoriesRepository.findById(ctx.workspace.id, categoryId);
-    return toDto(updated!);
+    const dto = await toDto(updated!);
+    if (Object.keys(patch).length > 0) {
+      await writeMoneyAudit({
+        workspaceId: ctx.workspace.id,
+        actorPersonId: ctx.actor.id,
+        action: 'update',
+        entityType: AUDIT_ENTITY_TYPES.CATEGORY,
+        entityId: categoryId,
+        summary: `Ubah category ${updated!.name}`,
+        before: categoryAuditSnapshot(existing),
+        after: categoryAuditSnapshot(updated!),
+      });
+    }
+    return dto;
   }
 
   async remove(
@@ -166,6 +201,15 @@ export class CategoriesService {
     }
 
     await categoriesRepository.softDelete(ctx.workspace.id, categoryId);
+    await writeMoneyAudit({
+      workspaceId: ctx.workspace.id,
+      actorPersonId: ctx.actor.id,
+      action: 'delete',
+      entityType: AUDIT_ENTITY_TYPES.CATEGORY,
+      entityId: categoryId,
+      summary: `Hapus category ${existing.name}`,
+      before: categoryAuditSnapshot(existing),
+    });
     return { deleted: true };
   }
 }

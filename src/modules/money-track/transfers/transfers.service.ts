@@ -11,7 +11,7 @@ import {
   resolveMoneyContext,
   toDateOnly,
 } from '../money.access';
-import { writeMoneyAudit } from '../money.audit';
+import { formatAuditRp, writeMoneyAudit } from '../money.audit';
 import { computePocketBalance } from '../money.balance';
 import { AUDIT_ENTITY_TYPES, MONEY_TRANSFER_KINDS } from '../money.constants';
 import { loadEnrichmentMaps, pocketLabel } from '../money.enrichment';
@@ -110,6 +110,7 @@ export class TransfersService {
       action: 'create',
       entityType: AUDIT_ENTITY_TYPES.TRANSFER,
       entityId: Number(row.id),
+      summary: `Catat transfer ${after.toPocketLabel ?? 'tujuan'} ${formatAuditRp(amount)}`,
       after,
     });
 
@@ -206,6 +207,7 @@ export class TransfersService {
       action: 'update',
       entityType: AUDIT_ENTITY_TYPES.TRANSFER,
       entityId: id,
+      summary: `Ubah transfer ${after.toPocketLabel ?? 'tujuan'} ${formatAuditRp(asNumber(existing.amount) ?? 0)} → ${formatAuditRp(amount)}`,
       before,
       after,
     });
@@ -238,6 +240,7 @@ export class TransfersService {
       action: 'delete',
       entityType: AUDIT_ENTITY_TYPES.TRANSFER,
       entityId: id,
+      summary: `Hapus transfer ${before.toPocketLabel ?? 'tujuan'} ${formatAuditRp(before.amount)}`,
       before,
     });
 
