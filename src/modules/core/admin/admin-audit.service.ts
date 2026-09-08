@@ -11,6 +11,7 @@ import {
   AdminAuditLogEntry,
   AdminAuditLogListResponse,
   AdminAuditLogQuery,
+  AdminAuditSource,
   RecordAdminAuditInput,
 } from './admin.types';
 
@@ -23,6 +24,31 @@ function parsePositiveInt(value: unknown, fallback: number): number {
     if (n > 0) return n;
   }
   return fallback;
+}
+
+function parseAuditRef(
+  idRaw: string,
+  sourceHint?: string,
+): { source: AdminAuditSource; id: number } | null {
+  const trimmed = idRaw.trim();
+  if (!trimmed) return null;
+
+  if (trimmed.startsWith('money:')) {
+    const id = parsePositiveInt(trimmed.slice('money:'.length), 0);
+    return id > 0 ? { source: 'money', id } : null;
+  }
+  if (trimmed.startsWith('admin:')) {
+    const id = parsePositiveInt(trimmed.slice('admin:'.length), 0);
+    return id > 0 ? { source: 'admin', id } : null;
+  }
+
+  const id = parsePositiveInt(trimmed, 0);
+  if (id <= 0) return null;
+
+  if (sourceHint === 'money') {
+    return { source: 'money', id };
+  }
+  return { source: 'admin', id };
 }
 
 export class AdminAuditService {
@@ -88,13 +114,21 @@ export class AdminAuditService {
     };
   }
 
-  async getById(familyId: number, idRaw: string): Promise<AdminAuditLogEntry> {
-    const id = parsePositiveInt(idRaw, 0);
-    if (id <= 0) {
+  async getById(
+    familyId: number,
+    idRaw: string,
+    sourceHint?: string,
+  ): Promise<AdminAuditLogEntry> {
+    const ref = parseAuditRef(idRaw, sourceHint);
+    if (!ref) {
       throw new AppError(404, ErrorCodes.ADMIN_AUDIT_NOT_FOUND, 'Audit log tidak ditemukan.');
     }
 
-    const row = await adminAuditRepository.findById(familyId, id);
+    const row =
+      ref.source === 'money'
+        ? await adminAuditRepository.findMoneyById(familyId, ref.id)
+        : await adminAuditRepository.findById(familyId, ref.id);
+
     if (!row) {
       throw new AppError(404, ErrorCodes.ADMIN_AUDIT_NOT_FOUND, 'Audit log tidak ditemukan.');
     }

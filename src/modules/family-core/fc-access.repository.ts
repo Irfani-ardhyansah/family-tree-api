@@ -58,6 +58,17 @@ export class FcAccessRepository {
     return row ?? null;
   }
 
+  /** Children whose father_id or mother_id is any of the given parent ids. */
+  async findChildIdsOf(parentIds: number[]): Promise<number[]> {
+    if (parentIds.length === 0) return [];
+    const rows = await db(Tables.PERSON_LINEAGE)
+      .where(function whereParents() {
+        this.whereIn('father_id', parentIds).orWhereIn('mother_id', parentIds);
+      })
+      .select<{ person_id: number }[]>('person_id');
+    return [...new Set(rows.map((r) => r.person_id))];
+  }
+
   async findPersonsByIds(
     familyId: number,
     personIds: number[],

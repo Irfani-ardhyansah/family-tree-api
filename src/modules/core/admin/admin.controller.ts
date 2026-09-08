@@ -62,7 +62,13 @@ export class AdminController {
 
   async getAuditLog(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const data = await adminAuditService.getById(req.auth!.familyId, req.params.id ?? '');
+      const sourceRaw = req.query.source;
+      const sourceHint = typeof sourceRaw === 'string' ? sourceRaw : undefined;
+      const data = await adminAuditService.getById(
+        req.auth!.familyId,
+        req.params.id ?? '',
+        sourceHint,
+      );
       sendData(res, data);
     } catch (error) {
       next(error);

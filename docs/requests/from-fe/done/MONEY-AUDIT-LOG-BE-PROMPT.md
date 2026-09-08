@@ -134,10 +134,10 @@ Response: satu item (sama shape). `before` / `after` lengkap.
 
 ---
 
-## 3. Relasi dengan Admin Audit (opsional v1)
+## 3. Relasi dengan Admin Audit
 
-Fan-out event penting ke `GET /admin/audit-logs` dengan `moduleId: "money"` **tidak wajib** v1.  
-Money Track punya UX audit sendiri untuk pasangan.
+`GET /admin/audit-logs` **menggabungkan** `mt_audit_logs` (read-side union) dengan `moduleId: "money"` + field `source: "money"`.  
+Tidak ada fan-out write ganda — satu sumber kebenaran di tabel money.
 
 ---
 

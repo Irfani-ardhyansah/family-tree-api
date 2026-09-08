@@ -50,16 +50,23 @@ export function toModuleStatusItem(row: ModuleStatusRow): ModuleStatusItem {
 }
 
 export function toAdminAuditLogEntry(row: AdminAuditLogRow): AdminAuditLogEntry {
+  const source = row.source === 'money' ? 'money' : 'admin';
   return {
-    id: row.id,
+    id: Number(row.id),
+    source,
     timestamp: toIso(row.occurred_at),
-    userId: row.actor_person_id,
+    userId: row.actor_person_id != null ? Number(row.actor_person_id) : null,
     userName: row.actor_name,
     moduleId: row.module_id,
     action: row.action,
     summary: row.summary,
     before: parseJsonObject(row.before),
     after: parseJsonObject(row.after),
+    entityType: source === 'money' ? (row.entity_type ?? null) : null,
+    entityId:
+      source === 'money' && row.entity_id != null && row.entity_id !== ''
+        ? String(row.entity_id)
+        : null,
   };
 }
 

@@ -34,15 +34,32 @@ SQL_PATH="$TMP_DIR/$SQL_NAME"
 echo "Dumping ${DB_NAME}@${DB_HOST}:${DB_PORT} → ${OUT}"
 
 export MYSQL_PWD="$DB_PASSWORD"
-mysqldump \
-  -h "$DB_HOST" \
-  -P "$DB_PORT" \
-  -u "$DB_USER" \
-  --single-transaction \
-  --routines \
-  --triggers \
-  --set-gtid-purged=OFF \
-  "$DB_NAME" > "$SQL_PATH"
+
+DUMP_BIN=""
+if command -v mariadb-dump >/dev/null 2>&1; then
+  DUMP_BIN="mariadb-dump"
+elif command -v mysqldump >/dev/null 2>&1; then
+  DUMP_BIN="mysqldump"
+else
+  echo "ERROR: butuh mariadb-dump atau mysqldump"
+  exit 1
+fi
+
+DUMP_ARGS=(
+  -h "$DB_HOST"
+  -P "$DB_PORT"
+  -u "$DB_USER"
+  --single-transaction
+  --routines
+  --triggers
+)
+# MySQL client only — MariaDB rejects this flag and aborts.
+if [[ "$DUMP_BIN" == "mysqldump" ]] && "$DUMP_BIN" --help 2>/dev/null | grep -q -- '--set-gtid-purged'; then
+  DUMP_ARGS+=(--set-gtid-purged=OFF)
+fi
+DUMP_ARGS+=("$DB_NAME")
+
+"$DUMP_BIN" "${DUMP_ARGS[@]}" > "$SQL_PATH"
 
 # Prefer zip CLI; fallback to gzip (.sql.gz) if zip missing
 if command -v zip >/dev/null 2>&1; then

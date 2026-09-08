@@ -1,4 +1,4 @@
-import { spawn } from 'child_process';
+import { spawn, spawnSync } from 'child_process';
 import { env } from '../../../config/env';
 import { extractSqlFromArchive, zipOneFile } from './sql-archive.util';
 
@@ -9,8 +9,29 @@ function mysqlEnv(): NodeJS.ProcessEnv {
   };
 }
 
-function dumpArgs(): string[] {
-  return [
+/** Alpine `mysql-client` = MariaDB; prefer mariadb-* to avoid deprecation + bad flags. */
+function resolveBinary(candidates: string[]): string {
+  for (const name of candidates) {
+    const result = spawnSync('sh', ['-c', `command -v ${JSON.stringify(name)}`], {
+      encoding: 'utf8',
+    });
+    const path = result.stdout?.trim();
+    if (result.status === 0 && path) {
+      return path;
+    }
+  }
+  return candidates[0]!;
+}
+
+/** True only for Oracle MySQL client — MariaDB rejects the flag. */
+function supportsSetGtidPurged(dumpBinary: string): boolean {
+  const result = spawnSync(dumpBinary, ['--help'], { encoding: 'utf8' });
+  const text = `${result.stdout ?? ''}\n${result.stderr ?? ''}`;
+  return /\bset-gtid-purged\b/i.test(text);
+}
+
+function dumpArgs(dumpBinary: string): string[] {
+  const args = [
     '-h',
     env.db.host,
     '-P',
@@ -20,9 +41,12 @@ function dumpArgs(): string[] {
     '--single-transaction',
     '--routines',
     '--triggers',
-    '--set-gtid-purged=OFF',
-    env.db.name,
   ];
+  if (supportsSetGtidPurged(dumpBinary)) {
+    args.push('--set-gtid-purged=OFF');
+  }
+  args.push(env.db.name);
+  return args;
 }
 
 function clientArgs(): string[] {
@@ -40,14 +64,14 @@ function runCollectStdout(cmd: string, args: string[]): Promise<Buffer> {
     child.on('error', (error) => {
       reject(
         new Error(
-          `${cmd} tidak tersedia (${error.message}). Install mysql-client di host/container.`,
+          `${cmd} tidak tersedia (${error.message}). Install mysql-client / mariadb-client di host/container.`,
         ),
       );
     });
     child.on('close', (code) => {
       if (code !== 0) {
         const detail = Buffer.concat(err).toString('utf8').trim() || `exit ${code}`;
-        reject(new Error(`${cmd} gagal: ${detail}`));
+        reject(new Error(`Dump gagal (${cmd}): ${detail}`));
         return;
       }
       resolve(Buffer.concat(out));
@@ -64,14 +88,14 @@ function runWithStdin(cmd: string, args: string[], stdin: Buffer): Promise<void>
     child.on('error', (error) => {
       reject(
         new Error(
-          `${cmd} tidak tersedia (${error.message}). Install mysql-client di host/container.`,
+          `${cmd} tidak tersedia (${error.message}). Install mysql-client / mariadb-client di host/container.`,
         ),
       );
     });
     child.on('close', (code) => {
       if (code !== 0) {
         const detail = Buffer.concat(err).toString('utf8').trim() || `exit ${code}`;
-        reject(new Error(`${cmd} restore gagal: ${detail}`));
+        reject(new Error(`Restore gagal (${cmd}): ${detail}`));
         return;
       }
       resolve();
@@ -86,9 +110,10 @@ function runWithStdin(cmd: string, args: string[], stdin: Buffer): Promise<void>
 
 /** Full DB dump → single-entry .sql.zip buffer. */
 export async function createSqlZipDump(): Promise<{ zip: Buffer; entryName: string }> {
-  const sql = await runCollectStdout('mysqldump', dumpArgs());
+  const dumpBin = resolveBinary(['mariadb-dump', 'mysqldump']);
+  const sql = await runCollectStdout(dumpBin, dumpArgs(dumpBin));
   if (sql.length === 0) {
-    throw new Error('mysqldump menghasilkan file kosong.');
+    throw new Error('Dump SQL menghasilkan file kosong.');
   }
   const stamp = new Date().toISOString().replace(/[:.]/g, '-');
   const entryName = `family-tree-${stamp}.sql`;
@@ -101,5 +126,6 @@ export async function restoreSqlArchive(buf: Buffer, filenameHint = ''): Promise
   if (sql.length === 0) {
     throw new Error('File SQL kosong.');
   }
-  await runWithStdin('mysql', clientArgs(), sql);
+  const clientBin = resolveBinary(['mariadb', 'mysql']);
+  await runWithStdin(clientBin, clientArgs(), sql);
 }

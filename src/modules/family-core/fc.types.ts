@@ -144,13 +144,15 @@ export type FcDocumentReminderDto = {
   status: FcDocumentStatus;
 };
 
+export type FcMemberKind = 'self' | 'spouse' | 'child' | 'parent' | 'in_law';
+
 export type FcMemberDto = {
   personId: number;
   fullName: string;
   nickname: string | null;
   photoUrl: string | null;
   gender: string | null;
-  kind: 'core' | 'in_law';
+  kind: FcMemberKind;
   relationLabel: string | null;
 };
 

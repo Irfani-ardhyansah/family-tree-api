@@ -18,7 +18,6 @@ import {
   toDateOnly,
   toIso,
 } from '../fc.access';
-import { fcAccessRepository } from '../fc-access.repository';
 import { MAX_PHOTOS_BY_PURPOSE } from '../../core/media/media.constants';
 import {
   DEFAULT_REMINDER_DAYS,
@@ -32,6 +31,7 @@ import {
   maskDocumentNumber,
 } from '../fc.crypto';
 import { documentTypesRepository } from '../document-types/document-types.repository';
+import { isNuclearMember } from '../members/nuclear-members';
 import type {
   FcDocumentDetailDto,
   FcDocumentListItemDto,
@@ -103,31 +103,14 @@ async function assertSelectablePerson(
   actorPersonId: number,
   personId: number,
 ): Promise<void> {
-  const core = await fcAccessRepository.listCoreMembers(familyId);
-  if (core.some((m) => m.person_id === personId)) return;
-
-  const spouseIds = await fcAccessRepository.findSpouseIds(actorPersonId);
-  for (const spouseId of spouseIds) {
-    const parents = await fcAccessRepository.findParents(spouseId);
-    if (!parents) continue;
-    if (parents.father_id === personId || parents.mother_id === personId) return;
+  const ok = await isNuclearMember(familyId, actorPersonId, personId);
+  if (!ok) {
+    throw new AppError(
+      404,
+      ErrorCodes.FC_MEMBER_NOT_FOUND,
+      'Anggota tidak valid untuk dokumen Family Core.',
+    );
   }
-
-  // Also allow parents-in-law relative to any core member who has a spouse in family
-  for (const member of core) {
-    const memberSpouses = await fcAccessRepository.findSpouseIds(member.person_id);
-    for (const spouseId of memberSpouses) {
-      const parents = await fcAccessRepository.findParents(spouseId);
-      if (!parents) continue;
-      if (parents.father_id === personId || parents.mother_id === personId) return;
-    }
-  }
-
-  throw new AppError(
-    404,
-    ErrorCodes.FC_MEMBER_NOT_FOUND,
-    'Anggota tidak valid untuk dokumen Family Core.',
-  );
 }
 
 async function toListItem(

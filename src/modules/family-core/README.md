@@ -8,7 +8,7 @@ Table prefix: `fc_`
 
 Base: `/api/v1/fc` (auth + `X-Module-Unlock` covering `core`)
 
-- `GET /members`
+- `GET /members` — nuclear family relatif actor (`self|spouse|parent|child|in_law`)
 - `GET|POST /document-types`, `PATCH|DELETE /document-types/:id`
 - `GET|POST /calendar-event-types`, `PATCH|DELETE /calendar-event-types/:id`
 - `GET|POST /documents`, `GET|PATCH|DELETE /documents/:id`

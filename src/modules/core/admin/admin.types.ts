@@ -37,8 +37,12 @@ export type ModuleStatusRow = {
   created_at: Date | string;
 };
 
+export type AdminAuditSource = 'admin' | 'money';
+
 export type AdminAuditLogEntry = {
   id: number;
+  /** `money` = dari mt_audit_logs; `admin` = core_admin_audit_logs. */
+  source: AdminAuditSource;
   timestamp: string;
   userId: number | null;
   userName: string | null;
@@ -47,6 +51,9 @@ export type AdminAuditLogEntry = {
   summary: string;
   before: Record<string, unknown> | null;
   after: Record<string, unknown> | null;
+  /** Hanya untuk source=money. */
+  entityType?: string | null;
+  entityId?: string | null;
 };
 
 export type AdminAuditLogListResponse = {
@@ -76,6 +83,9 @@ export type AdminAuditLogRow = {
   before: string | Record<string, unknown> | null;
   after: string | Record<string, unknown> | null;
   occurred_at: Date | string;
+  source?: AdminAuditSource;
+  entity_type?: string | null;
+  entity_id?: number | string | null;
 };
 
 export type RecordAdminAuditInput = {

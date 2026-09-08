@@ -33,6 +33,17 @@ echo "This OVERWRITES tables in ${DB_NAME}. Ctrl+C within 3s to abort…"
 sleep 3
 
 export MYSQL_PWD="$DB_PASSWORD"
+
+CLIENT_BIN=""
+if command -v mariadb >/dev/null 2>&1; then
+  CLIENT_BIN="mariadb"
+elif command -v mysql >/dev/null 2>&1; then
+  CLIENT_BIN="mysql"
+else
+  echo "ERROR: butuh mariadb atau mysql client"
+  exit 1
+fi
+
 MYSQL_ARGS=(-h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER" "$DB_NAME")
 
 lower="$(printf '%s' "$FILE" | tr '[:upper:]' '[:lower:]')"
@@ -42,13 +53,13 @@ case "$lower" in
       echo "ERROR: butuh unzip untuk restore .zip"
       exit 1
     fi
-    unzip -p "$FILE" | mysql "${MYSQL_ARGS[@]}"
+    unzip -p "$FILE" | "$CLIENT_BIN" "${MYSQL_ARGS[@]}"
     ;;
   *.sql.gz|*.gz)
-    gunzip -c "$FILE" | mysql "${MYSQL_ARGS[@]}"
+    gunzip -c "$FILE" | "$CLIENT_BIN" "${MYSQL_ARGS[@]}"
     ;;
   *.sql)
-    mysql "${MYSQL_ARGS[@]}" < "$FILE"
+    "$CLIENT_BIN" "${MYSQL_ARGS[@]}" < "$FILE"
     ;;
   *)
     echo "ERROR: ekstensi tidak dikenali (pakai .sql.zip, .sql.gz, atau .sql)"
