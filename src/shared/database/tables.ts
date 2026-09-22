@@ -5,6 +5,7 @@
  *   fc_   → Family Core
  *   mt_   → Money Track
  *   hh_   → Household (future)
+ *   pa_   → Portfolio Analytics
  */
 export const Tables = {
   // core_
@@ -59,6 +60,12 @@ export const Tables = {
   MONEY_DEBT_PAYMENTS: 'mt_debt_payments',
   MONEY_BUDGETS: 'mt_budgets',
   MONEY_AUDIT_LOGS: 'mt_audit_logs',
+
+  // pa_ (Portfolio Analytics)
+  PA_VISITORS: 'pa_visitors',
+  PA_SESSIONS: 'pa_sessions',
+  PA_EVENTS: 'pa_events',
+  PA_DAILY_ROLLUPS: 'pa_daily_rollups',
 } as const;
 
 export type TableName = (typeof Tables)[keyof typeof Tables];

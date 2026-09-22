@@ -5,6 +5,7 @@ import { requireModuleUnlock } from '../../../shared/middleware/requireModuleUnl
 import { mediaUploadMiddleware } from '../media/media.upload.middleware';
 import { adminController } from './admin.controller';
 import { backupImportUploadMiddleware } from './backup-import.upload.middleware';
+import analyticsReportingRoutes from '../../portfolio-analytics/analytics-reporting.routes';
 
 const adminRoutes = Router();
 
@@ -13,6 +14,8 @@ adminRoutes.use((req, res, next) => {
   void requireAdmin(req, res, next);
 });
 adminRoutes.use(requireModuleUnlock('admin'));
+
+adminRoutes.use('/analytics', analyticsReportingRoutes);
 
 adminRoutes.get('/dashboard', (req, res, next) => {
   void adminController.getDashboard(req, res, next);

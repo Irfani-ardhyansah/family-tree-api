@@ -29,6 +29,7 @@ docs/
 | [`reference/PERSON-API-TREE.md`](./reference/PERSON-API-TREE.md) | Persons list, pagination, tree graph |
 | [`reference/MAP-EVENTS-MEMORIAM-API.md`](./reference/MAP-EVENTS-MEMORIAM-API.md) | Map, Events, In Memoriam |
 | [`reference/PERSONS-IMPORT-API.md`](./reference/PERSONS-IMPORT-API.md) | Bulk import persons (job + progress) |
+| [`reference/PORTFOLIO-ANALYTICS-API.md`](./reference/PORTFOLIO-ANALYTICS-API.md) | Collect publik + admin analytics portfolio |
 | [`reference/adr/001-auth-tokens.md`](./reference/adr/001-auth-tokens.md) | ADR JWT + refresh tokens |
 | [`reference/seed/`](./reference/seed/) | Artifact seed (`mock-family-seed.json`) |
 | [`reference/templates/`](./reference/templates/) | Template CSV/JSON import |
@@ -46,10 +47,11 @@ docs/
 | [`done/MEDIA-UPLOAD-API.md`](./requests/from-fe/done/MEDIA-UPLOAD-API.md) | Eager media upload | ✅ Implemented |
 | [`done/DASHBOARD-API.md`](./requests/from-fe/done/DASHBOARD-API.md) | Aggregat dashboard | ✅ Implemented |
 | [`done/EVENTS-MEMORIAM-OWNER-CRUD-API.md`](./requests/from-fe/done/EVENTS-MEMORIAM-OWNER-CRUD-API.md) | Owner-only event/tribute CRUD | ✅ Implemented |
+| [`done/portfolio-analytics-be-plan.md`](./requests/from-fe/done/portfolio-analytics-be-plan.md) | Ingest + reporting analytics portfolio | ✅ Implemented |
 
 ### Pending
 
-_Belum ada._ Taruh spek FE baru yang belum dikerjakan BE di [`requests/from-fe/pending/`](./requests/from-fe/pending/).
+_Tidak ada._ Spek FE baru yang belum dikerjakan BE taruh di [`requests/from-fe/pending/`](./requests/from-fe/pending/).
 
 ---
 
@@ -63,7 +65,14 @@ _Belum ada._ Taruh spek FE baru yang belum dikerjakan BE di [`requests/from-fe/p
 
 ### Pending
 
-_Belum ada._ Taruh prompt/request ke FE yang belum dikirim atau belum selesai di [`requests/to-fe/pending/`](./requests/to-fe/pending/).
+| File | Topik | Status |
+|---|---|---|
+| [`pending/PORTFOLIO-ANALYTICS-ADMIN-FE-PROMPT.md`](./requests/to-fe/pending/PORTFOLIO-ANALYTICS-ADMIN-FE-PROMPT.md) | UI admin analytics di family-tree-fe (JWT admin) | Spek siap, BE live |
+| [`pending/PORTFOLIO-ANALYTICS-COLLECT-FE-PROMPT.md`](./requests/to-fe/pending/PORTFOLIO-ANALYTICS-COLLECT-FE-PROMPT.md) | Tracker collect di site portfolio (tanpa login) | Spek siap, BE live |
+| [`pending/ADMIN-AUDIT-MONEY-FE-PROMPT.md`](./requests/to-fe/pending/ADMIN-AUDIT-MONEY-FE-PROMPT.md) | Audit log gabungan admin + money | Spek siap |
+| [`pending/BACKUP-IMPORT-FE-PROMPT.md`](./requests/to-fe/pending/BACKUP-IMPORT-FE-PROMPT.md) | Backup export/import | Spek siap |
+| [`pending/SECONDARY-PASSWORD-FE-PROMPT.md`](./requests/to-fe/pending/SECONDARY-PASSWORD-FE-PROMPT.md) | Password kedua | Spek siap |
+| [`pending/WEB-PUSH-FE-PROMPT.md`](./requests/to-fe/pending/WEB-PUSH-FE-PROMPT.md) | Web push | Spek siap |
 
 ---
 

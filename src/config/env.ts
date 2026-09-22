@@ -37,9 +37,13 @@ if (isProduction && jwtSecret.length < 32) {
   throw new Error('JWT_SECRET must be at least 32 characters in production');
 }
 
-if (isProduction && corsOrigins.includes('*')) {
-  throw new Error('CORS_ORIGINS must list explicit FE origins in production (no *)');
-}
+  if (isProduction && corsOrigins.includes('*')) {
+    throw new Error('CORS_ORIGINS must list explicit FE origins in production (no *)');
+  }
+
+  if (isProduction && optional('ANALYTICS_CORS_ORIGINS', '').split(',').map((o) => o.trim()).includes('*')) {
+    throw new Error('ANALYTICS_CORS_ORIGINS must list explicit portfolio origins in production (no *)');
+  }
 
 export const env = {
   nodeEnv,
@@ -116,4 +120,30 @@ export const env = {
     'FC_DOCUMENT_NUMBER_KEY',
     'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=',
   ),
+  analytics: {
+    writeKey: optional('ANALYTICS_WRITE_KEY', ''),
+    ipHashSecret: requiredInProduction('ANALYTICS_IP_HASH_SECRET', 'dev-analytics-ip-hash'),
+    corsOrigins: optional('ANALYTICS_CORS_ORIGINS', '')
+      .split(',')
+      .map((origin) => origin.trim())
+      .filter(Boolean),
+    allowedPaths: (optional(
+      'ANALYTICS_ALLOWED_PATHS',
+      '/, /work, /work/, /portfolio, /portfolio/, /portfolio/work, /portfolio/work/',
+    ))
+      .split(',')
+      .map((path) => path.trim())
+      .filter(Boolean),
+    geoipDbPath: optional('GEOIP_DB_PATH', ''),
+    trustedProxyIps: optional('TRUSTED_PROXY_IPS', '')
+      .split(',')
+      .map((ip) => ip.trim())
+      .filter(Boolean),
+    collectMaxBytes: 32 * 1024,
+    collectMaxEvents: 50,
+    collectRateLimitMax: 60,
+    collectRateLimitWindowMs: 60 * 1000,
+    collectEventsPerMinuteMax: 120,
+    botCollectPerMinute: 30,
+  },
 } as const;

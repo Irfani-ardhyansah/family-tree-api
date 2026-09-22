@@ -2,7 +2,7 @@ import { NextFunction, Request, Response } from 'express';
 import { LogCategory, LogStatus } from '../../modules/core/logs/logs.types';
 import { logsService } from '../../modules/core/logs/logs.service';
 
-const SKIP_PATHS = new Set(['/api/v1/health', '/api/v1/logs/events']);
+const SKIP_PATHS = new Set(['/api/v1/health', '/api/v1/logs/events', '/api/v1/analytics/collect']);
 
 function getRequestPath(req: Request): string {
   return req.originalUrl.split('?')[0] ?? req.path;

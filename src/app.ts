@@ -17,6 +17,7 @@ import memoriamRoutes from './modules/family-roots/memoriam/memoriam.routes';
 import personsRoutes from './modules/family-roots/persons/persons.routes';
 import moneyRoutes from './modules/money-track/money.routes';
 import fcRoutes from './modules/family-core/fc.routes';
+import portfolioAnalyticsRoutes from './modules/portfolio-analytics/portfolio-analytics.routes';
 import { errorHandler, notFoundHandler } from './shared/errors/errorHandler';
 import {
   httpAuditLogMiddleware,
@@ -77,6 +78,7 @@ export function createApp() {
   app.use('/api/v1/dashboard', dashboardRoutes);
   app.use('/api/v1/money', moneyRoutes);
   app.use('/api/v1/fc', fcRoutes);
+  app.use('/api/v1/analytics', portfolioAnalyticsRoutes);
 
   app.use(notFoundHandler);
   app.use(errorHandler);

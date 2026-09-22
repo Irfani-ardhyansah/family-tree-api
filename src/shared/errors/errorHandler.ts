@@ -12,12 +12,31 @@ function isJsonSyntaxError(err: unknown): err is SyntaxError & { status?: number
   return err instanceof SyntaxError && 'body' in err;
 }
 
+function isPayloadTooLarge(err: unknown): boolean {
+  if (!err || typeof err !== 'object') {
+    return false;
+  }
+  const rec = err as { status?: number; type?: string };
+  return rec.status === 413 || rec.type === 'entity.too.large';
+}
+
 export function errorHandler(
   err: unknown,
   req: Request,
   res: Response,
   _next: NextFunction,
 ): void {
+  if (isPayloadTooLarge(err)) {
+    res.status(413).json({
+      error: {
+        code: ErrorCodes.ANALYTICS_PAYLOAD_TOO_LARGE,
+        message: 'Payload terlalu besar.',
+        requestId: req.requestId ?? null,
+      },
+    });
+    return;
+  }
+
   if (isAppError(err)) {
     if (err.statusCode >= 500) {
       void reportUnexpectedError(err, req, { code: err.code, operational: true });

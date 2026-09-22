@@ -16,6 +16,7 @@ declare global {
         focusPersonId: number;
         allowedFocusPersonIds: number[];
       };
+      analyticsForceBot?: boolean;
     }
   }
 }

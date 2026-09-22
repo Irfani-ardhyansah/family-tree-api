@@ -1,11 +1,16 @@
 import cors, { CorsOptions } from 'cors';
 import { env } from './env';
 
+function uniqueOrigins(origins: string[]): string[] {
+  return [...new Set(origins.filter(Boolean))];
+}
+
 function resolveAllowedOrigins(): string[] | '*' {
-  if (env.corsOrigins.includes('*')) {
+  const merged = uniqueOrigins([...env.corsOrigins, ...env.analytics.corsOrigins]);
+  if (merged.includes('*')) {
     return '*';
   }
-  return env.corsOrigins;
+  return merged;
 }
 
 export function createCorsMiddleware() {

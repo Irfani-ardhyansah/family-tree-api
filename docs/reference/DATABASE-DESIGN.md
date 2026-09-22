@@ -11,6 +11,7 @@ Prefix tabel:
 | `fc_` | Family Core (future) |
 | `mt_` | Money Track (future) |
 | `hh_` | Household (future) |
+| `pa_` | Portfolio Analytics |
 
 Sumber konstanta di kode: [`src/shared/database/tables.ts`](../../src/shared/database/tables.ts).
 
@@ -47,6 +48,15 @@ Sumber konstanta di kode: [`src/shared/database/tables.ts`](../../src/shared/dat
 | `fr_memoriam_tribute_photos` | Foto tribute | 0..N |
 | `fr_memoriam_prayers` | Doa | 0..N |
 | `fr_person_import_jobs` | Job import silsilah | 0..N |
+
+### `pa_` — Portfolio Analytics
+
+| Tabel | Isi | Cardinality |
+|---|---|---|
+| `pa_visitors` | Anonymous visitor (`vid`) | 1 per UUID |
+| `pa_sessions` | Kunjungan + geo/device/counters | 1 per `sid` |
+| `pa_events` | Raw event (idempotent `event_id`) | append-only |
+| `pa_daily_rollups` | Agregat harian per `page_id` | 1 per tanggal + page |
 
 ---
 
