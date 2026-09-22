@@ -32,6 +32,8 @@ curl http://localhost:3000/api/v1/health
 Container API: `family-suite-api` · MySQL: `family-suite-db`.  
 API join network `shared_net` — proxy nginx ke `http://family-suite-api:3000`.
 
+Naik versi ke STB tetap manual lewat SSH. Tiap fitur yang siap naik punya catatan di `deploy/releases/pending/` (env baru, migration, cek setelah container hidup). Alur lengkap: [`deploy/README.md`](deploy/README.md).
+
 ## Setup
 
 1. `cp .env.example .env` and set DB credentials (local)

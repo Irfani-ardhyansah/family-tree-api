@@ -2,6 +2,8 @@
 
 Struktur folder memisahkan **dokumentasi resmi** dari **request spek** (FE ↔ BE), plus status **done / pending**.
 
+Catatan naik ke STB (env, migration, health check) ada di [`../deploy/README.md`](../deploy/README.md), bukan di `requests/`.
+
 ```
 docs/
 ├── reference/                 # Dokumentasi resmi (sumber kebenaran)
@@ -73,6 +75,7 @@ _Tidak ada._ Spek FE baru yang belum dikerjakan BE taruh di [`requests/from-fe/p
 | [`pending/BACKUP-IMPORT-FE-PROMPT.md`](./requests/to-fe/pending/BACKUP-IMPORT-FE-PROMPT.md) | Backup export/import | Spek siap |
 | [`pending/SECONDARY-PASSWORD-FE-PROMPT.md`](./requests/to-fe/pending/SECONDARY-PASSWORD-FE-PROMPT.md) | Password kedua | Spek siap |
 | [`pending/WEB-PUSH-FE-PROMPT.md`](./requests/to-fe/pending/WEB-PUSH-FE-PROMPT.md) | Web push | Spek siap |
+| [`pending/BIOMETRIC-LOGIN-FE-PROMPT.md`](./requests/to-fe/pending/BIOMETRIC-LOGIN-FE-PROMPT.md) | Login biometrik (WebAuthn) | Spek FE siap, BE belum live |
 
 ---
 

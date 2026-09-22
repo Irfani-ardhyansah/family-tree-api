@@ -1,0 +1,29 @@
+---
+description: Write a STB deploy note in deploy/releases/pending when a change is ready to ship
+alwaysApply: true
+---
+
+# Catatan deploy STB
+
+When a change is ready for the STB server, add a release note in the same change. Ritual: `deploy/README.md`. Template: `deploy/releases/_template.md`.
+
+## When to write one
+
+Write `deploy/releases/pending/YYYY-MM-DD-nama-fitur.md` (today's date) when the work changes what STB runs: API behavior, migration, env, or seed data.
+
+Skip it for docs-only edits, FE prompts under `docs/requests/`, and refactors with no runtime or schema change.
+
+## What to put in it
+
+Copy the template. Keep all four sections. Write **Tidak ada.** when a section does not apply.
+
+- **Env** — list new keys and why. Add the same keys to `.env.example` and `.env.docker.example`. Do not put secret values in the note.
+- **Migration** — filename under `src/database/migrations/`. STB applies it on container start (`SKIP_MIGRATE` stays `false`).
+- **Data awal** — reference rows that must exist on STB go in a migration, not a seeder. Never set `RUN_SEED=true`. Demo seeds wipe family data.
+- **Cek setelah naik** — `curl -fsS http://localhost:3000/api/v1/health`, plus one check specific to the change when there is one.
+
+Do not put deploy notes in `docs/requests/`.
+
+## Do not mark shipped
+
+Leave the file in `pending/`. Move it to `deploy/releases/shipped/` only after the user says the STB deploy succeeded.
