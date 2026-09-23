@@ -20,10 +20,10 @@ Copy the template. Keep all four sections. Write **Tidak ada.** when a section d
 - **Env** — list new keys and why. Add the same keys to `.env.example` and `.env.docker.example`. Do not put secret values in the note.
 - **Migration** — filename under `src/database/migrations/`. STB applies it on container start (`SKIP_MIGRATE` stays `false`).
 - **Data awal** — `scripts/deploy.sh` does not run seeders. Seeders stay manual (`npm run seed`) and wipe demo data, so never set `RUN_SEED=true` on STB. A new fixed value (module, status, kind) is a TypeScript constant plus a migration that adds it to the MySQL ENUM only when the column does not already have it (`enumHasValue` in `src/database/migrations/20260815100000_create_family_core.ts`). After that migration has run, the value lives in the DB. Do not add a seeder for it.
-- **Cek setelah naik** — `curl -fsS http://localhost:3000/api/v1/health`, plus one check specific to the change when there is one.
+- **Cek setelah naik** — one or more `curl` commands in a bash fence. `scripts/deploy.sh` runs them after the container is healthy. HTTP 404 and 5xx fail the deploy. Other HTTP statuses mean the route is up.
 
 Do not put deploy notes in `docs/requests/`.
 
 ## Do not mark shipped
 
-Leave the file in `pending/`. Move it to `deploy/releases/shipped/` only after the user says the STB deploy succeeded.
+Leave the new note in `pending/`. `scripts/deploy.sh` moves every pending note to `shipped/` after those curls pass. Do not `git mv` it yourself while implementing the change.

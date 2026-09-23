@@ -40,4 +40,6 @@ Tidak ada.
 curl -fsS http://localhost:3000/api/v1/health
 ```
 
-<!-- Tambah cek khusus fitur kalau ada, misalnya satu endpoint baru. -->
+<!-- scripts/deploy.sh menjalankan setiap curl di bagian ini.
+     HTTP 404 atau 5xx = gagal, file tetap di pending/.
+     Tambah curl endpoint fitur kalau ada. -->

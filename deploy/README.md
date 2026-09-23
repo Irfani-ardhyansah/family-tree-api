@@ -75,31 +75,19 @@ bash scripts/deploy.sh
 3. Berhenti kalau `RUN_SEED` atau `SKIP_MIGRATE` bernilai `true`.
 4. `docker compose up -d --build`. Migration yang belum ada di database jalan sendiri saat container start. Kalau tidak ada migration baru, langkah itu hanya build dan nyalakan ulang.
 5. Menunggu health check. Seeder tidak dijalankan.
+6. Menjalankan setiap `curl` di bagian **Cek setelah naik** pada catatan `pending/`. HTTP 404 dan 5xx dihitung gagal. Status lain (termasuk 401 dan 403) berarti route-nya ada.
+7. Kalau semua curl lolos, `git mv` semua catatan `pending/` ke `shipped/`, commit, dan push. Kalau ada yang gagal, file tetap di `pending/` dan penyebabnya ditulis di output.
 
-Kalau perintah gagal, jangan pindahkan file ke `shipped/`. Log API:
+Kalau container tidak sehat, lihat log:
 
 ```bash
 docker compose --env-file .env.docker logs --tail=200 api
 ```
 
-Setelah perintah selesai, jalankan bagian **Cek setelah naik** di tiap catatan pending (health saja sudah dicek oleh skrip).
-
-## Setelah STB sehat (di laptop)
-
-Pindahkan catatan fitur yang baru naik, dari laptop (bukan dari STB), lalu push. Pull berikutnya di STB hanya menggeser file markdown; tidak perlu build ulang hanya karena pindah folder.
-
-```bash
-git pull
-git mv deploy/releases/pending/YYYY-MM-DD-nama-fitur.md deploy/releases/shipped/
-git commit -m "Mark YYYY-MM-DD-nama-fitur shipped on STB."
-git push
-```
-
-Kalau beberapa fitur naik dalam satu `compose up`, pindahkan semua file `pending/` yang ikut naik itu.
+Kalau curl gagal, perbaiki di laptop, push, lalu di STB `git pull` dan `bash scripts/deploy.sh` lagi.
 
 ## Urutan singkat
 
-1. Laptop: tulis catatan di `pending/`, commit, push.
+1. Laptop: tulis catatan di `pending/` (termasuk curl di **Cek setelah naik**), commit, push.
 2. STB: `ssh` → `git pull` → `bash scripts/deploy.sh`.
-3. STB: jalankan cek lain di catatan pending (health sudah dicek skrip).
-4. Laptop: `git mv` ke `shipped/`, commit, push.
+3. Kalau skrip selesai, catatan sudah pindah ke `shipped/`. Laptop: `git pull`.

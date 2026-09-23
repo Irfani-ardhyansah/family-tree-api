@@ -183,4 +183,123 @@ if [[ "$healthy" != "1" ]]; then
 fi
 
 echo "[deploy] health ok"
-echo "[deploy] selesai. Seeder tidak dijalankan. Jalankan bagian \"Cek setelah naik\" di catatan pending, lalu pindah ke shipped dari laptop setelah kamu yakin STB sehat."
+echo "[deploy] seeder tidak dijalankan"
+
+# Prints one curl command per line from a note's "Cek setelah naik" bash fences.
+curls_in_note() {
+  local file="$1"
+  local in_section=0 in_fence=0
+  local line buf=""
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    line="${line%$'\r'}"
+    if [[ "$in_section" == "0" ]]; then
+      [[ "$line" == "## Cek setelah naik" ]] && in_section=1
+      continue
+    fi
+    [[ "$line" == "## "* ]] && break
+    if [[ "$in_fence" == "0" ]]; then
+      if [[ "$line" == '```bash' || "$line" == '```sh' ]]; then
+        in_fence=1
+        buf=""
+      fi
+      continue
+    fi
+    if [[ "$line" == '```' ]]; then
+      in_fence=0
+      local one="${buf#"${buf%%[![:space:]]*}"}"
+      one="${one%"${one##*[![:space:]]}"}"
+      if [[ "$one" == curl* ]]; then
+        printf '%s\n' "$one"
+      fi
+      buf=""
+      continue
+    fi
+    if [[ "$line" == *\\ ]]; then
+      buf+="${line%\\} "
+    else
+      buf+="$line "
+    fi
+  done < "$file"
+}
+
+run_note_checks() {
+  local failed=0
+  local seen=""
+  local note cmd body err code curl_status snippet
+  local notes=(deploy/releases/pending/*.md)
+  if [[ ! -e "${notes[0]}" ]]; then
+    echo "[deploy] tidak ada catatan pending. Tidak ada curl tambahan."
+    return 0
+  fi
+
+  for note in "${notes[@]}"; do
+    while IFS= read -r cmd; do
+      [[ -n "$cmd" ]] || continue
+      if [[ "$seen" == *"|${cmd}|"* ]]; then
+        continue
+      fi
+      seen+="|${cmd}|"
+      body="$(mktemp)"
+      err="$(mktemp)"
+      # -f would treat HTTP 403 as failure. 403 means the route exists.
+      local run="${cmd// -fsS / -sS }"
+      run="${run// -f / }"
+      set +e
+      code="$(bash -c "$run -sS -o $(printf '%q' "$body") -w '%{http_code}'" 2>"$err")"
+      curl_status=$?
+      set -e
+      snippet="$(tr '\n' ' ' <"$body" | cut -c1-240)"
+      rm -f "$body"
+      if [[ "$curl_status" != "0" || -z "$code" || "$code" == "000" ]]; then
+        echo "[deploy] gagal: ${note}" >&2
+        echo "[deploy] perintah: ${cmd}" >&2
+        echo "[deploy] curl tidak terhubung: $(tr '\n' ' ' <"$err")" >&2
+        failed=1
+      elif [[ "$code" == "404" || "$code" == 5* ]]; then
+        echo "[deploy] gagal: ${note}" >&2
+        echo "[deploy] perintah: ${cmd}" >&2
+        echo "[deploy] HTTP ${code}: ${snippet}" >&2
+        failed=1
+      else
+        echo "[deploy] ok HTTP ${code}: ${cmd}"
+      fi
+      rm -f "$err"
+    done < <(curls_in_note "$note")
+  done
+
+  if [[ "$failed" != "0" ]]; then
+    echo "[deploy] catatan tetap di pending/. Perbaiki di laptop, push, lalu di STB: git pull && bash scripts/deploy.sh" >&2
+    return 1
+  fi
+  return 0
+}
+
+ship_pending_notes() {
+  local files=()
+  local f base
+  for f in deploy/releases/pending/*.md; do
+    [[ -e "$f" ]] || continue
+    files+=("$f")
+  done
+  if ((${#files[@]} == 0)); then
+    echo "[deploy] selesai. Tidak ada catatan untuk dipindah."
+    return 0
+  fi
+  for f in "${files[@]}"; do
+    base="$(basename "$f")"
+    git mv "deploy/releases/pending/$base" "deploy/releases/shipped/$base"
+    echo "[deploy] pindah ${base} → shipped/"
+  done
+  git commit -m "Mark STB release notes shipped." -- deploy/releases/pending deploy/releases/shipped
+  if ! git push; then
+    echo "[deploy] catatan sudah dipindah dan di-commit di STB, tapi git push gagal." >&2
+    echo "[deploy] jalankan git push di STB supaya laptop ikut melihat shipped/." >&2
+    return 1
+  fi
+  echo "[deploy] selesai. Catatan pending sudah di shipped/ dan di-push."
+}
+
+if ! run_note_checks; then
+  exit 1
+fi
+ship_pending_notes
