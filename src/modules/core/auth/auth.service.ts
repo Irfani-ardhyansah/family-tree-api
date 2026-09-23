@@ -59,6 +59,54 @@ export class AuthService {
     return { accessToken, refreshToken, expiresIn, sessionId };
   }
 
+  async establishSession(
+    req: Request,
+    person: PersonAuthRow,
+    remember: boolean,
+    audit: {
+      path: string;
+      logAction: string;
+      logMessage: string;
+      auditSummary: string;
+    },
+  ): Promise<LoginResponse> {
+    const tokens = await this.issueTokenPair(person, remember, req);
+    const spouseIds = await authRepository.findSpouseIdsByPersonId(person.id);
+    const spouseRows = await authRepository.findPersonsByIds(spouseIds);
+    await personOptionsService.ensureDefaultReadFocusPersonId(person.id);
+
+    await logsService.recordFromRequest(req, {
+      category: LogCategory.AUTH,
+      action: audit.logAction,
+      status: LogStatus.SUCCESS,
+      actorPersonId: person.id,
+      familyId: person.family_id,
+      resourceType: 'person',
+      resourceId: person.id,
+      httpMethod: 'POST',
+      path: audit.path,
+      message: audit.logMessage,
+      metadata: { remember, sessionId: tokens.sessionId },
+    });
+
+    await adminAuditService.record({
+      familyId: person.family_id,
+      actorPersonId: person.id,
+      moduleId: 'auth',
+      action: 'login',
+      summary: audit.auditSummary,
+      after: { sessionId: tokens.sessionId, remember },
+    });
+
+    const secondaryPassword = await secondaryPasswordService.getStatus(person.id);
+
+    return {
+      ...tokens,
+      person: toAuthPersonSummary(person, spouseIds, spouseRows),
+      secondaryPassword,
+    };
+  }
+
   async login(req: Request, rawCode: unknown, remember = false): Promise<LoginResponse> {
     if (typeof rawCode !== 'string' || rawCode.trim().length === 0) {
       throw new AppError(400, ErrorCodes.CODE_REQUIRED, 'Kode masuk wajib diisi.');
@@ -93,41 +141,12 @@ export class AuthService {
       throw new AppError(401, ErrorCodes.CODE_NOT_FOUND, CODE_NOT_FOUND_MESSAGE);
     }
 
-    const tokens = await this.issueTokenPair(person, remember, req);
-    const spouseIds = await authRepository.findSpouseIdsByPersonId(person.id);
-    const spouseRows = await authRepository.findPersonsByIds(spouseIds);
-    await personOptionsService.ensureDefaultReadFocusPersonId(person.id);
-
-    await logsService.recordFromRequest(req, {
-      category: LogCategory.AUTH,
-      action: 'auth.login',
-      status: LogStatus.SUCCESS,
-      actorPersonId: person.id,
-      familyId: person.family_id,
-      resourceType: 'person',
-      resourceId: person.id,
-      httpMethod: 'POST',
+    return this.establishSession(req, person, remember, {
       path: '/api/v1/auth/login',
-      message: 'Login berhasil',
-      metadata: { remember, sessionId: tokens.sessionId },
+      logAction: 'auth.login',
+      logMessage: 'Login berhasil',
+      auditSummary: 'Login berhasil',
     });
-
-    await adminAuditService.record({
-      familyId: person.family_id,
-      actorPersonId: person.id,
-      moduleId: 'auth',
-      action: 'login',
-      summary: 'Login berhasil',
-      after: { sessionId: tokens.sessionId, remember },
-    });
-
-    const secondaryPassword = await secondaryPasswordService.getStatus(person.id);
-
-    return {
-      ...tokens,
-      person: toAuthPersonSummary(person, spouseIds, spouseRows),
-      secondaryPassword,
-    };
   }
 
   async me(personId: number): Promise<AuthMeResponse> {

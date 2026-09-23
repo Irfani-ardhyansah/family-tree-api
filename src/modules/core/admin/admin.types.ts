@@ -2,6 +2,7 @@ import {
   AdminAuditAction,
   AdminAuditModuleId,
   AdminModuleId,
+  ModuleStatusId,
 } from './admin.constants';
 
 export type { AdminModuleId };
@@ -16,7 +17,7 @@ export type AdminPagination = {
 };
 
 export type ModuleStatusItem = {
-  moduleId: AdminModuleId;
+  moduleId: ModuleStatusId;
   enabled: boolean;
   updatedAt: string;
   updatedBy: string | null;
@@ -29,7 +30,7 @@ export type ModuleStatusListResponse = {
 export type ModuleStatusRow = {
   id: number;
   family_id: number;
-  module_id: AdminModuleId;
+  module_id: ModuleStatusId;
   enabled: boolean | number;
   updated_by_person_id: number | null;
   updated_by_name: string | null;

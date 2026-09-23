@@ -23,7 +23,7 @@ Isi selalu empat bagian:
 |---|---|
 | Env | Key baru yang harus ditambah manual ke `.env.docker` di STB. Contoh nilai ada di `.env.docker.example`. |
 | Migration | Nama file migration. Di STB ini jalan sendiri saat container start. |
-| Data awal | Hampir selalu "tidak ada". Lihat peringatan seed di bawah. |
+| Data awal | Hampir selalu "tidak ada". Nilai baru yang tetap lewat ENUM di migration, bukan seeder. |
 | Cek setelah naik | Perintah yang dijalankan di STB setelah container hidup. |
 
 File ini ikut commit bareng fiturnya. Ada file baru di `pending/` = belum naik STB.
@@ -41,15 +41,15 @@ Versi cukup tanggal di nama file. Tidak pakai tag semver.
 2. Isi empat bagian. Kalau tidak ada env / migration / data awal, tulis **Tidak ada.**
 3. Commit bareng kode fiturnya, lalu push.
 
-Data referensi yang wajib ada di server (jenis dokumen, tipe kalender, dan sejenisnya) tulis di **migration**, bukan seeder.
+Data yang tetap (modul, status, jenis) jangan di seeder. Tambah sebagai konstanta TypeScript, dan migration yang memperluas ENUM hanya kalau kolom belum punya nilai itu. Setelah migration jalan di STB, nilai itu ada di database. `scripts/deploy.sh` tidak menjalankan seeder.
 
 ## Jangan nyalakan seed di STB
 
-`RUN_SEED` di `.env.docker` tetap `false`.
+`RUN_SEED` di `.env.docker` tetap `false`. `scripts/deploy.sh` menolak jalan kalau nilainya `true`, dan tidak pernah memanggil seeder.
 
-`knex seed:run` menjalankan semua seeder. `01_mock_family_data` dan `02_events_memoriam_data` menghapus data lalu mengisi ulang data demo. Menyalakan `RUN_SEED=true` di STB menghapus data keluarga yang sudah dipakai.
+Seeder tetap manual (`npm run seed` di laptop untuk data demo). `01_mock_family_data` dan `02_events_memoriam_data` menghapus data lalu mengisi ulang. Jangan jalankan itu di STB.
 
-`SKIP_MIGRATE` tetap `false`, kecuali schema memang sudah di-import dari dump SQL dan kamu sengaja tidak ingin Knex jalan.
+`SKIP_MIGRATE` tetap `false`. Perintah deploy menolak jalan kalau nilainya `true`.
 
 ## Naik ke STB (SSH)
 
@@ -65,40 +65,24 @@ Di STB, working tree harus bersih selain `.env.docker` (file itu di-ignore, tida
 ```bash
 git status
 git pull
-
-# baca semua yang belum naik
-ls deploy/releases/pending
-# buka tiap file .md di situ
+bash scripts/deploy.sh
 ```
 
-Kalau ada bagian **Env** yang bukan "Tidak ada":
+`npm run deploy` sama isinya. Perintah itu:
+
+1. Menampilkan catatan di `deploy/releases/pending/`.
+2. Berhenti kalau `.env.docker` belum punya key yang ada di `.env.docker.example`. Tambah key-nya (nilai contoh di file example), lalu jalankan ulang. File `.env.docker` yang sudah ada tidak ditimpa.
+3. Berhenti kalau `RUN_SEED` atau `SKIP_MIGRATE` bernilai `true`.
+4. `docker compose up -d --build`. Migration yang belum ada di database jalan sendiri saat container start. Kalau tidak ada migration baru, langkah itu hanya build dan nyalakan ulang.
+5. Menunggu health check. Seeder tidak dijalankan.
+
+Kalau perintah gagal, jangan pindahkan file ke `shipped/`. Log API:
 
 ```bash
-# tambah key baru ke .env.docker
-# jangan ubah RUN_SEED (tetap false) dan SKIP_MIGRATE (tetap false)
-nano .env.docker
+docker compose --env-file .env.docker logs --tail=200 api
 ```
 
-Lalu build dan nyalakan ulang. Migration jalan di dalam entrypoint sebelum proses API start.
-
-```bash
-docker compose --env-file .env.docker up -d --build
-docker compose logs -f api
-```
-
-Tunggu log sampai ada `starting server`. `Ctrl+C` hanya berhenti mengikuti log, container tetap jalan. Lalu jalankan perintah di bagian **Cek setelah naik**, minimal:
-
-```bash
-curl -fsS http://localhost:3000/api/v1/health
-```
-
-Harapan: `{"status":"ok"}`.
-
-Kalau health gagal, jangan pindahkan file ke `shipped/`. Lihat log:
-
-```bash
-docker compose logs --tail=200 api
-```
+Setelah perintah selesai, jalankan bagian **Cek setelah naik** di tiap catatan pending (health saja sudah dicek oleh skrip).
 
 ## Setelah STB sehat (di laptop)
 
@@ -116,6 +100,6 @@ Kalau beberapa fitur naik dalam satu `compose up`, pindahkan semua file `pending
 ## Urutan singkat
 
 1. Laptop: tulis catatan di `pending/`, commit, push.
-2. STB: `ssh` → `git pull` → baca `pending/` → edit `.env.docker` kalau diminta → `docker compose --env-file .env.docker up -d --build`.
-3. STB: health check (dan cek lain di catatan).
+2. STB: `ssh` → `git pull` → `bash scripts/deploy.sh`.
+3. STB: jalankan cek lain di catatan pending (health sudah dicek skrip).
 4. Laptop: `git mv` ke `shipped/`, commit, push.

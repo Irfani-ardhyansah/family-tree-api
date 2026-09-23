@@ -2,11 +2,48 @@ import { Router } from 'express';
 import { loginRateLimitMiddleware } from '../../../shared/middleware/loginRateLimit.middleware';
 import { requireAuth } from '../../../shared/middleware/requireAuth.middleware';
 import { authController } from './auth.controller';
+import { webauthnController } from './webauthn/webauthn.controller';
 
 const authRoutes = Router();
 
 authRoutes.post('/login', loginRateLimitMiddleware, (req, res, next) => {
   void authController.login(req, res, next);
+});
+
+authRoutes.post('/webauthn/login/options', loginRateLimitMiddleware, (req, res, next) => {
+  void webauthnController.loginOptions(req, res, next);
+});
+
+authRoutes.post('/webauthn/login/verify', loginRateLimitMiddleware, (req, res, next) => {
+  void webauthnController.loginVerify(req, res, next);
+});
+
+authRoutes.post('/webauthn/register/options', requireAuth, (req, res, next) => {
+  void webauthnController.registerOptions(req, res, next);
+});
+
+authRoutes.post('/webauthn/register/verify', requireAuth, (req, res, next) => {
+  void webauthnController.registerVerify(req, res, next);
+});
+
+authRoutes.get('/webauthn/credentials', requireAuth, (req, res, next) => {
+  void webauthnController.listOwn(req, res, next);
+});
+
+authRoutes.patch('/webauthn/credentials/:id', requireAuth, (req, res, next) => {
+  void webauthnController.updateOwn(req, res, next);
+});
+
+authRoutes.delete('/webauthn/credentials/:id', requireAuth, (req, res, next) => {
+  void webauthnController.deleteOwn(req, res, next);
+});
+
+authRoutes.post('/webauthn/unlock/options', requireAuth, (req, res, next) => {
+  void webauthnController.unlockOptions(req, res, next);
+});
+
+authRoutes.post('/webauthn/unlock/verify', requireAuth, (req, res, next) => {
+  void webauthnController.unlockVerify(req, res, next);
 });
 
 authRoutes.post('/refresh', (req, res, next) => {

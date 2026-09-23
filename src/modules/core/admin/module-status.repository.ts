@@ -1,6 +1,6 @@
 import db from '../../../config/database';
 import { Tables } from '../../../shared/database/tables';
-import { ADMIN_MODULE_IDS, AdminModuleId } from './admin.constants';
+import { MODULE_STATUS_IDS, ModuleStatusId } from './admin.constants';
 import { FamilyAccessRow, ModuleStatusRow } from './admin.types';
 
 export class ModuleStatusRepository {
@@ -24,9 +24,9 @@ export class ModuleStatusRepository {
   async ensureDefaults(familyId: number): Promise<void> {
     const existing = await db(Tables.MODULE_STATUSES)
       .where({ family_id: familyId })
-      .pluck<AdminModuleId>('module_id');
+      .pluck<ModuleStatusId>('module_id');
 
-    const missing = ADMIN_MODULE_IDS.filter((id) => !existing.includes(id));
+    const missing = MODULE_STATUS_IDS.filter((id) => !existing.includes(id));
     if (missing.length === 0) {
       return;
     }
@@ -35,7 +35,7 @@ export class ModuleStatusRepository {
       missing.map((moduleId) => ({
         family_id: familyId,
         module_id: moduleId,
-        enabled: true,
+        enabled: moduleId !== 'biometric',
         updated_by_person_id: null,
       })),
     );
@@ -43,7 +43,7 @@ export class ModuleStatusRepository {
 
   async findByModule(
     familyId: number,
-    moduleId: AdminModuleId,
+    moduleId: ModuleStatusId,
   ): Promise<ModuleStatusRow | undefined> {
     return db(`${Tables.MODULE_STATUSES} as m`)
       .leftJoin(`${Tables.PERSONS} as p`, 'p.id', 'm.updated_by_person_id')
@@ -62,7 +62,7 @@ export class ModuleStatusRepository {
 
   async setEnabled(input: {
     familyId: number;
-    moduleId: AdminModuleId;
+    moduleId: ModuleStatusId;
     enabled: boolean;
     updatedByPersonId: number;
   }): Promise<void> {

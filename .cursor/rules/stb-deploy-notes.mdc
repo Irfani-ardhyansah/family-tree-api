@@ -19,7 +19,7 @@ Copy the template. Keep all four sections. Write **Tidak ada.** when a section d
 
 - **Env** — list new keys and why. Add the same keys to `.env.example` and `.env.docker.example`. Do not put secret values in the note.
 - **Migration** — filename under `src/database/migrations/`. STB applies it on container start (`SKIP_MIGRATE` stays `false`).
-- **Data awal** — reference rows that must exist on STB go in a migration, not a seeder. Never set `RUN_SEED=true`. Demo seeds wipe family data.
+- **Data awal** — `scripts/deploy.sh` does not run seeders. Seeders stay manual (`npm run seed`) and wipe demo data, so never set `RUN_SEED=true` on STB. A new fixed value (module, status, kind) is a TypeScript constant plus a migration that adds it to the MySQL ENUM only when the column does not already have it (`enumHasValue` in `src/database/migrations/20260815100000_create_family_core.ts`). After that migration has run, the value lives in the DB. Do not add a seeder for it.
 - **Cek setelah naik** — `curl -fsS http://localhost:3000/api/v1/health`, plus one check specific to the change when there is one.
 
 Do not put deploy notes in `docs/requests/`.

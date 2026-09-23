@@ -1,6 +1,10 @@
 export const ADMIN_MODULE_IDS = ['roots', 'core', 'money', 'household'] as const;
 export type AdminModuleId = (typeof ADMIN_MODULE_IDS)[number];
 
+/** Saklar on/off di panel admin. `biometric` bukan modul data backup. */
+export const MODULE_STATUS_IDS = [...ADMIN_MODULE_IDS, 'biometric'] as const;
+export type ModuleStatusId = (typeof MODULE_STATUS_IDS)[number];
+
 export const ADMIN_AUDIT_MODULE_IDS = [
   ...ADMIN_MODULE_IDS,
   'admin',
@@ -22,15 +26,20 @@ export const ADMIN_AUDIT_ACTIONS = [
 ] as const;
 export type AdminAuditAction = (typeof ADMIN_AUDIT_ACTIONS)[number];
 
-export const MODULE_LABELS: Record<AdminModuleId, string> = {
+export const MODULE_LABELS: Record<ModuleStatusId, string> = {
   roots: 'Family Roots',
   core: 'Family Core',
   money: 'Money Track',
   household: 'Household',
+  biometric: 'Login biometrik',
 };
 
 export function isAdminModuleId(value: string): value is AdminModuleId {
   return (ADMIN_MODULE_IDS as readonly string[]).includes(value);
+}
+
+export function isModuleStatusId(value: string): value is ModuleStatusId {
+  return (MODULE_STATUS_IDS as readonly string[]).includes(value);
 }
 
 export function isAdminAuditAction(value: string): value is AdminAuditAction {

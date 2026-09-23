@@ -7,7 +7,7 @@ import {
   ModuleStatusItem,
   ModuleStatusRow,
 } from './admin.types';
-import { AdminModuleId } from './admin.constants';
+import { ModuleStatusId } from './admin.constants';
 
 export function toIso(value: Date | string | null | undefined): string {
   if (!value) {
@@ -42,7 +42,7 @@ function parseJsonObject(
 
 export function toModuleStatusItem(row: ModuleStatusRow): ModuleStatusItem {
   return {
-    moduleId: row.module_id as AdminModuleId,
+    moduleId: row.module_id as ModuleStatusId,
     enabled: Boolean(row.enabled),
     updatedAt: toIso(row.updated_at),
     updatedBy: row.updated_by_name,

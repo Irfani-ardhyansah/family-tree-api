@@ -1,7 +1,7 @@
 import { AppError } from '../../../shared/errors/AppError';
 import { ErrorCodes } from '../../../shared/errors/errorCodes';
 import { adminAuditService } from './admin-audit.service';
-import { MODULE_LABELS, isAdminModuleId } from './admin.constants';
+import { MODULE_LABELS, ModuleStatusId, isModuleStatusId } from './admin.constants';
 import { toModuleStatusItem } from './admin.mapper';
 import { moduleStatusRepository } from './module-status.repository';
 import { ModuleStatusItem, ModuleStatusListResponse } from './admin.types';
@@ -18,6 +18,12 @@ export class ModuleStatusService {
     return Object.fromEntries(items.map((item) => [item.moduleId, item.enabled]));
   }
 
+  async isEnabled(familyId: number, moduleId: ModuleStatusId): Promise<boolean> {
+    await moduleStatusRepository.ensureDefaults(familyId);
+    const row = await moduleStatusRepository.findByModule(familyId, moduleId);
+    return Boolean(row?.enabled);
+  }
+
   async getAccessVersion(familyId: number): Promise<number> {
     return moduleStatusRepository.getAccessVersion(familyId);
   }
@@ -28,7 +34,7 @@ export class ModuleStatusService {
     moduleIdRaw: string,
     enabledRaw: unknown,
   ): Promise<ModuleStatusItem> {
-    if (!isAdminModuleId(moduleIdRaw)) {
+    if (!isModuleStatusId(moduleIdRaw)) {
       throw new AppError(404, ErrorCodes.ADMIN_MODULE_NOT_FOUND, 'Modul tidak ditemukan.');
     }
     if (typeof enabledRaw !== 'boolean') {

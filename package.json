@@ -20,6 +20,7 @@
     "seed:docker": "knex seed:run --knexfile knexfile.docker.js --env production",
     "seed:make": "knex seed:make",
     "db:setup": "npm run migrate && npm run seed",
+    "deploy": "bash scripts/deploy.sh",
     "db:dump": "bash scripts/db-dump.sh",
     "db:restore": "bash scripts/db-restore.sh",
     "backup:import": "ts-node scripts/backup-import-json.ts",
@@ -31,6 +32,7 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "@simplewebauthn/server": "^14.0.2",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
     "express": "^5.2.1",

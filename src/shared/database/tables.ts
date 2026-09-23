@@ -24,6 +24,8 @@ export const Tables = {
   BACKUP_JOBS: 'core_backup_jobs',
   PUSH_SUBSCRIPTIONS: 'core_push_subscriptions',
   SECONDARY_PASSWORDS: 'core_secondary_passwords',
+  WEBAUTHN_CREDENTIALS: 'core_webauthn_credentials',
+  WEBAUTHN_CHALLENGES: 'core_webauthn_challenges',
 
   // fr_ (Family Roots)
   PERSON_LINEAGE: 'fr_person_lineage',

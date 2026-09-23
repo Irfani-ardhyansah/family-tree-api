@@ -50,6 +50,7 @@ docs/
 | [`done/DASHBOARD-API.md`](./requests/from-fe/done/DASHBOARD-API.md) | Aggregat dashboard | ✅ Implemented |
 | [`done/EVENTS-MEMORIAM-OWNER-CRUD-API.md`](./requests/from-fe/done/EVENTS-MEMORIAM-OWNER-CRUD-API.md) | Owner-only event/tribute CRUD | ✅ Implemented |
 | [`done/portfolio-analytics-be-plan.md`](./requests/from-fe/done/portfolio-analytics-be-plan.md) | Ingest + reporting analytics portfolio | ✅ Implemented |
+| [`done/BIOMETRIC-LOGIN-BE-PROMPT.md`](./requests/from-fe/done/BIOMETRIC-LOGIN-BE-PROMPT.md) | Login biometrik (WebAuthn) | ✅ Implemented |
 
 ### Pending
 
@@ -75,7 +76,7 @@ _Tidak ada._ Spek FE baru yang belum dikerjakan BE taruh di [`requests/from-fe/p
 | [`pending/BACKUP-IMPORT-FE-PROMPT.md`](./requests/to-fe/pending/BACKUP-IMPORT-FE-PROMPT.md) | Backup export/import | Spek siap |
 | [`pending/SECONDARY-PASSWORD-FE-PROMPT.md`](./requests/to-fe/pending/SECONDARY-PASSWORD-FE-PROMPT.md) | Password kedua | Spek siap |
 | [`pending/WEB-PUSH-FE-PROMPT.md`](./requests/to-fe/pending/WEB-PUSH-FE-PROMPT.md) | Web push | Spek siap |
-| [`pending/BIOMETRIC-LOGIN-FE-PROMPT.md`](./requests/to-fe/pending/BIOMETRIC-LOGIN-FE-PROMPT.md) | Login biometrik (WebAuthn) | Spek FE siap, BE belum live |
+| [`pending/BIOMETRIC-LOGIN-FE-PROMPT.md`](./requests/to-fe/pending/BIOMETRIC-LOGIN-FE-PROMPT.md) | Login biometrik (WebAuthn) | Spek FE siap, BE live |
 
 ---
 

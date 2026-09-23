@@ -29,9 +29,9 @@ Ada. Jalan otomatis saat container start (`SKIP_MIGRATE` tetap `false`).
 
 Tidak ada.
 
-<!-- Data referensi yang wajib ada di STB (jenis dokumen, tipe kalender, dll.)
-     tulis di migration, bukan seeder.
-     Jangan set RUN_SEED=true. Seed demo menghapus data keluarga lalu mengisi ulang.
+<!-- Nilai baru yang tetap (modul, status, jenis): konstanta di kode + ENUM di migration.
+     Jangan seeder. scripts/deploy.sh tidak menjalankan seeder.
+     Jangan set RUN_SEED=true.
 -->
 
 ## Cek setelah naik

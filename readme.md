@@ -32,7 +32,7 @@ curl http://localhost:3000/api/v1/health
 Container API: `family-suite-api` · MySQL: `family-suite-db`.  
 API join network `shared_net` — proxy nginx ke `http://family-suite-api:3000`.
 
-Naik versi ke STB tetap manual lewat SSH. Tiap fitur yang siap naik punya catatan di `deploy/releases/pending/` (env baru, migration, cek setelah container hidup). Alur lengkap: [`deploy/README.md`](deploy/README.md).
+Naik versi ke STB tetap lewat SSH: `git pull` lalu `bash scripts/deploy.sh` (atau `npm run deploy`). Perintah itu build container dan menjalankan migration yang belum ada. Seeder tidak ikut. Alur lengkap: [`deploy/README.md`](deploy/README.md).
 
 ## Setup
 
@@ -59,6 +59,7 @@ DROP TABLE IF EXISTS knex_migrations_lock;
 | `npm run migrate` | Run latest migrations |
 | `npm run seed` | Seed demo family from `docs/reference/seed/mock-family-seed.json` |
 | `npm run db:setup` | migrate + seed |
+| `npm run deploy` | Naik ke STB: build Docker, migration baru kalau ada |
 
 ## Smoke checks
 

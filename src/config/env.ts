@@ -112,6 +112,13 @@ export const env = {
   },
   /** Unlock TTL setelah verifikasi password kedua (detik). Default 15 menit. */
   secondaryUnlockTtlSeconds: Number(optional('SECONDARY_UNLOCK_TTL', '900')),
+  webauthn: {
+    /** Hostname saja, tanpa skema. Harus cocok dengan host FE. */
+    rpId: optional('WEBAUTHN_RP_ID', 'localhost'),
+    rpName: optional('WEBAUTHN_RP_NAME', 'FamilyRoots'),
+    /** Origin penuh FE, misalnya http://localhost:5173 */
+    origin: optional('WEBAUTHN_ORIGIN', 'http://localhost:5173'),
+  },
   /**
    * AES-256 key for Family Core document numbers (32 bytes).
    * Prefer base64 (44 chars) or hex (64 chars). Dev fallback is fixed — change in production.

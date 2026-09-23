@@ -6,6 +6,7 @@ import { mediaUploadMiddleware } from '../media/media.upload.middleware';
 import { adminController } from './admin.controller';
 import { backupImportUploadMiddleware } from './backup-import.upload.middleware';
 import analyticsReportingRoutes from '../../portfolio-analytics/analytics-reporting.routes';
+import { webauthnController } from '../auth/webauthn/webauthn.controller';
 
 const adminRoutes = Router();
 
@@ -27,6 +28,18 @@ adminRoutes.get('/modules/status', (req, res, next) => {
 
 adminRoutes.patch('/modules/:moduleId/status', (req, res, next) => {
   void adminController.toggleModuleStatus(req, res, next);
+});
+
+adminRoutes.get('/biometric/credentials', (req, res, next) => {
+  void webauthnController.listFamily(req, res, next);
+});
+
+adminRoutes.patch('/biometric/credentials/:id', (req, res, next) => {
+  void webauthnController.updateFamily(req, res, next);
+});
+
+adminRoutes.delete('/biometric/credentials/:id', (req, res, next) => {
+  void webauthnController.deleteFamily(req, res, next);
 });
 
 adminRoutes.get('/audit-logs', (req, res, next) => {
