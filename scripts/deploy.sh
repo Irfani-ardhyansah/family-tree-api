@@ -290,7 +290,8 @@ ship_pending_notes() {
     git mv "deploy/releases/pending/$base" "deploy/releases/shipped/$base"
     echo "[deploy] pindah ${base} → shipped/"
   done
-  git commit -m "Mark STB release notes shipped." -- deploy/releases/pending deploy/releases/shipped
+  git -c user.name="family-suite-stb" -c user.email="stb@localhost" \
+    commit -m "Mark STB release notes shipped." -- deploy/releases/pending deploy/releases/shipped
   if ! git push; then
     echo "[deploy] catatan sudah dipindah dan di-commit di STB, tapi git push gagal." >&2
     echo "[deploy] jalankan git push di STB supaya laptop ikut melihat shipped/." >&2
