@@ -69,6 +69,20 @@ export class DocumentsController {
     }
   }
 
+  async removeFile(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const data = await documentsService.removeFile(
+        req.auth!.personId,
+        req.auth!.familyId,
+        req.params.id ?? '',
+        req.params.fileId ?? '',
+      );
+      sendData(res, data);
+    } catch (error) {
+      next(error);
+    }
+  }
+
   async reminders(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const data = await documentsService.reminders(

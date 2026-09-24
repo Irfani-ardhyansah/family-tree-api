@@ -30,6 +30,8 @@ import {
   encryptDocumentNumber,
   maskDocumentNumber,
 } from '../fc.crypto';
+import { mediaRepository } from '../../core/media/media.repository';
+import { mediaStorage } from '../../core/media/media.storage';
 import { documentTypesRepository } from '../document-types/document-types.repository';
 import { isNuclearMember } from '../members/nuclear-members';
 import type {
@@ -40,6 +42,13 @@ import type {
   FcDocumentStatus,
 } from '../fc.types';
 import { documentsRepository } from './documents.repository';
+
+async function purgeDocumentMedia(mediaIds: string[]): Promise<void> {
+  if (mediaIds.length === 0) return;
+  const rows = await mediaRepository.findByIds(mediaIds);
+  await mediaRepository.softDeleteMany(mediaIds);
+  await Promise.all(rows.map((row) => mediaStorage.remove(row.storage_key)));
+}
 
 function todayDateOnly(): string {
   const now = new Date();
@@ -301,12 +310,16 @@ export class DocumentsService {
     await documentsRepository.update(ctx.familyId, id, patch);
 
     if (parsed.mediaIdsProvided) {
+      const previous = await documentsRepository.listFiles(id);
+      const keep = new Set(parsed.mediaIds);
+      const removed = previous.filter((f) => !keep.has(f.media_id)).map((f) => f.media_id);
       await documentsRepository.replaceFiles(id, parsed.mediaIds);
       await attachResolvedMedia({
         mediaIds: parsed.mediaIds,
         purpose: 'fc_document',
         attachedToId: String(id),
       });
+      await purgeDocumentMedia(removed);
     }
 
     return this.getById(authPersonId, familyId, String(id));
@@ -323,7 +336,35 @@ export class DocumentsService {
     if (!existing) {
       throw new AppError(404, ErrorCodes.FC_DOCUMENT_NOT_FOUND, 'Dokumen tidak ditemukan.');
     }
+    const files = await documentsRepository.listFiles(id);
+    await documentsRepository.replaceFiles(id, []);
     await documentsRepository.softDelete(ctx.familyId, id);
+    await purgeDocumentMedia(files.map((f) => f.media_id));
+    return { deleted: true };
+  }
+
+  async removeFile(
+    authPersonId: number,
+    familyId: number,
+    documentIdRaw: string,
+    fileIdRaw: string,
+  ): Promise<{ deleted: true }> {
+    const ctx = await resolveFcContext(authPersonId, familyId);
+    const documentId = parsePositiveInt(documentIdRaw, 'id');
+    const document = await documentsRepository.findById(ctx.familyId, documentId);
+    if (!document) {
+      throw new AppError(404, ErrorCodes.FC_DOCUMENT_NOT_FOUND, 'Dokumen tidak ditemukan.');
+    }
+
+    const file = fileIdRaw.startsWith('med_')
+      ? await documentsRepository.findFileByMediaId(documentId, fileIdRaw)
+      : await documentsRepository.findFile(documentId, parsePositiveInt(fileIdRaw, 'fileId'));
+    if (!file) {
+      throw new AppError(404, ErrorCodes.MEDIA_NOT_FOUND, 'File dokumen tidak ditemukan.');
+    }
+
+    await documentsRepository.deleteFile(documentId, file.id);
+    await purgeDocumentMedia([file.media_id]);
     return { deleted: true };
   }
 

@@ -107,6 +107,48 @@ export class DocumentsRepository {
     return map;
   }
 
+  async findFile(
+    documentId: number,
+    fileId: number,
+  ): Promise<FcDocumentFileRow | undefined> {
+    return db(`${Tables.FC_DOCUMENT_FILES} as f`)
+      .leftJoin(`${Tables.MEDIA} as m`, 'm.id', 'f.media_id')
+      .where({ 'f.id': fileId, 'f.document_id': documentId })
+      .first<FcDocumentFileRow>(
+        'f.id',
+        'f.document_id',
+        'f.media_id',
+        'f.sort_order',
+        'f.created_at',
+        'f.updated_at',
+        'm.url',
+      );
+  }
+
+  async findFileByMediaId(
+    documentId: number,
+    mediaId: string,
+  ): Promise<FcDocumentFileRow | undefined> {
+    return db(`${Tables.FC_DOCUMENT_FILES} as f`)
+      .leftJoin(`${Tables.MEDIA} as m`, 'm.id', 'f.media_id')
+      .where({ 'f.document_id': documentId, 'f.media_id': mediaId })
+      .first<FcDocumentFileRow>(
+        'f.id',
+        'f.document_id',
+        'f.media_id',
+        'f.sort_order',
+        'f.created_at',
+        'f.updated_at',
+        'm.url',
+      );
+  }
+
+  async deleteFile(documentId: number, fileId: number): Promise<void> {
+    await db(Tables.FC_DOCUMENT_FILES)
+      .where({ id: fileId, document_id: documentId })
+      .del();
+  }
+
   async replaceFiles(documentId: number, mediaIds: string[]): Promise<void> {
     await db.transaction(async (trx) => {
       await trx(Tables.FC_DOCUMENT_FILES).where({ document_id: documentId }).del();

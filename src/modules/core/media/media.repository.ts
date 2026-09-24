@@ -82,6 +82,10 @@ export class MediaRepository {
     });
   }
 
+  async detachFcDocument(mediaId: string): Promise<void> {
+    await db(Tables.FC_DOCUMENT_FILES).where({ media_id: mediaId }).del();
+  }
+
   async attachMany(
     ids: string[],
     attachedToType: MediaAttachedToType,

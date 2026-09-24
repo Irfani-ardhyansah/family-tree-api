@@ -228,6 +228,13 @@ export class MediaService {
     if (row.uploader_person_id !== uploaderPersonId) {
       throw new AppError(403, ErrorCodes.MEDIA_DELETE_FORBIDDEN, 'Bukan pemilik media.');
     }
+    if (row.status === 'attached' && row.purpose === 'fc_document') {
+      await mediaRepository.detachFcDocument(row.id);
+      await mediaRepository.softDelete(row.id);
+      await mediaStorage.remove(row.storage_key);
+      return;
+    }
+
     if (row.status !== 'pending') {
       throw new AppError(
         403,

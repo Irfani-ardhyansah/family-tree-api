@@ -47,6 +47,9 @@ fcRoutes.get('/documents/reminders', (req, res, next) => {
 fcRoutes.get('/documents', (req, res, next) => {
   void documentsController.list(req, res, next);
 });
+fcRoutes.delete('/documents/:id/files/:fileId', (req, res, next) => {
+  void documentsController.removeFile(req, res, next);
+});
 fcRoutes.get('/documents/:id', (req, res, next) => {
   void documentsController.getById(req, res, next);
 });
