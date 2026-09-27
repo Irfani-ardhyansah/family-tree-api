@@ -1,8 +1,16 @@
 export const ADMIN_MODULE_IDS = ['roots', 'core', 'money', 'household'] as const;
 export type AdminModuleId = (typeof ADMIN_MODULE_IDS)[number];
 
-/** Saklar on/off di panel admin. `biometric` bukan modul data backup. */
-export const MODULE_STATUS_IDS = [...ADMIN_MODULE_IDS, 'biometric'] as const;
+/**
+ * Saklar on/off di panel admin. `biometric` bukan modul data backup.
+ * `task-board` ada di sini supaya modul baru bisa di-toggle dari panel admin
+ * tanpa seeder — row-nya dibuat otomatis (lihat upsert di module-status.repository).
+ */
+export const MODULE_STATUS_IDS = [
+  ...ADMIN_MODULE_IDS,
+  'biometric',
+  'task-board',
+] as const;
 export type ModuleStatusId = (typeof MODULE_STATUS_IDS)[number];
 
 export const ADMIN_AUDIT_MODULE_IDS = [
@@ -32,6 +40,7 @@ export const MODULE_LABELS: Record<ModuleStatusId, string> = {
   money: 'Money Track',
   household: 'Household',
   biometric: 'Login biometrik',
+  'task-board': 'Task Board',
 };
 
 export function isAdminModuleId(value: string): value is AdminModuleId {

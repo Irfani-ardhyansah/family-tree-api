@@ -28,6 +28,8 @@ Isi selalu empat bagian:
 
 File ini ikut commit bareng fiturnya. Ada file baru di `pending/` = belum naik STB.
 
+Satu fence = satu perintah. `scripts/deploy.sh` menggabungkan seluruh baris di dalam fence jadi satu perintah, jadi tulis **satu `curl` per fence**. Dua `curl` dalam satu fence jadi perintah rusak, dan hasil ceknya jadi palsu (skrip tidak melihat HTTP 404-nya).
+
 Versi cukup tanggal di nama file. Tidak pakai tag semver.
 
 ## Saat fitur selesai (di laptop)

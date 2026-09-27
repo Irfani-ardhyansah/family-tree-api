@@ -43,16 +43,14 @@ export class ModuleStatusService {
 
     await moduleStatusRepository.ensureDefaults(familyId);
     const current = await moduleStatusRepository.findByModule(familyId, moduleIdRaw);
-    if (!current) {
-      throw new AppError(404, ErrorCodes.ADMIN_MODULE_NOT_FOUND, 'Modul tidak ditemukan.');
-    }
+    const beforeEnabled = current ? Boolean(current.enabled) : null;
 
-    const beforeEnabled = Boolean(current.enabled);
-    if (beforeEnabled === enabledRaw) {
+    if (current && beforeEnabled === enabledRaw) {
       return toModuleStatusItem(current);
     }
 
-    await moduleStatusRepository.setEnabled({
+    // Row bisa belum ada (modul baru / DB tanpa seeder) → buat di sini, bukan 404.
+    await moduleStatusRepository.upsertEnabled({
       familyId,
       moduleId: moduleIdRaw,
       enabled: enabledRaw,
@@ -72,7 +70,7 @@ export class ModuleStatusService {
       moduleId: 'admin',
       action: 'toggle_module',
       summary: enabledRaw ? `${label} diaktifkan` : `${label} dimatikan`,
-      before: { enabled: beforeEnabled },
+      before: current ? { enabled: beforeEnabled } : null,
       after: { enabled: enabledRaw, moduleId: moduleIdRaw },
     });
 

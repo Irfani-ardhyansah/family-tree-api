@@ -60,15 +60,27 @@ export class ModuleStatusRepository {
       ]);
   }
 
-  async setEnabled(input: {
+  /**
+   * Upsert: kalau row modul belum ada di DB (modul baru / DB lama tanpa seeder),
+   * row dibuat di sini supaya toggle tetap jalan tanpa proses seed.
+   */
+  async upsertEnabled(input: {
     familyId: number;
     moduleId: ModuleStatusId;
     enabled: boolean;
     updatedByPersonId: number;
   }): Promise<void> {
     await db(Tables.MODULE_STATUSES)
-      .where({ family_id: input.familyId, module_id: input.moduleId })
-      .update({
+      .insert({
+        family_id: input.familyId,
+        module_id: input.moduleId,
+        enabled: input.enabled,
+        updated_by_person_id: input.updatedByPersonId,
+        created_at: db.fn.now(),
+        updated_at: db.fn.now(),
+      })
+      .onConflict(['family_id', 'module_id'])
+      .merge({
         enabled: input.enabled,
         updated_by_person_id: input.updatedByPersonId,
         updated_at: db.fn.now(),
