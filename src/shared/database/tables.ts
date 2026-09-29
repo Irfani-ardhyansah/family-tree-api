@@ -74,6 +74,8 @@ export const Tables = {
   TB_TASKS: 'tb_tasks',
   TB_TASK_LINKS: 'tb_task_links',
   TB_TASK_IMAGES: 'tb_task_images',
+  TB_TASK_DESCRIPTIONS: 'tb_task_descriptions',
+  TB_TASK_HISTORY: 'tb_task_history',
 } as const;
 
 export type TableName = (typeof Tables)[keyof typeof Tables];

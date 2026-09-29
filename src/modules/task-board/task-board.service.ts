@@ -1,11 +1,31 @@
 import { AppError } from '../../shared/errors/AppError';
 import { ErrorCodes } from '../../shared/errors/errorCodes';
-import type { Task, TaskCreateInput, TaskUpdateInput, TaskListQuery } from './task-board.types';
+import type {
+  Task,
+  TaskCreateInput,
+  TaskDescriptionInput,
+  TaskHistoryEntry,
+  TaskListQuery,
+  TaskUpdateInput,
+} from './task-board.types';
 import { taskBoardRepository } from './task-board.repository';
 
 const TASK_TYPES = ['Bugfixing', 'Feature', 'Refactor'] as const;
-const TASK_STATUSES = ['To-Do', 'In Progress', 'Merged', 'Done'] as const;
+/** Status yang valid. "Done" sudah dihapus — status terakhir task adalah "Merged". */
+const TASK_STATUSES = ['To-Do', 'In Progress', 'Merged'] as const;
+/** Status lama yang masih dikirim klien lama → dijawab pesan khusus. */
+const REMOVED_TASK_STATUSES = ['Done'] as const;
 const LINK_TYPES = ['discord', 'notion', 'mr'] as const;
+
+/** Judul entri deskripsi saat klien masih mengirim `description` (string tunggal). */
+const LEGACY_DESCRIPTION_TITLE = 'Deskripsi';
+const MAX_DESCRIPTION_TITLE = 255;
+const MAX_DESCRIPTION_CONTENT = 100000;
+const MAX_DESCRIPTION_COUNT = 50;
+const MAX_MIGRATION_FILES = 50;
+const MAX_MIGRATION_FILE_NAME = 255;
+const MIGRATION_FILE_EXTENSIONS = ['.ts', '.js', '.sql'] as const;
+const MAX_NOTES_LENGTH = 5000;
 
 function parseTaskType(value: unknown, field: string): TaskCreateInput['type'] {
   if (typeof value !== 'string' || !TASK_TYPES.includes(value as any)) {
@@ -19,6 +39,13 @@ function parseTaskType(value: unknown, field: string): TaskCreateInput['type'] {
 }
 
 function parseTaskStatus(value: unknown, field: string): TaskCreateInput['status'] {
+  if (typeof value === 'string' && REMOVED_TASK_STATUSES.includes(value as any)) {
+    throw new AppError(
+      422,
+      ErrorCodes.VALIDATION_ERROR,
+      `${field} "${value}" sudah tidak dipakai. Status yang valid: ${TASK_STATUSES.join(', ')}.`,
+    );
+  }
   if (typeof value !== 'string' || !TASK_STATUSES.includes(value as any)) {
     throw new AppError(
       422,
@@ -99,17 +126,206 @@ function parseLinks(value: unknown): Array<{ type: 'discord' | 'notion' | 'mr'; 
   });
 }
 
+function parseOptionalId(value: unknown, field: string): number | undefined {
+  if (value === undefined || value === null || value === '') return undefined;
+
+  const parsed = typeof value === 'string' ? Number(value) : value;
+  if (typeof parsed !== 'number' || !Number.isInteger(parsed) || parsed <= 0) {
+    throw new AppError(422, ErrorCodes.VALIDATION_ERROR, `${field} harus id berupa angka positif.`);
+  }
+  return parsed;
+}
+
+/** `undefined` = field tidak dikirim, `null` = lepas relasi revisi. */
+function parseParentTaskId(value: unknown, field: string): number | null | undefined {
+  if (value === undefined) return undefined;
+  if (value === null || value === '') return null;
+
+  const id = parseOptionalId(value, field);
+  if (id === undefined) {
+    throw new AppError(422, ErrorCodes.VALIDATION_ERROR, `${field} harus id berupa angka positif.`);
+  }
+  return id;
+}
+
+function parseDescriptions(
+  value: unknown,
+  field: string,
+  required: boolean,
+): TaskDescriptionInput[] | undefined {
+  if (value === undefined || value === null || value === '') {
+    if (required) {
+      throw new AppError(
+        422,
+        ErrorCodes.VALIDATION_ERROR,
+        `${field} wajib diisi, minimal satu entri { title, content }.`,
+      );
+    }
+    return undefined;
+  }
+
+  if (!Array.isArray(value)) {
+    throw new AppError(
+      422,
+      ErrorCodes.VALIDATION_ERROR,
+      `${field} harus berupa array { title, content }.`,
+    );
+  }
+
+  if (value.length === 0) {
+    throw new AppError(422, ErrorCodes.VALIDATION_ERROR, `${field} minimal berisi satu entri.`);
+  }
+
+  if (value.length > MAX_DESCRIPTION_COUNT) {
+    throw new AppError(
+      422,
+      ErrorCodes.VALIDATION_ERROR,
+      `${field} maksimal ${MAX_DESCRIPTION_COUNT} entri.`,
+    );
+  }
+
+  return value.map((entry, index) => {
+    if (!entry || typeof entry !== 'object') {
+      throw new AppError(422, ErrorCodes.VALIDATION_ERROR, `${field}[${index}] tidak valid.`);
+    }
+
+    const item = entry as Record<string, unknown>;
+    const title = parseNonEmptyString(item.title, `${field}[${index}].title`, MAX_DESCRIPTION_TITLE);
+    const content = parseNonEmptyString(
+      item.content,
+      `${field}[${index}].content`,
+      MAX_DESCRIPTION_CONTENT,
+    );
+    const id = parseOptionalId(item.id, `${field}[${index}].id`);
+
+    return id === undefined ? { title, content } : { id, title, content };
+  });
+}
+
+/** Nama file migration: tanpa path, harus berekstensi .ts / .js / .sql, tanpa duplikat. */
+function parseMigrationFiles(value: unknown): string[] | undefined {
+  if (value === undefined || value === null) return undefined;
+
+  if (!Array.isArray(value)) {
+    throw new AppError(
+      422,
+      ErrorCodes.VALIDATION_ERROR,
+      'migration_files harus berupa array nama file.',
+    );
+  }
+
+  if (value.length > MAX_MIGRATION_FILES) {
+    throw new AppError(
+      422,
+      ErrorCodes.VALIDATION_ERROR,
+      `migration_files maksimal ${MAX_MIGRATION_FILES} entri.`,
+    );
+  }
+
+  const files = value.map((item, index) => {
+    const name = parseNonEmptyString(item, `migration_files[${index}]`, MAX_MIGRATION_FILE_NAME);
+
+    if (name.includes('/') || name.includes('\\')) {
+      throw new AppError(
+        422,
+        ErrorCodes.VALIDATION_ERROR,
+        `migration_files[${index}] harus nama file, bukan path.`,
+      );
+    }
+
+    if (!MIGRATION_FILE_EXTENSIONS.some((extension) => name.endsWith(extension))) {
+      throw new AppError(
+        422,
+        ErrorCodes.VALIDATION_ERROR,
+        `migration_files[${index}] harus berakhiran: ${MIGRATION_FILE_EXTENSIONS.join(', ')}.`,
+      );
+    }
+
+    return name;
+  });
+
+  return Array.from(new Set(files));
+}
+
+/**
+ * Deskripsi dari `descriptions` (format baru) atau `description` (string
+ * tunggal, format lama). Keduanya tidak boleh dikirim bersamaan.
+ * Saat create, minimal satu deskripsi wajib ada.
+ */
+function resolveDescriptions(
+  raw: Record<string, unknown>,
+  field: string,
+  required: boolean,
+): TaskDescriptionInput[] | undefined {
+  const hasNew = raw.descriptions !== undefined && raw.descriptions !== null;
+  const hasLegacy = raw.description !== undefined && raw.description !== null;
+
+  if (hasNew && hasLegacy) {
+    throw new AppError(
+      422,
+      ErrorCodes.VALIDATION_ERROR,
+      `${field} dan description tidak boleh dikirim bersamaan. Pakai ${field} (array { title, content }); field description sudah tidak dipakai.`,
+    );
+  }
+
+  if (hasNew) {
+    return parseDescriptions(raw.descriptions, field, required);
+  }
+
+  if (hasLegacy) {
+    const content = parseOptionalString(raw.description, 'description', MAX_DESCRIPTION_CONTENT);
+    if (!content) {
+      return parseDescriptions(undefined, field, required);
+    }
+    return [{ title: LEGACY_DESCRIPTION_TITLE, content }];
+  }
+
+  return parseDescriptions(undefined, field, required);
+}
+
 export class TaskBoardService {
   async list(personId: number, query: TaskListQuery = {}): Promise<Task[]> {
-    return taskBoardRepository.list(personId, query);
+    const filters: TaskListQuery = {};
+
+    if (query.type) {
+      filters.type = parseTaskType(query.type, 'type');
+    }
+    if (query.status) {
+      filters.status = parseTaskStatus(query.status, 'status');
+    }
+    if (typeof query.search === 'string' && query.search.trim() !== '') {
+      filters.search = query.search.trim();
+    }
+
+    return taskBoardRepository.list(personId, filters);
   }
 
   async getById(personId: number, taskId: number): Promise<Task> {
-    const task = await taskBoardRepository.findById(personId, taskId);
+    const task = await taskBoardRepository.findById(personId, taskId, { includeRelations: true });
     if (!task) {
       throw new AppError(404, ErrorCodes.NOT_FOUND, 'Task tidak ditemukan.');
     }
     return task;
+  }
+
+  /** GET /tasks/:id/history — riwayat aksi task (status, deskripsi, revisi), terbaru lebih dulu. */
+  async getHistory(personId: number, taskId: number): Promise<TaskHistoryEntry[]> {
+    const task = await taskBoardRepository.findRowById(personId, taskId);
+    if (!task) {
+      throw new AppError(404, ErrorCodes.NOT_FOUND, 'Task tidak ditemukan.');
+    }
+
+    return taskBoardRepository.getHistory(taskId);
+  }
+
+  /** GET /tasks/:id/revisions — daftar revisi (task anak) dari sebuah task. */
+  async getRevisions(personId: number, taskId: number): Promise<Task[]> {
+    const task = await taskBoardRepository.findRowById(personId, taskId);
+    if (!task) {
+      throw new AppError(404, ErrorCodes.NOT_FOUND, 'Task tidak ditemukan.');
+    }
+
+    return taskBoardRepository.getRevisions(personId, taskId);
   }
 
   async create(personId: number, body: unknown): Promise<Task> {
@@ -122,10 +338,21 @@ export class TaskBoardService {
     const type = parseTaskType(raw.type, 'type');
     const title = parseNonEmptyString(raw.title, 'title', 255);
     const branchName = parseNonEmptyString(raw.branchName, 'branchName', 255);
-    const status = parseTaskStatus(raw.status, 'status');
+    // Create tanpa status dianggap "To-Do" (status awal task).
+    const status =
+      raw.status === undefined || raw.status === null || raw.status === ''
+        ? 'To-Do'
+        : parseTaskStatus(raw.status, 'status');
     const links = parseLinks(raw.links);
-    const description = parseOptionalString(raw.description, 'description', 100000);
+    const descriptions = resolveDescriptions(raw, 'descriptions', true);
     const deployNotes = parseOptionalString(raw.deployNotes, 'deployNotes', 100000);
+    const migrationFiles = parseMigrationFiles(raw.migration_files);
+    const parentTaskId = parseParentTaskId(raw.parent_task_id, 'parent_task_id');
+    const notes = parseOptionalString(raw.notes ?? raw.statusNotes, 'notes', MAX_NOTES_LENGTH);
+
+    if (parentTaskId !== undefined && parentTaskId !== null) {
+      await this.assertRevisionParent(personId, parentTaskId);
+    }
 
     return taskBoardRepository.create(personId, {
       type,
@@ -133,13 +360,16 @@ export class TaskBoardService {
       branch_name: branchName,
       status,
       links,
-      description,
+      descriptions,
       deploy_notes: deployNotes,
+      migration_files: migrationFiles,
+      parent_task_id: parentTaskId ?? null,
+      status_notes: notes,
     });
   }
 
   async update(personId: number, taskId: number, body: unknown): Promise<Task> {
-    const existing = await taskBoardRepository.findById(personId, taskId);
+    const existing = await taskBoardRepository.findRowById(personId, taskId);
     if (!existing) {
       throw new AppError(404, ErrorCodes.NOT_FOUND, 'Task tidak ditemukan.');
     }
@@ -166,11 +396,29 @@ export class TaskBoardService {
     if (raw.links !== undefined) {
       updateData.links = parseLinks(raw.links);
     }
-    if (raw.description !== undefined) {
-      updateData.description = parseOptionalString(raw.description, 'description', 100000);
-    }
     if (raw.deployNotes !== undefined) {
       updateData.deploy_notes = parseOptionalString(raw.deployNotes, 'deployNotes', 100000);
+    }
+    if (raw.migration_files !== undefined) {
+      updateData.migration_files = parseMigrationFiles(raw.migration_files) ?? [];
+    }
+
+    const descriptions = resolveDescriptions(raw, 'descriptions', false);
+    if (descriptions !== undefined) {
+      updateData.descriptions = descriptions;
+    }
+
+    const parentTaskId = parseParentTaskId(raw.parent_task_id, 'parent_task_id');
+    if (parentTaskId !== undefined) {
+      if (parentTaskId !== null) {
+        await this.assertRevisionParent(personId, parentTaskId, taskId);
+      }
+      updateData.parent_task_id = parentTaskId;
+    }
+
+    const notes = parseOptionalString(raw.notes ?? raw.statusNotes, 'notes', MAX_NOTES_LENGTH);
+    if (notes !== undefined) {
+      updateData.status_notes = notes;
     }
 
     const updated = await taskBoardRepository.update(personId, taskId, updateData);
@@ -181,6 +429,59 @@ export class TaskBoardService {
     const deleted = await taskBoardRepository.delete(personId, taskId);
     if (!deleted) {
       throw new AppError(404, ErrorCodes.NOT_FOUND, 'Task tidak ditemukan.');
+    }
+  }
+
+  /**
+   * Task induk harus ada, dan revisi hanya boleh dibuat dari task berstatus
+   * "Merged". Sekaligus mencegah siklus (A revisi dari B, B revisi dari A).
+   */
+  private async assertRevisionParent(
+    personId: number,
+    parentTaskId: number,
+    currentTaskId?: number,
+  ): Promise<void> {
+    if (currentTaskId !== undefined && parentTaskId === currentTaskId) {
+      throw new AppError(
+        422,
+        ErrorCodes.VALIDATION_ERROR,
+        'parent_task_id tidak boleh menunjuk task itu sendiri.',
+      );
+    }
+
+    const parent = await taskBoardRepository.findRowById(personId, parentTaskId);
+    if (!parent) {
+      throw new AppError(
+        422,
+        ErrorCodes.VALIDATION_ERROR,
+        'Task induk (parent_task_id) tidak ditemukan.',
+      );
+    }
+
+    if (parent.status !== 'Merged') {
+      throw new AppError(
+        422,
+        ErrorCodes.VALIDATION_ERROR,
+        `Revisi hanya boleh dibuat dari task berstatus "Merged". Status task induk saat ini: "${parent.status}".`,
+      );
+    }
+
+    let cursor = parent.parent_task_id;
+    const visited = new Set<number>([parentTaskId]);
+
+    while (cursor !== null && cursor !== undefined) {
+      if (currentTaskId !== undefined && cursor === currentTaskId) {
+        throw new AppError(
+          422,
+          ErrorCodes.VALIDATION_ERROR,
+          'parent_task_id membuat rantai revisi berputar (siklus).',
+        );
+      }
+      if (visited.has(cursor)) break;
+
+      visited.add(cursor);
+      const ancestor = await taskBoardRepository.findRowById(personId, cursor);
+      cursor = ancestor?.parent_task_id ?? null;
     }
   }
 

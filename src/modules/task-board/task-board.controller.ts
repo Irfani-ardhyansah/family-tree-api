@@ -25,6 +25,26 @@ export class TaskBoardController {
     }
   }
 
+  async getHistory(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const taskId = parseInt(req.params.id, 10);
+      const data = await taskBoardService.getHistory(req.auth!.personId, taskId);
+      sendData(res, data);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async getRevisions(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const taskId = parseInt(req.params.id, 10);
+      const data = await taskBoardService.getRevisions(req.auth!.personId, taskId);
+      sendData(res, data);
+    } catch (error) {
+      next(error);
+    }
+  }
+
   async create(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const data = await taskBoardService.create(req.auth!.personId, req.body);

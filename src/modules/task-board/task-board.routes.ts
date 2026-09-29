@@ -32,6 +32,16 @@ taskBoardRoutes.get('/:id', (req, res, next) => {
   void taskBoardController.getById(req, res, next);
 });
 
+// Riwayat aksi task (status, deskripsi, revisi)
+taskBoardRoutes.get('/:id/history', (req, res, next) => {
+  void taskBoardController.getHistory(req, res, next);
+});
+
+// Daftar revisi (task anak) dari sebuah task
+taskBoardRoutes.get('/:id/revisions', (req, res, next) => {
+  void taskBoardController.getRevisions(req, res, next);
+});
+
 // Create task
 taskBoardRoutes.post('/', (req, res, next) => {
   void taskBoardController.create(req, res, next);

@@ -32,6 +32,7 @@ docs/
 | [`reference/MAP-EVENTS-MEMORIAM-API.md`](./reference/MAP-EVENTS-MEMORIAM-API.md) | Map, Events, In Memoriam |
 | [`reference/PERSONS-IMPORT-API.md`](./reference/PERSONS-IMPORT-API.md) | Bulk import persons (job + progress) |
 | [`reference/PORTFOLIO-ANALYTICS-API.md`](./reference/PORTFOLIO-ANALYTICS-API.md) | Collect publik + admin analytics portfolio |
+| [`reference/TASK-BOARD-API.md`](./reference/TASK-BOARD-API.md) | Task board: task, deskripsi, revisi, history |
 | [`reference/adr/001-auth-tokens.md`](./reference/adr/001-auth-tokens.md) | ADR JWT + refresh tokens |
 | [`reference/seed/`](./reference/seed/) | Artifact seed (`mock-family-seed.json`) |
 | [`reference/templates/`](./reference/templates/) | Template CSV/JSON import |
@@ -51,6 +52,8 @@ docs/
 | [`done/EVENTS-MEMORIAM-OWNER-CRUD-API.md`](./requests/from-fe/done/EVENTS-MEMORIAM-OWNER-CRUD-API.md) | Owner-only event/tribute CRUD | ✅ Implemented |
 | [`done/portfolio-analytics-be-plan.md`](./requests/from-fe/done/portfolio-analytics-be-plan.md) | Ingest + reporting analytics portfolio | ✅ Implemented |
 | [`done/BIOMETRIC-LOGIN-BE-PROMPT.md`](./requests/from-fe/done/BIOMETRIC-LOGIN-BE-PROMPT.md) | Login biometrik (WebAuthn) | ✅ Implemented |
+| [`done/TASK-BOARD-API.md`](./requests/from-fe/done/TASK-BOARD-API.md) | Task board CRUD + upload gambar | ✅ Implemented |
+| [`done/TASK-BOARD-enhancements.md`](./requests/from-fe/done/TASK-BOARD-enhancements.md) | Task board: status, deskripsi, revisi, history | ✅ Implemented |
 
 ### Pending
 
@@ -65,6 +68,8 @@ _Tidak ada._ Spek FE baru yang belum dikerjakan BE taruh di [`requests/from-fe/p
 | File | Topik | Status |
 |---|---|---|
 | [`done/PERSONS-IMPORT-FE-PROMPT.md`](./requests/to-fe/done/PERSONS-IMPORT-FE-PROMPT.md) | Prompt integrasi UI import persons | ✅ Spek siap (konsumsi FE) |
+| [`done/TASK-BOARD-ENHANCEMENTS-FE-PROMPT.md`](./requests/to-fe/done/TASK-BOARD-ENHANCEMENTS-FE-PROMPT.md) | Task board: status Merged, deskripsi, revisi, history | ✅ FE sudah implementasi |
+| [`done/TASK-BOARD-ACTIVITY-HISTORY-FE-PROMPT.md`](./requests/to-fe/done/TASK-BOARD-ACTIVITY-HISTORY-FE-PROMPT.md) | Task board: riwayat aktivitas (deskripsi, revisi) + link child | ✅ FE sudah implementasi |
 
 ### Pending
 
