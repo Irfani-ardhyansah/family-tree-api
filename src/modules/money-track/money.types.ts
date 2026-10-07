@@ -234,7 +234,9 @@ export type MoneyActivityKind =
   | 'income'
   | 'expense'
   | 'transfer'
-  | 'cash_withdrawal';
+  | 'cash_withdrawal'
+  /** Baris agregat utang/piutang (lihat MONEY-DEBT-POCKET-LINKING). */
+  | 'debt';
 
 export type MoneyActivityItemDto = {
   id: string;
@@ -254,6 +256,20 @@ export type MoneyActivityItemDto = {
   date: string;
   signed: 'pos' | 'neg' | 'neutral';
   link: string;
+  /** Hanya `kind: 'debt'` — arah catatan. */
+  direction?: MoneyDebtDirection | null;
+  /** Hanya `kind: 'debt'` — status pelunasan. */
+  status?: MoneyDebtStatus | null;
+  /** Hanya `kind: 'debt'` — pokok catatan (mt_debts.amount). */
+  principalAmount?: number | null;
+  /** Hanya `kind: 'debt'` — total yang sudah dibayar. */
+  paidTotal?: number | null;
+  /** Hanya `kind: 'debt'` — sisa pokok (tidak pernah negatif). */
+  remaining?: number | null;
+  /** Hanya `kind: 'debt'` — sign × (amount − paidTotal); 0 = lunas tanpa bunga. */
+  netAmount?: number | null;
+  /** Hanya `kind: 'debt'` — max(0, paidTotal − amount) = kelebihan bayar (bunga). */
+  interestAmount?: number | null;
 };
 
 export type MoneyTransferDto = {
@@ -376,6 +392,8 @@ export type MoneyDebtRow = {
   id: number;
   workspace_id: number;
   person_id: number;
+  /** Kantong yang menanggung efek saldo; null = catatan saja (tidak mengubah saldo). */
+  pocket_id: number | null;
   counterparty_name: string;
   direction: MoneyDebtDirection;
   amount: number | string;
@@ -405,6 +423,20 @@ export type MoneyDebtPaymentDto = {
   date: string;
   note: string | null;
   createdByPersonId: number;
+  /** Porsi pembayaran ini yang dihitung bunga (melebihi sisa pokok sebelum bayar). */
+  interestAmount?: number;
+};
+
+/** Peringatan (bukan error) saat saldo kantong jadi minus karena efek utang/piutang. */
+export type MoneyDebtBalanceWarning = {
+  isNegative: boolean;
+  pocketId: number;
+  pocketLabel: string;
+  /** Saldo kantong setelah mutasi (boleh negatif). */
+  pocketBalanceAfter: number;
+  /** max(0, −pocketBalanceAfter) — jumlah yang perlu ditutup. */
+  shortfall: number;
+  message: string;
 };
 
 export type MoneyDebtDto = {
@@ -424,6 +456,16 @@ export type MoneyDebtDto = {
   /** e.g. "Sisa piutang" | "Sisa utang" */
   remainingLabel?: string;
   payments?: MoneyDebtPaymentDto[];
+  /** Kantong yang di-link (null = catatan saja). */
+  pocketId: number | null;
+  /** e.g. "Transaksi · BCA" */
+  pocketLabel?: string | null;
+  /** sign × (amount − paidTotal): 0 = lunas tanpa bunga, bisa negatif (utang + bunga). */
+  netEffect?: number;
+  /** max(0, paidTotal − amount) — kelebihan bayar yang dihitung sebagai bunga. */
+  interestAmount?: number;
+  /** Diisi hanya oleh response mutasi (create/update/payment) bila kantong jadi minus. */
+  balanceWarning?: MoneyDebtBalanceWarning | null;
 };
 
 export type MoneyBudgetRow = {

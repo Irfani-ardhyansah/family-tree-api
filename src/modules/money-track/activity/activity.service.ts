@@ -14,6 +14,8 @@ import {
   toDateOnly,
 } from '../money.access';
 import { loadEnrichmentMaps, pocketLabel } from '../money.enrichment';
+import { debtInterestAmount, debtRemaining } from '../money.helpers';
+import type { MoneyDebtDirection, MoneyDebtStatus } from '../money.constants';
 import type {
   MoneyActivityItemDto,
   MoneyActivityKind,
@@ -25,6 +27,7 @@ const ACTIVITY_KINDS = [
   'expense',
   'transfer',
   'cash_withdrawal',
+  'debt',
   'all',
 ] as const;
 
@@ -38,6 +41,12 @@ type RawActivityRow = {
   amount: number | string;
   date: string;
   sort_id: number;
+  /** Diisi hanya oleh branch `debt`. */
+  debt_direction: MoneyDebtDirection | null;
+  debt_status: MoneyDebtStatus | null;
+  debt_amount: number | string | null;
+  debt_paid_total: number | string | null;
+  debt_id: number | null;
 };
 
 function parseBoolFlag(value: unknown, field: string): boolean | undefined {
@@ -77,6 +86,8 @@ export class ActivityService {
           ? undefined
           : parsePositiveInt(query.categoryId, 'categoryId');
     const q = parseOptionalString(query.q, 'q', 120) ?? undefined;
+    // Utang/piutang ikut tampil di list transaksi; `includeDebts=false` = opt-out.
+    const includeDebtsFlag = parseBoolFlag(query.includeDebts, 'includeDebts') ?? true;
 
     if (personId != null) {
       const person = await moneyAccessRepository.findPersonById(
@@ -92,12 +103,15 @@ export class ActivityService {
       kind === 'all' || kind === 'income' || kind === 'expense';
     const includeTransfer = kind === 'all' || kind === 'transfer';
     const includeCash = kind === 'all' || kind === 'cash_withdrawal';
+    // `includeDebts=false` menonaktifkan branch debt sepenuhnya (jaring pengaman FE).
+    const includeDebt =
+      includeDebtsFlag && (kind === 'debt' || kind === 'all');
 
     // category/uncategorized only apply to txn kinds
     const txnOnlyFilters =
       (categoryId != null || uncategorized === true) &&
       !includeTxn &&
-      (includeTransfer || includeCash);
+      (includeTransfer || includeCash || includeDebt);
 
     if (txnOnlyFilters) {
       return { items: [], page, pageSize, total: 0 };
@@ -116,7 +130,12 @@ export class ActivityService {
                NULL AS to_pocket_id,
                t.amount AS amount,
                t.date AS date,
-               t.id AS sort_id
+               t.id AS sort_id,
+               NULL AS debt_direction,
+               NULL AS debt_status,
+               NULL AS debt_amount,
+               NULL AS debt_paid_total,
+               NULL AS debt_id
         FROM ${Tables.MONEY_TRANSACTIONS} t
         INNER JOIN ${Tables.MONEY_POCKETS} p ON p.id = t.pocket_id
         WHERE t.workspace_id = ?
@@ -166,7 +185,12 @@ export class ActivityService {
                x.to_pocket_id AS to_pocket_id,
                x.amount AS amount,
                x.date AS date,
-               x.id AS sort_id
+               x.id AS sort_id,
+               NULL AS debt_direction,
+               NULL AS debt_status,
+               NULL AS debt_amount,
+               NULL AS debt_paid_total,
+               NULL AS debt_id
         FROM ${Tables.MONEY_TRANSFERS} x
         INNER JOIN ${Tables.MONEY_POCKETS} pf ON pf.id = x.from_pocket_id
         INNER JOIN ${Tables.MONEY_POCKETS} pt ON pt.id = x.to_pocket_id
@@ -206,7 +230,12 @@ export class ActivityService {
                c.to_cash_pocket_id AS to_pocket_id,
                c.amount AS amount,
                c.date AS date,
-               c.id AS sort_id
+               c.id AS sort_id,
+               NULL AS debt_direction,
+               NULL AS debt_status,
+               NULL AS debt_amount,
+               NULL AS debt_paid_total,
+               NULL AS debt_id
         FROM ${Tables.MONEY_CASH_WITHDRAWALS} c
         INNER JOIN ${Tables.MONEY_POCKETS} p ON p.id = c.from_pocket_id
         WHERE c.workspace_id = ?
@@ -230,6 +259,59 @@ export class ActivityService {
       }
       if (q) {
         sql += ` AND c.note LIKE ?`;
+        bindings.push(`%${q}%`);
+      }
+      parts.push(`(${sql})`);
+    }
+
+    if (includeDebt && uncategorized !== true && categoryId == null) {
+      let sql = `
+        SELECT CONCAT('debt:', d.id) AS feed_id,
+               'debt' AS kind,
+               d.counterparty_name AS title,
+               NULL AS category_id,
+               d.pocket_id AS pocket_id,
+               NULL AS to_pocket_id,
+               (CASE d.direction
+                  WHEN 'utang' THEN d.amount - COALESCE(p.paid, 0)
+                  ELSE COALESCE(p.paid, 0) - d.amount
+                END) AS amount,
+               d.date AS date,
+               d.id AS sort_id,
+               d.direction AS debt_direction,
+               d.status AS debt_status,
+               d.amount AS debt_amount,
+               COALESCE(p.paid, 0) AS debt_paid_total,
+               d.id AS debt_id
+        FROM ${Tables.MONEY_DEBTS} d
+        INNER JOIN ${Tables.MONEY_POCKETS} dp ON dp.id = d.pocket_id
+        LEFT JOIN (
+          SELECT debt_id, SUM(amount) AS paid
+          FROM ${Tables.MONEY_DEBT_PAYMENTS}
+          GROUP BY debt_id
+        ) p ON p.debt_id = d.id
+        WHERE d.workspace_id = ?
+          AND d.pocket_id IS NOT NULL
+      `;
+      bindings.push(ctx.workspace.id);
+      if (from) {
+        sql += ` AND d.date >= ?`;
+        bindings.push(from);
+      }
+      if (to) {
+        sql += ` AND d.date <= ?`;
+        bindings.push(to);
+      }
+      if (pocketId != null) {
+        sql += ` AND d.pocket_id = ?`;
+        bindings.push(pocketId);
+      }
+      if (personId != null) {
+        sql += ` AND dp.owner_person_id = ?`;
+        bindings.push(personId);
+      }
+      if (q) {
+        sql += ` AND d.counterparty_name LIKE ?`;
         bindings.push(`%${q}%`);
       }
       parts.push(`(${sql})`);
@@ -271,14 +353,28 @@ export class ActivityService {
         personIdVal != null ? maps.persons.get(personIdVal) : undefined;
       const category =
         row.category_id != null ? maps.categories.get(row.category_id) : undefined;
-      const amount = asNumber(row.amount) ?? 0;
       const kindVal = row.kind;
-      const signed: MoneyActivityItemDto['signed'] =
-        kindVal === 'income' ? 'pos' : kindVal === 'expense' ? 'neg' : 'neutral';
+      const isDebt = kindVal === 'debt';
+      const rawAmount = asNumber(row.amount) ?? 0;
+      // Baris debt = efek net (bisa 0 / negatif); kind lain selalu positif.
+      const amount = isDebt ? Math.abs(rawAmount) : rawAmount;
+      const principalAmount = isDebt ? (asNumber(row.debt_amount) ?? 0) : 0;
+      const debtPaidTotal = isDebt ? (asNumber(row.debt_paid_total) ?? 0) : 0;
+      const debtDirectionLabel =
+        row.debt_direction === 'piutang' ? 'Piutang' : 'Utang';
+
+      let signed: MoneyActivityItemDto['signed'];
+      if (isDebt) {
+        signed = rawAmount > 0 ? 'pos' : rawAmount < 0 ? 'neg' : 'neutral';
+      } else {
+        signed =
+          kindVal === 'income' ? 'pos' : kindVal === 'expense' ? 'neg' : 'neutral';
+      }
 
       let link = '/money/transactions';
       if (kindVal === 'transfer') link = `/money/transfers/${row.sort_id}`;
       else if (kindVal === 'cash_withdrawal') link = `/money/cash-withdrawals/${row.sort_id}`;
+      else if (isDebt) link = `/money/debts/${row.debt_id ?? row.sort_id}`;
       else link = `/money/transactions/${row.sort_id}`;
 
       const fromLabel = pocketLabel(row.pocket_id, maps);
@@ -299,14 +395,18 @@ export class ActivityService {
               ? 'Pengeluaran'
               : kindVal === 'transfer'
                 ? 'Transfer'
-                : 'Tarik tunai'),
+                : kindVal === 'cash_withdrawal'
+                  ? 'Tarik tunai'
+                  : debtDirectionLabel),
         categoryName:
           category?.name ??
           (kindVal === 'transfer'
             ? 'Transfer'
             : kindVal === 'cash_withdrawal'
               ? 'Tarik tunai'
-              : null),
+              : isDebt
+                ? debtDirectionLabel
+                : null),
         categoryId: row.category_id,
         personId: personIdVal,
         personName: person?.name ?? null,
@@ -319,6 +419,15 @@ export class ActivityService {
         date: toDateOnly(row.date),
         signed,
         link,
+        direction: isDebt ? row.debt_direction : null,
+        status: isDebt ? row.debt_status : null,
+        principalAmount: isDebt ? principalAmount : null,
+        paidTotal: isDebt ? debtPaidTotal : null,
+        remaining: isDebt ? debtRemaining(principalAmount, debtPaidTotal) : null,
+        netAmount: isDebt ? rawAmount : null,
+        interestAmount: isDebt
+          ? debtInterestAmount(principalAmount, debtPaidTotal)
+          : null,
       };
     });
 

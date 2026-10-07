@@ -347,10 +347,11 @@ export async function seed(knex: Knex): Promise<void> {
       },
     ]);
 
-    // Debts
+    // Debts — sengaja di-link ke kantong supaya efek saldo (§ pocket linking) kelihatan di demo.
     const [debtId] = await trx(Tables.MONEY_DEBTS).insert({
       workspace_id: workspaceId,
       person_id: irfanMoneyId,
+      pocket_id: irfanTxn,
       counterparty_name: 'Budi',
       direction: 'piutang',
       amount: 1_000_000,
@@ -371,6 +372,7 @@ export async function seed(knex: Knex): Promise<void> {
     await trx(Tables.MONEY_DEBTS).insert({
       workspace_id: workspaceId,
       person_id: ayuMoneyId,
+      pocket_id: ayuTxn,
       counterparty_name: 'Bank XYZ',
       direction: 'utang',
       amount: 5_000_000,

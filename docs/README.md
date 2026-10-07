@@ -54,6 +54,7 @@ docs/
 | [`done/BIOMETRIC-LOGIN-BE-PROMPT.md`](./requests/from-fe/done/BIOMETRIC-LOGIN-BE-PROMPT.md) | Login biometrik (WebAuthn) | ✅ Implemented |
 | [`done/TASK-BOARD-API.md`](./requests/from-fe/done/TASK-BOARD-API.md) | Task board CRUD + upload gambar | ✅ Implemented |
 | [`done/TASK-BOARD-enhancements.md`](./requests/from-fe/done/TASK-BOARD-enhancements.md) | Task board: status, deskripsi, revisi, history | ✅ Implemented |
+| [`done/MONEY-DEBT-POCKET-LINKING-BE-PROMPT.md`](./requests/from-fe/done/MONEY-DEBT-POCKET-LINKING-BE-PROMPT.md) | Utang/piutang ngiket ke kantong + entri `kind: "debt"` di list transaksi | ✅ Implemented |
 
 ### Pending
 
@@ -82,6 +83,7 @@ _Tidak ada._ Spek FE baru yang belum dikerjakan BE taruh di [`requests/from-fe/p
 | [`pending/SECONDARY-PASSWORD-FE-PROMPT.md`](./requests/to-fe/pending/SECONDARY-PASSWORD-FE-PROMPT.md) | Password kedua | Spek siap |
 | [`pending/WEB-PUSH-FE-PROMPT.md`](./requests/to-fe/pending/WEB-PUSH-FE-PROMPT.md) | Web push | Spek siap |
 | [`pending/BIOMETRIC-LOGIN-FE-PROMPT.md`](./requests/to-fe/pending/BIOMETRIC-LOGIN-FE-PROMPT.md) | Login biometrik (WebAuthn) | Spek FE siap, BE live |
+| [`pending/MONEY-DEBT-POCKET-LINKING-FE-PROMPT.md`](./requests/to-fe/pending/MONEY-DEBT-POCKET-LINKING-FE-PROMPT.md) | Utang/piutang di-link ke kantong + `kind: "debt"` di list transaksi | Spek siap, BE live |
 
 ---
 

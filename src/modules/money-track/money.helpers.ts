@@ -1,6 +1,10 @@
 import { AppError } from '../../shared/errors/AppError';
 import { ErrorCodes } from '../../shared/errors/errorCodes';
-import type { MoneyTransferKind } from './money.constants';
+import type {
+  MoneyDebtDirection,
+  MoneyDebtStatus,
+  MoneyTransferKind,
+} from './money.constants';
 import type { MoneyPocketRow, MoneyWorkspaceRow } from './money.types';
 
 /**
@@ -160,4 +164,57 @@ export function monthDateRange(yearMonth: string): { from: string; to: string } 
     from: `${y}-${mm}-01`,
     to: `${y}-${mm}-${String(lastDay).padStart(2, '0')}`,
   };
+}
+
+/* ------------------------------------------------------------------------- *
+ * Utang / piutang — efek ke kantong (derive, tidak menulis ke ledger).
+ * Satu debt = satu angka: sign × (amount − paidTotal).
+ * Pure helpers — safe to unit test.
+ * ------------------------------------------------------------------------- */
+
+/** Utang menambah saldo kantong (+1), piutang mengurangi (−1). */
+export function debtEffectSign(direction: MoneyDebtDirection): 1 | -1 {
+  return direction === 'utang' ? 1 : -1;
+}
+
+/**
+ * Efek bertanda sebuah catatan utang/piutang terhadap saldo kantong.
+ * `0` = lunas tanpa bunga; bisa negatif (utang yang dibayar melebihi pokok = ada bunga).
+ */
+export function debtNetEffect(
+  direction: MoneyDebtDirection,
+  amount: number,
+  paidTotal: number,
+): number {
+  const net = debtEffectSign(direction) * (amount - paidTotal);
+  // Normalisasi -0 → 0 supaya response JSON & pembanding FE bersih.
+  return net === 0 ? 0 : net;
+}
+
+/** Sisa pokok — tidak pernah negatif. */
+export function debtRemaining(amount: number, paidTotal: number): number {
+  return Math.max(0, amount - paidTotal);
+}
+
+/** Kelebihan bayar yang dihitung sebagai bunga. */
+export function debtInterestAmount(amount: number, paidTotal: number): number {
+  return Math.max(0, paidTotal - amount);
+}
+
+/** Porsi satu pembayaran yang jatuh ke bunga (melewati sisa pokok sebelum bayar). */
+export function debtPaymentInterestPortion(
+  amount: number,
+  paidTotalBefore: number,
+  paymentAmount: number,
+): number {
+  return Math.max(0, paymentAmount - debtRemaining(amount, paidTotalBefore));
+}
+
+export function debtStatusFromPaid(
+  amount: number,
+  paidTotal: number,
+): MoneyDebtStatus {
+  if (paidTotal <= 0) return 'open';
+  if (paidTotal >= amount) return 'paid';
+  return 'partial';
 }

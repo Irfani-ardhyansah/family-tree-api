@@ -53,6 +53,19 @@ function clientArgs(): string[] {
   return ['-h', env.db.host, '-P', String(env.db.port), '-u', env.db.user, env.db.name];
 }
 
+/**
+ * Client MariaDB (Alpine `mysql-client`) tanpa plugin `caching_sha2_password.so`
+ * tidak bisa autentikasi ke MySQL 8 (default auth `caching_sha2_password`) → error 1045.
+ */
+function authPluginHint(detail: string): string {
+  if (!/caching_sha2_password/i.test(detail)) return '';
+  return (
+    '\nPenyebab: server MySQL 8 memakai auth caching_sha2_password, plugin client ' +
+    'tidak ada di image. Tambahkan `mariadb-connector-c` ke `apk add` di Dockerfile ' +
+    '(atau pakai mysqldump dari MySQL).'
+  );
+}
+
 function runCollectStdout(cmd: string, args: string[]): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     const child = spawn(cmd, args, { env: mysqlEnv() });
@@ -71,7 +84,7 @@ function runCollectStdout(cmd: string, args: string[]): Promise<Buffer> {
     child.on('close', (code) => {
       if (code !== 0) {
         const detail = Buffer.concat(err).toString('utf8').trim() || `exit ${code}`;
-        reject(new Error(`Dump gagal (${cmd}): ${detail}`));
+        reject(new Error(`Dump gagal (${cmd}): ${detail}${authPluginHint(detail)}`));
         return;
       }
       resolve(Buffer.concat(out));
@@ -95,7 +108,7 @@ function runWithStdin(cmd: string, args: string[], stdin: Buffer): Promise<void>
     child.on('close', (code) => {
       if (code !== 0) {
         const detail = Buffer.concat(err).toString('utf8').trim() || `exit ${code}`;
-        reject(new Error(`Restore gagal (${cmd}): ${detail}`));
+        reject(new Error(`Restore gagal (${cmd}): ${detail}${authPluginHint(detail)}`));
         return;
       }
       resolve();

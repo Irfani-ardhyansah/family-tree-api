@@ -19,6 +19,12 @@ export async function deletePocketsCascade(
       .whereIn('linked_pocket_id', pocketIds)
       .update({ linked_pocket_id: null });
 
+    // Catatan utang/piutang tidak ikut terhapus — hanya dilepas dari kantongnya.
+    await trx(Tables.MONEY_DEBTS)
+      .where({ workspace_id: workspaceId })
+      .whereIn('pocket_id', pocketIds)
+      .update({ pocket_id: null });
+
     await trx(Tables.MONEY_TRANSACTIONS)
       .where({ workspace_id: workspaceId })
       .whereIn('pocket_id', pocketIds)

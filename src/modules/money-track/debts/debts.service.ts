@@ -9,23 +9,34 @@ import {
   parseNonEmptyString,
   parseOptionalDateOnly,
   parseOptionalEnum,
+  parseOptionalPositiveInt,
   parseOptionalString,
   parsePositiveInt,
   resolveMoneyContext,
   toDateOnly,
 } from '../money.access';
 import { formatAuditRp, writeMoneyAudit } from '../money.audit';
+import { computePocketBalance } from '../money.balance';
 import {
   AUDIT_ENTITY_TYPES,
   MONEY_DEBT_DIRECTIONS,
   MONEY_DEBT_STATUSES,
-  type MoneyDebtStatus,
 } from '../money.constants';
+import { loadEnrichmentMaps, pocketLabel } from '../money.enrichment';
+import {
+  debtInterestAmount,
+  debtNetEffect,
+  debtPaymentInterestPortion,
+  debtRemaining,
+  debtStatusFromPaid,
+} from '../money.helpers';
 import type {
+  MoneyDebtBalanceWarning,
   MoneyDebtDto,
   MoneyDebtPaymentDto,
   MoneyDebtRow,
 } from '../money.types';
+import { pocketsRepository } from '../pockets/pockets.repository';
 import { debtsRepository } from './debts.repository';
 
 function paymentDto(row: {
@@ -44,12 +55,6 @@ function paymentDto(row: {
   };
 }
 
-function debtStatusFromPaid(amount: number, paidTotal: number): MoneyDebtStatus {
-  if (paidTotal <= 0) return 'open';
-  if (paidTotal >= amount) return 'paid';
-  return 'partial';
-}
-
 function toListDto(row: MoneyDebtRow, paidTotal: number): MoneyDebtDto {
   const amount = asNumber(row.amount) ?? 0;
   const isPiutang = row.direction === 'piutang';
@@ -65,8 +70,12 @@ function toListDto(row: MoneyDebtRow, paidTotal: number): MoneyDebtDto {
     status: row.status,
     note: row.note,
     paidTotal,
-    remaining: Math.max(0, amount - paidTotal),
+    remaining: debtRemaining(amount, paidTotal),
     remainingLabel: isPiutang ? 'Sisa piutang' : 'Sisa utang',
+    pocketId: row.pocket_id,
+    pocketLabel: null,
+    netEffect: debtNetEffect(row.direction, amount, paidTotal),
+    interestAmount: debtInterestAmount(amount, paidTotal),
   };
 }
 
@@ -79,13 +88,20 @@ export class DebtsService {
     const ctx = await resolveMoneyContext(authPersonId, familyId);
     const status = parseOptionalEnum(query.status, 'status', MONEY_DEBT_STATUSES);
     const direction = parseOptionalEnum(query.direction, 'direction', MONEY_DEBT_DIRECTIONS);
-    const rows = await debtsRepository.list(ctx.workspace.id, { status, direction });
-    return Promise.all(
-      rows.map(async (row) => {
-        const paidTotal = await debtsRepository.sumPayments(row.id);
-        return toListDto(row, paidTotal);
-      }),
-    );
+    const pocketId = parseOptionalPositiveInt(query.pocketId, 'pocketId') ?? undefined;
+    const rows = await debtsRepository.list(ctx.workspace.id, {
+      status,
+      direction,
+      pocketId,
+    });
+    const [paidTotals, pocketLabels] = await Promise.all([
+      Promise.all(rows.map((row) => debtsRepository.sumPayments(row.id))),
+      this.loadPocketLabels(ctx.workspace.id, rows),
+    ]);
+    return rows.map((row, index) => ({
+      ...toListDto(row, paidTotals[index] ?? 0),
+      pocketLabel: pocketLabels.get(row.id) ?? null,
+    }));
   }
 
   async getById(
@@ -99,11 +115,27 @@ export class DebtsService {
     if (!row) {
       throw new AppError(404, ErrorCodes.MONEY_DEBT_NOT_FOUND, 'Debt tidak ditemukan.');
     }
+    const amount = asNumber(row.amount) ?? 0;
     const payments = await debtsRepository.listPayments(id);
     const paidTotal = payments.reduce((s, p) => s + (asNumber(p.amount) ?? 0), 0);
+
+    // Porsi bunga per pembayaran dihitung running dari pembayaran paling awal.
+    let runningPaid = 0;
+    const paymentDtos: MoneyDebtPaymentDto[] = payments.map((p) => {
+      const paymentAmount = asNumber(p.amount) ?? 0;
+      const dto: MoneyDebtPaymentDto = {
+        ...paymentDto(p),
+        interestAmount: debtPaymentInterestPortion(amount, runningPaid, paymentAmount),
+      };
+      runningPaid += paymentAmount;
+      return dto;
+    });
+
+    const pocketLabels = await this.loadPocketLabels(ctx.workspace.id, [row]);
     return {
       ...toListDto(row, paidTotal),
-      payments: payments.map(paymentDto),
+      pocketLabel: pocketLabels.get(row.id) ?? null,
+      payments: paymentDtos,
     };
   }
 
@@ -123,9 +155,16 @@ export class DebtsService {
       throw new AppError(404, ErrorCodes.MONEY_PERSON_NOT_FOUND, 'Person tidak ditemukan.');
     }
 
+    // Kantong opsional: null berarti catatan saja (tidak mengubah saldo).
+    const pocketId = parseOptionalPositiveInt(raw.pocketId, 'pocketId') ?? null;
+    if (pocketId != null) {
+      await this.assertPocketLinkable(ctx.workspace.id, pocketId);
+    }
+
     const row = await debtsRepository.create({
       workspaceId: ctx.workspace.id,
       personId,
+      pocketId,
       counterpartyName: parseNonEmptyString(raw.counterpartyName, 'counterpartyName', 120),
       direction: parseEnum(raw.direction, 'direction', MONEY_DEBT_DIRECTIONS),
       amount: parseAmount(raw.amount, 'amount'),
@@ -134,7 +173,11 @@ export class DebtsService {
       note: parseOptionalString(raw.note, 'note', 500) ?? null,
     });
 
+    const pocketLabels = await this.loadPocketLabels(ctx.workspace.id, [row]);
+    const balanceWarning = await this.buildBalanceWarning(ctx.workspace.id, pocketId);
     const dto = toListDto(row, 0);
+    dto.pocketLabel = pocketLabels.get(row.id) ?? null;
+    dto.balanceWarning = balanceWarning;
     await writeMoneyAudit({
       workspaceId: ctx.workspace.id,
       actorPersonId: ctx.actor.id,
@@ -196,6 +239,14 @@ export class DebtsService {
     if (raw.note !== undefined) {
       patch.note = parseOptionalString(raw.note, 'note', 500) ?? null;
     }
+    // pocketId: null = lepas link dari kantong (jadi catatan saja).
+    if (raw.pocketId !== undefined) {
+      const pocketId = parseOptionalPositiveInt(raw.pocketId, 'pocketId') ?? null;
+      if (pocketId != null) {
+        await this.assertPocketLinkable(ctx.workspace.id, pocketId);
+      }
+      patch.pocket_id = pocketId;
+    }
 
     if (Object.keys(patch).length > 0) {
       await debtsRepository.update(ctx.workspace.id, id, patch);
@@ -209,6 +260,10 @@ export class DebtsService {
     }
 
     const updated = await this.getById(authPersonId, familyId, idRaw);
+    updated.balanceWarning = await this.buildBalanceWarning(
+      ctx.workspace.id,
+      updated.pocketId,
+    );
     if (Object.keys(patch).length > 0) {
       await writeMoneyAudit({
         workspaceId: ctx.workspace.id,
@@ -272,15 +327,9 @@ export class DebtsService {
 
     const paidTotal = await debtsRepository.sumPayments(id);
     const debtAmount = asNumber(debt.amount) ?? 0;
-    const remaining = Math.max(0, debtAmount - paidTotal);
-    if (amount > remaining) {
-      const sisaLabel = debt.direction === 'piutang' ? 'sisa piutang' : 'sisa utang';
-      throw new AppError(
-        422,
-        ErrorCodes.VALIDATION_ERROR,
-        `Pembayaran melebihi ${sisaLabel} (${remaining}).`,
-      );
-    }
+
+    // Overpay diizinkan: kelebihan bayar dihitung sebagai bunga (bisa bikin netEffect minus).
+    const interestPortion = debtPaymentInterestPortion(debtAmount, paidTotal, amount);
 
     const payment = await debtsRepository.createPayment({
       workspaceId: ctx.workspace.id,
@@ -302,10 +351,76 @@ export class DebtsService {
       entityType: AUDIT_ENTITY_TYPES.DEBT_PAYMENT,
       entityId: Number(payment.id),
       summary: `Catat pembayaran ${debt.counterparty_name} ${formatAuditRp(amount)}`,
-      after: paymentDto(payment),
+      after: { ...paymentDto(payment), interestAmount: interestPortion },
     });
 
-    return this.getById(authPersonId, familyId, idRaw);
+    const updated = await this.getById(authPersonId, familyId, idRaw);
+    updated.balanceWarning = await this.buildBalanceWarning(
+      ctx.workspace.id,
+      updated.pocketId,
+    );
+    return updated;
+  }
+
+  /** Map debtId → label kantong ("Transaksi · BCA"). Debt tanpa kantong tidak masuk map. */
+  private async loadPocketLabels(
+    workspaceId: number,
+    rows: MoneyDebtRow[],
+  ): Promise<Map<number, string>> {
+    const out = new Map<number, string>();
+    const pocketIds = rows
+      .map((row) => row.pocket_id)
+      .filter((id): id is number => id != null);
+    if (pocketIds.length === 0) return out;
+
+    const maps = await loadEnrichmentMaps(workspaceId, pocketIds, []);
+    for (const row of rows) {
+      if (row.pocket_id == null) continue;
+      const label = pocketLabel(row.pocket_id, maps);
+      if (label) out.set(row.id, label);
+    }
+    return out;
+  }
+
+  /** Pocket link wajib milik workspace & belum di-archive. */
+  private async assertPocketLinkable(
+    workspaceId: number,
+    pocketId: number,
+  ): Promise<void> {
+    const pocket = await pocketsRepository.findById(workspaceId, pocketId);
+    if (!pocket || pocket.archived_at) {
+      throw new AppError(
+        404,
+        ErrorCodes.MONEY_POCKET_NOT_FOUND,
+        'Pocket tidak ditemukan atau sudah di-archive.',
+      );
+    }
+  }
+
+  /**
+   * Peringatan (bukan error) kalau saldo kantong jadi minus setelah mutasi.
+   * Dipakai FE untuk pop-up notifikasi — aplikasi ini pencatatan, jadi tidak diblokir.
+   */
+  private async buildBalanceWarning(
+    workspaceId: number,
+    pocketId: number | null,
+  ): Promise<MoneyDebtBalanceWarning | null> {
+    if (pocketId == null) return null;
+    const [balance, maps] = await Promise.all([
+      computePocketBalance(pocketId),
+      loadEnrichmentMaps(workspaceId, [pocketId], []),
+    ]);
+    if (balance >= 0) return null;
+
+    const label = pocketLabel(pocketId, maps) || `Pocket ${pocketId}`;
+    return {
+      isNegative: true,
+      pocketId,
+      pocketLabel: label,
+      pocketBalanceAfter: balance,
+      shortfall: Math.abs(balance),
+      message: `Saldo kantong ${label} minus (${formatAuditRp(Math.abs(balance))}). Mohon sesuaikan kantongnya di menu Balancing.`,
+    };
   }
 }
 

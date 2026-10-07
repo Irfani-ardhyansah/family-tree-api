@@ -17,7 +17,10 @@ WORKDIR /app
 ENV NODE_ENV=production \
     PORT=3000
 
-RUN apk add --no-cache wget mysql-client zip unzip
+# mariadb-connector-c: sedia-kan client auth plugin (caching_sha2_password.so) supaya
+# mariadb-dump bisa konek ke MySQL 8 (default auth caching_sha2_password).
+# `mysql-client` (= mariadb-client) TIDAK menarik package ini, akibatnya dump error 1045.
+RUN apk add --no-cache wget mysql-client mariadb-connector-c zip unzip
 
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev && npm cache clean --force

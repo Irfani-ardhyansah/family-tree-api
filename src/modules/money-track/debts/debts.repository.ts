@@ -5,13 +5,14 @@ import type { MoneyDebtPaymentRow, MoneyDebtRow } from '../money.types';
 export class DebtsRepository {
   async list(
     workspaceId: number,
-    filters: { status?: string; direction?: string },
+    filters: { status?: string; direction?: string; pocketId?: number },
   ): Promise<MoneyDebtRow[]> {
     let q = db(Tables.MONEY_DEBTS)
       .where({ workspace_id: workspaceId })
       .orderBy('id', 'desc');
     if (filters.status) q = q.where({ status: filters.status });
     if (filters.direction) q = q.where({ direction: filters.direction });
+    if (filters.pocketId != null) q = q.where({ pocket_id: filters.pocketId });
     return q.select<MoneyDebtRow[]>('*');
   }
 
@@ -24,6 +25,7 @@ export class DebtsRepository {
   async create(input: {
     workspaceId: number;
     personId: number;
+    pocketId: number | null;
     counterpartyName: string;
     direction: string;
     amount: number;
@@ -34,6 +36,7 @@ export class DebtsRepository {
     const [id] = await db(Tables.MONEY_DEBTS).insert({
       workspace_id: input.workspaceId,
       person_id: input.personId,
+      pocket_id: input.pocketId,
       counterparty_name: input.counterpartyName,
       direction: input.direction,
       amount: input.amount,
@@ -50,6 +53,7 @@ export class DebtsRepository {
     id: number,
     patch: Partial<{
       person_id: number;
+      pocket_id: number | null;
       counterparty_name: string;
       direction: string;
       amount: number;
