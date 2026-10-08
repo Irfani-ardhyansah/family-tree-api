@@ -159,6 +159,35 @@ else
   echo "[deploy] migration: database/API belum jalan — dicek saat container start"
 fi
 
+# Bind-mount host path (mis. SD card di STB) harus SUDAH ADA sebelum `compose up`.
+# Docker membuat + chown sendiri; di filesystem tanpa chown (exFAT/FAT/CIFS) itu
+# gagal "operation not permitted". Pre-create dulu supaya Docker tidak membuatnya.
+ensure_host_mount_dirs() {
+  local key path
+  for key in UPLOADS_HOST_PATH LOGS_HOST_PATH; do
+    path="$(env_value "$ENV_FILE" "$key")"
+    [[ -n "$path" ]] || continue
+    if [[ "$path" != /* ]]; then
+      echo "[deploy] ${key}='${path}' bukan path absolut — dilewati (Docker pakai named volume)."
+      continue
+    fi
+    if [[ -d "$path" ]]; then
+      echo "[deploy] host dir siap: $path"
+      continue
+    fi
+    if mkdir -p "$path" 2>/dev/null; then
+      echo "[deploy] host dir dibuat: $path"
+    else
+      echo "[deploy] gagal membuat '${path}'." >&2
+      echo "[deploy] Buat manual di STB (tanpa chown), lalu jalankan ulang:" >&2
+      echo "  sudo mkdir -p '${path}'" >&2
+      echo "[deploy] Alternatif: kosongkan ${key} di .env.docker agar pakai named volume." >&2
+      exit 1
+    fi
+  done
+}
+ensure_host_mount_dirs
+
 echo "[deploy] docker compose up -d --build"
 compose up -d --build
 
