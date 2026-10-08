@@ -54,7 +54,10 @@ docs/
 | [`done/BIOMETRIC-LOGIN-BE-PROMPT.md`](./requests/from-fe/done/BIOMETRIC-LOGIN-BE-PROMPT.md) | Login biometrik (WebAuthn) | ✅ Implemented |
 | [`done/TASK-BOARD-API.md`](./requests/from-fe/done/TASK-BOARD-API.md) | Task board CRUD + upload gambar | ✅ Implemented |
 | [`done/TASK-BOARD-enhancements.md`](./requests/from-fe/done/TASK-BOARD-enhancements.md) | Task board: status, deskripsi, revisi, history | ✅ Implemented |
+| [`done/TASK-BOARD-DESCRIPTION-DATES-BE-PROMPT.md`](./requests/from-fe/done/TASK-BOARD-DESCRIPTION-DATES-BE-PROMPT.md) | Task board: tanggal per deskripsi (FE: tanggal + edit per-deskripsi + filter tanggal) | ✅ Implemented |
+| [`done/TASK-BOARD-TODOS-BE-PROMPT.md`](./requests/from-fe/done/TASK-BOARD-TODOS-BE-PROMPT.md) | Task board: todo (checklist) per task — judul, deskripsi, toggle selesai | ✅ Implemented |
 | [`done/MONEY-DEBT-POCKET-LINKING-BE-PROMPT.md`](./requests/from-fe/done/MONEY-DEBT-POCKET-LINKING-BE-PROMPT.md) | Utang/piutang ngiket ke kantong + entri `kind: "debt"` di list transaksi | ✅ Implemented |
+| [`done/MONEY-PREFERENCES-BE-PROMPT.md`](./requests/from-fe/done/MONEY-PREFERENCES-BE-PROMPT.md) | Preferensi user (`/money/preferences`): default kantong/kategori, nominal cepat | ✅ Implemented |
 
 ### Pending
 

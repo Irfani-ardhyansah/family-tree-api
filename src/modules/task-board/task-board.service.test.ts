@@ -11,6 +11,11 @@ vi.mock('./task-board.repository', () => ({
     getHistory: vi.fn(),
     getRevisions: vi.fn(),
     addImage: vi.fn(),
+    listTodos: vi.fn(),
+    findTodoById: vi.fn(),
+    createTodo: vi.fn(),
+    updateTodo: vi.fn(),
+    deleteTodo: vi.fn(),
   },
 }));
 
@@ -300,6 +305,89 @@ describe('list task', () => {
       status: 'Merged',
       search: 'filter',
     });
+  });
+});
+
+describe('todo task', () => {
+  const todo = {
+    id: 3,
+    task_id: 11,
+    title: 'Buat migrasi',
+    description: '<p>detail</p>',
+    is_done: false,
+    created_at: '2026-10-08T00:00:00.000Z',
+    updated_at: '2026-10-08T00:00:00.000Z',
+  };
+
+  it('404 saat task tidak ditemukan', async () => {
+    await expect(taskBoardService.listTodos(personId, 404)).rejects.toThrow(
+      'Task tidak ditemukan.',
+    );
+    await expect(
+      taskBoardService.createTodo(personId, 404, { title: 'x' }),
+    ).rejects.toThrow('Task tidak ditemukan.');
+  });
+
+  it('membuat todo dengan judul wajib dan deskripsi default kosong', async () => {
+    vi.mocked(taskBoardRepository.findRowById).mockResolvedValue(taskRow({ id: 11 }));
+    vi.mocked(taskBoardRepository.createTodo).mockResolvedValue(todo);
+
+    await taskBoardService.createTodo(personId, 11, { title: '  Buat migrasi  ' });
+
+    expect(taskBoardRepository.createTodo).toHaveBeenCalledWith(11, {
+      title: 'Buat migrasi',
+      description: '',
+    });
+  });
+
+  it('menolak todo tanpa judul', async () => {
+    vi.mocked(taskBoardRepository.findRowById).mockResolvedValue(taskRow({ id: 11 }));
+
+    await expect(
+      taskBoardService.createTodo(personId, 11, { title: '   ' }),
+    ).rejects.toThrow(/title wajib diisi/);
+  });
+
+  it('update todo: hanya field yang dikirim + is_done boolean', async () => {
+    vi.mocked(taskBoardRepository.findRowById).mockResolvedValue(taskRow({ id: 11 }));
+    vi.mocked(taskBoardRepository.updateTodo).mockResolvedValue({
+      ...todo,
+      is_done: true,
+    });
+
+    await taskBoardService.updateTodo(personId, 11, 3, { is_done: 1 });
+
+    expect(taskBoardRepository.updateTodo).toHaveBeenCalledWith(11, 3, {
+      is_done: true,
+    });
+  });
+
+  it('update todo: deskripsi null dikosongkan', async () => {
+    vi.mocked(taskBoardRepository.findRowById).mockResolvedValue(taskRow({ id: 11 }));
+    vi.mocked(taskBoardRepository.updateTodo).mockResolvedValue({
+      ...todo,
+      description: '',
+    });
+
+    await taskBoardService.updateTodo(personId, 11, 3, { description: null });
+
+    expect(taskBoardRepository.updateTodo).toHaveBeenCalledWith(11, 3, {
+      description: '',
+    });
+  });
+
+  it('404 saat todo tidak ada di task', async () => {
+    vi.mocked(taskBoardRepository.findRowById).mockResolvedValue(taskRow({ id: 11 }));
+    vi.mocked(taskBoardRepository.updateTodo).mockResolvedValue(undefined);
+
+    await expect(
+      taskBoardService.updateTodo(personId, 11, 999, { is_done: true }),
+    ).rejects.toThrow('Todo tidak ditemukan.');
+
+    vi.mocked(taskBoardRepository.deleteTodo).mockResolvedValue(false);
+    await expect(taskBoardService.deleteTodo(personId, 11, 999)).rejects.toThrow(
+      'Todo tidak ditemukan.',
+    );
   });
 });
 

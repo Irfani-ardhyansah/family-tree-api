@@ -6,6 +6,7 @@ import type {
   MoneyPersonRole,
   MoneyPocketCategory,
   MoneyPocketOwnerType,
+  MoneyPrefTxType,
   MoneyReminderType,
   MoneyTransactionType,
   MoneyTransferKind,
@@ -487,6 +488,32 @@ export type MoneyBudgetDto = {
   spentAmount: number;
   remaining: number;
   pctUsed: number;
+};
+
+export type MoneyScopedDefaultsDto = {
+  expensePocketId: number | null;
+  incomePocketId: number | null;
+  expenseCategoryId: number | null;
+  incomeCategoryId: number | null;
+};
+
+export type MoneyPreferencesRow = {
+  id: number;
+  workspace_id: number;
+  default_tx_type: MoneyPrefTxType;
+  quick_amounts: unknown;
+  shared: unknown;
+  persons: unknown;
+  created_at: Date | string;
+  updated_at: Date | string;
+};
+
+export type MoneyPreferencesDto = {
+  defaultTxType: MoneyPrefTxType;
+  quickAmounts: number[];
+  shared: MoneyScopedDefaultsDto;
+  /** key = personId (string) */
+  persons: Record<string, MoneyScopedDefaultsDto>;
 };
 
 export type MoneyAuditLogRow = {

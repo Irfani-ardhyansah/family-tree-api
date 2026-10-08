@@ -11,6 +11,7 @@ import { categoriesController } from './categories/categories.controller';
 import { moneyDashboardController } from './dashboard/dashboard.controller';
 import { debtsController } from './debts/debts.controller';
 import { pocketsController } from './pockets/pockets.controller';
+import { preferencesController } from './preferences/preferences.controller';
 import { remindersController } from './reminders/reminders.controller';
 import { monthlyReportsController } from './reports/monthly-reports.controller';
 import { setupController } from './setup/setup.controller';
@@ -101,6 +102,14 @@ moneyRoutes.patch('/categories/:id', (req, res, next) => {
 });
 moneyRoutes.delete('/categories/:id', (req, res, next) => {
   void categoriesController.remove(req, res, next);
+});
+
+// Preferences (default kantong/kategori, nominal cepat)
+moneyRoutes.get('/preferences', (req, res, next) => {
+  void preferencesController.get(req, res, next);
+});
+moneyRoutes.put('/preferences', (req, res, next) => {
+  void preferencesController.update(req, res, next);
 });
 
 // Transactions

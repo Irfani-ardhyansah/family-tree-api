@@ -25,8 +25,14 @@ Asal spek: [`../requests/from-fe/done/TASK-BOARD-API.md`](../requests/from-fe/do
   "branch_name": "feature/filter-status",
   "status": "In Progress",
   "descriptions": [
-    { "id": 3, "title": "Konteks", "content": "<p>Isi deskripsi…</p>" },
-    { "id": 4, "title": "Acceptance", "content": "<p>Filter jalan…</p>" }
+    {
+      "id": 3,
+      "title": "Konteks",
+      "content": "<p>Isi deskripsi…</p>",
+      "created_at": "2026-09-29T10:00:00.000Z",
+      "updated_at": "2026-09-29T12:30:00.000Z"
+    },
+    { "id": 4, "title": "Acceptance", "content": "<p>Filter jalan…</p>", "created_at": "2026-09-29T10:05:00.000Z", "updated_at": "2026-09-29T10:05:00.000Z" }
   ],
   "description": "<p>Isi deskripsi…</p>",
   "deploy_notes": "<p>Deploy 2026-09-29</p>",
@@ -41,7 +47,7 @@ Asal spek: [`../requests/from-fe/done/TASK-BOARD-API.md`](../requests/from-fe/do
 
 Catatan field:
 
-- `descriptions` — array deskripsi (judul + isi, HTML dari editor). Urut `id` naik.
+- `descriptions` — array deskripsi (judul + isi, HTML dari editor). Urut `id` naik. Tiap entri menyertakan `created_at` & `updated_at` (ISO 8601) — dipakai kartu deskripsi di FE.
 - `description` — kolom lama. Dipertahankan untuk kompatibilitas: isinya `descriptions[0].content` atau `null`. Kirim balik lewat `descriptions`.
 - `migration_files` — array nama file migration. Tidak boleh path, harus berekstensi `.ts`, `.js`, atau `.sql`, tanpa duplikat.
 - `parent_task_id` — `null` untuk task biasa; berisi id task induk kalau task ini revisi.
@@ -158,6 +164,32 @@ Catatan:
 ```json
 { "data": [ { "id": 21, "title": "Revisi filter", "parent_task_id": 12, "status": "To-Do" } ] }
 ```
+
+## Todo (checklist)
+
+Satu task → banyak todo. Tiap todo punya `title`, `description` (HTML, boleh `""`), dan `is_done`. `GET /tasks/:id` menyertakan `todos: TaskTodo[]`.
+
+```json
+{
+  "id": 3,
+  "task_id": 11,
+  "title": "Tambah index kolom status",
+  "description": "<p>Di kolom status</p>",
+  "is_done": false,
+  "created_at": "2026-10-08T10:00:00.000Z",
+  "updated_at": "2026-10-08T10:00:00.000Z"
+}
+```
+
+| Method | Path | Body | Ket |
+|--------|------|------|-----|
+| `GET` | `/api/v1/tasks/:id/todos` | — | `TaskTodo[]` urut `id` naik |
+| `POST` | `/api/v1/tasks/:id/todos` | `{ title, description? }` | `201` + TaskTodo; `title` wajib |
+| `PATCH` | `/api/v1/tasks/:id/todos/:todoId` | `{ title?, description?, is_done? }` | TaskTodo hasil update |
+| `DELETE` | `/api/v1/tasks/:id/todos/:todoId` | — | `{ deleted: true }` |
+
+- `404 NOT_FOUND` bila task bukan milik user atau todo bukan milik task itu.
+- `description: null`/`""` → dikosongkan. `is_done` terima boolean / `0` / `1`.
 
 ## Error
 

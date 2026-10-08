@@ -25,6 +25,29 @@ export interface TaskDescription {
   updated_at?: string;
 }
 
+/** Checklist (todo) di dalam sebuah task. 1 task → banyak todo. */
+export interface TaskTodo {
+  id: number;
+  task_id: number;
+  title: string;
+  /** HTML dari editor (boleh kosong). */
+  description: string;
+  is_done: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TaskTodoCreateInput {
+  title: string;
+  description?: string;
+}
+
+export interface TaskTodoUpdateInput {
+  title?: string;
+  description?: string;
+  is_done?: boolean;
+}
+
 /**
  * Jenis aksi di riwayat task.
  *
@@ -87,6 +110,8 @@ export interface Task {
   revisions?: Task[];
   /** Riwayat aksi task (status, deskripsi, revisi — terbaru lebih dulu). */
   history?: TaskHistoryEntry[];
+  /** Checklist todo task. Terisi di GET /tasks/:id (dan endpoint /todos). */
+  todos?: TaskTodo[];
   created_at: string;
   updated_at: string;
 }

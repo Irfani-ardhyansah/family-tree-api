@@ -13,6 +13,9 @@ import type {
   TaskHistoryEntry,
   TaskHistoryAction,
   TaskStatus,
+  TaskTodo,
+  TaskTodoCreateInput,
+  TaskTodoUpdateInput,
   TaskType,
 } from './task-board.types';
 import {
@@ -48,7 +51,37 @@ interface TaskRow {
 /** Baris relasi task (link/image) dan deskripsi, sudah termasuk task_id-nya. */
 type TaskLinkRow = TaskLink & { task_id: number };
 type TaskImageRow = TaskImage & { task_id: number };
-type TaskDescriptionRow = { id: number; task_id: number; title: string; content: string };
+type TaskDescriptionRow = {
+  id: number;
+  task_id: number;
+  title: string;
+  content: string;
+  created_at: string;
+  updated_at: string;
+};
+
+/** Baris mentah `tb_task_todos`. `is_done` bisa boolean atau 0/1 dari mysql2. */
+interface TaskTodoRow {
+  id: number;
+  task_id: number;
+  title: string;
+  description: string;
+  is_done: boolean | number;
+  created_at: string;
+  updated_at: string;
+}
+
+function toTaskTodo(row: TaskTodoRow): TaskTodo {
+  return {
+    id: row.id,
+    task_id: row.task_id,
+    title: row.title,
+    description: row.description,
+    is_done: row.is_done === true || row.is_done === 1,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+  };
+}
 
 /** mysql2 bisa mengembalikan kolom JSON sebagai string — normalkan jadi array. */
 function parseMigrationFiles(value: unknown): string[] {
@@ -161,15 +194,17 @@ export class TaskBoardRepository {
     const [task] = await this.hydrate([row]);
 
     if (options.includeRelations) {
-      const [parentTask, revisions, history] = await Promise.all([
+      const [parentTask, revisions, history, todos] = await Promise.all([
         row.parent_task_id ? this.findParentTask(personId, row.parent_task_id) : undefined,
         this.getRevisions(personId, taskId),
         this.getHistory(taskId),
+        this.listTodos(taskId),
       ]);
 
       task.parent_task = parentTask ?? null;
       task.revisions = revisions;
       task.history = history;
+      task.todos = todos;
     }
 
     return task;
@@ -387,6 +422,72 @@ export class TaskBoardRepository {
     });
   }
 
+  /* ----------------------------- Todos ----------------------------- */
+
+  async listTodos(taskId: number): Promise<TaskTodo[]> {
+    const rows = await db(Tables.TB_TASK_TODOS)
+      .where({ task_id: taskId })
+      .orderBy('id', 'asc')
+      .select<TaskTodoRow[]>('*');
+    return rows.map(toTaskTodo);
+  }
+
+  async findTodoById(
+    taskId: number,
+    todoId: number,
+  ): Promise<TaskTodo | undefined> {
+    if (!Number.isInteger(todoId)) return undefined;
+    const row = await db(Tables.TB_TASK_TODOS)
+      .where({ id: todoId, task_id: taskId })
+      .first<TaskTodoRow>('*');
+    return row ? toTaskTodo(row) : undefined;
+  }
+
+  async createTodo(
+    taskId: number,
+    input: TaskTodoCreateInput,
+  ): Promise<TaskTodo> {
+    const [id] = await db(Tables.TB_TASK_TODOS).insert({
+      task_id: taskId,
+      title: input.title,
+      description: input.description ?? '',
+      is_done: false,
+    });
+    const row = await db(Tables.TB_TASK_TODOS)
+      .where({ id })
+      .first<TaskTodoRow>('*');
+    return toTaskTodo(row!);
+  }
+
+  async updateTodo(
+    taskId: number,
+    todoId: number,
+    patch: TaskTodoUpdateInput,
+  ): Promise<TaskTodo | undefined> {
+    const updateData: Record<string, unknown> = {};
+    if (patch.title !== undefined) updateData.title = patch.title;
+    if (patch.description !== undefined) {
+      updateData.description = patch.description;
+    }
+    if (patch.is_done !== undefined) updateData.is_done = patch.is_done;
+
+    if (Object.keys(updateData).length > 0) {
+      updateData.updated_at = db.fn.now();
+      await db(Tables.TB_TASK_TODOS)
+        .where({ id: todoId, task_id: taskId })
+        .update(updateData);
+    }
+
+    return this.findTodoById(taskId, todoId);
+  }
+
+  async deleteTodo(taskId: number, todoId: number): Promise<boolean> {
+    const deleted = await db(Tables.TB_TASK_TODOS)
+      .where({ id: todoId, task_id: taskId })
+      .del();
+    return deleted > 0;
+  }
+
   private async findParentTask(personId: number, parentTaskId: number): Promise<Task | undefined> {
     const row = await this.findRowById(personId, parentTaskId);
     if (!row) return undefined;
@@ -404,7 +505,14 @@ export class TaskBoardRepository {
       db(Tables.TB_TASK_DESCRIPTIONS)
         .whereIn('task_id', taskIds)
         .orderBy('id', 'asc')
-        .select<TaskDescriptionRow[]>('id', 'task_id', 'title', 'content'),
+        .select<TaskDescriptionRow[]>(
+          'id',
+          'task_id',
+          'title',
+          'content',
+          'created_at',
+          'updated_at',
+        ),
       db(Tables.TB_TASK_LINKS)
         .whereIn('task_id', taskIds)
         .orderBy('id', 'asc')
@@ -422,10 +530,12 @@ export class TaskBoardRepository {
     return rows.map((row) =>
       toTask(
         row,
-        (descriptionsByTask.get(row.id) ?? []).map(({ id, title, content }) => ({
+        (descriptionsByTask.get(row.id) ?? []).map(({ id, title, content, created_at, updated_at }) => ({
           id,
           title,
           content,
+          created_at,
+          updated_at,
         })),
         linksByTask.get(row.id) ?? [],
         imagesByTask.get(row.id) ?? [],

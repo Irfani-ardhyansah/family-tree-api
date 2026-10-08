@@ -52,8 +52,9 @@ services:
     ports:
       - "${PORT:-3000}:3000"
     volumes:
-      - family_suite_uploads:/app/uploads
-      - family_suite_logs:/app/logs
+      # Override dengan bind mount host (mis. SD card di STB). Kosong = named volume.
+      - ${UPLOADS_HOST_PATH:-family_suite_uploads}:/app/uploads
+      - ${LOGS_HOST_PATH:-family_suite_logs}:/app/logs
     networks:
       - internal
       - shared_net

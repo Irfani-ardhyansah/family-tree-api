@@ -42,6 +42,20 @@ taskBoardRoutes.get('/:id/revisions', (req, res, next) => {
   void taskBoardController.getRevisions(req, res, next);
 });
 
+// Todos (checklist) dalam sebuah task
+taskBoardRoutes.get('/:id/todos', (req, res, next) => {
+  void taskBoardController.listTodos(req, res, next);
+});
+taskBoardRoutes.post('/:id/todos', (req, res, next) => {
+  void taskBoardController.createTodo(req, res, next);
+});
+taskBoardRoutes.patch('/:id/todos/:todoId', (req, res, next) => {
+  void taskBoardController.updateTodo(req, res, next);
+});
+taskBoardRoutes.delete('/:id/todos/:todoId', (req, res, next) => {
+  void taskBoardController.deleteTodo(req, res, next);
+});
+
 // Create task
 taskBoardRoutes.post('/', (req, res, next) => {
   void taskBoardController.create(req, res, next);

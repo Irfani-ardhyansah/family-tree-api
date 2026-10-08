@@ -45,6 +45,57 @@ export class TaskBoardController {
     }
   }
 
+  async listTodos(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const taskId = parseInt(req.params.id, 10);
+      const data = await taskBoardService.listTodos(req.auth!.personId, taskId);
+      sendData(res, data);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async createTodo(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const taskId = parseInt(req.params.id, 10);
+      const data = await taskBoardService.createTodo(
+        req.auth!.personId,
+        taskId,
+        req.body,
+      );
+      sendData(res, data, 201);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async updateTodo(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const taskId = parseInt(req.params.id, 10);
+      const todoId = parseInt(req.params.todoId, 10);
+      const data = await taskBoardService.updateTodo(
+        req.auth!.personId,
+        taskId,
+        todoId,
+        req.body,
+      );
+      sendData(res, data);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async deleteTodo(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const taskId = parseInt(req.params.id, 10);
+      const todoId = parseInt(req.params.todoId, 10);
+      await taskBoardService.deleteTodo(req.auth!.personId, taskId, todoId);
+      sendData(res, { deleted: true });
+    } catch (error) {
+      next(error);
+    }
+  }
+
   async create(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const data = await taskBoardService.create(req.auth!.personId, req.body);

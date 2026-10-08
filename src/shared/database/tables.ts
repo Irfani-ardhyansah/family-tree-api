@@ -62,6 +62,7 @@ export const Tables = {
   MONEY_DEBTS: 'mt_debts',
   MONEY_DEBT_PAYMENTS: 'mt_debt_payments',
   MONEY_BUDGETS: 'mt_budgets',
+  MONEY_PREFERENCES: 'mt_preferences',
   MONEY_AUDIT_LOGS: 'mt_audit_logs',
 
   // pa_ (Portfolio Analytics)
@@ -76,6 +77,7 @@ export const Tables = {
   TB_TASK_IMAGES: 'tb_task_images',
   TB_TASK_DESCRIPTIONS: 'tb_task_descriptions',
   TB_TASK_HISTORY: 'tb_task_history',
+  TB_TASK_TODOS: 'tb_task_todos',
 } as const;
 
 export type TableName = (typeof Tables)[keyof typeof Tables];

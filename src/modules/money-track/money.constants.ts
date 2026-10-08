@@ -58,6 +58,15 @@ export const EWALLET_POCKET_NAME = 'Utama';
 
 export const BUDGET_NEAR_THRESHOLD_PCT = 80;
 
+/** Preferensi: tipe transaksi default saat form dibuka. */
+export const MONEY_PREF_TX_TYPES = ['expense', 'income'] as const;
+export type MoneyPrefTxType = (typeof MONEY_PREF_TX_TYPES)[number];
+
+/** Batas preset nominal cepat di numpad. */
+export const MONEY_QUICK_AMOUNT_MAX = 6;
+
+export const DEFAULT_MONEY_QUICK_AMOUNTS = [10000, 20000, 50000, 100000, 200000];
+
 export const DEFAULT_POCKETS: ReadonlyArray<{
   name: string;
   category: Exclude<MoneyPocketCategory, 'custom'>;

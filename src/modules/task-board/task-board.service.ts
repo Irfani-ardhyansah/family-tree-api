@@ -6,6 +6,8 @@ import type {
   TaskDescriptionInput,
   TaskHistoryEntry,
   TaskListQuery,
+  TaskTodo,
+  TaskTodoUpdateInput,
   TaskUpdateInput,
 } from './task-board.types';
 import { taskBoardRepository } from './task-board.repository';
@@ -26,6 +28,8 @@ const MAX_MIGRATION_FILES = 50;
 const MAX_MIGRATION_FILE_NAME = 255;
 const MIGRATION_FILE_EXTENSIONS = ['.ts', '.js', '.sql'] as const;
 const MAX_NOTES_LENGTH = 5000;
+const MAX_TODO_TITLE = 255;
+const MAX_TODO_DESCRIPTION = 100000;
 
 function parseTaskType(value: unknown, field: string): TaskCreateInput['type'] {
   if (typeof value !== 'string' || !TASK_TYPES.includes(value as any)) {
@@ -96,6 +100,33 @@ function parseOptionalString(value: unknown, field: string, maxLength: number): 
     );
   }
   return value;
+}
+
+/** Deskripsi todo: `undefined` = tidak diubah, `null`/'' = dikosongkan. */
+function parseTodoDescription(
+  value: unknown,
+  field: string,
+): string | undefined {
+  if (value === undefined) return undefined;
+  if (value === null) return '';
+  if (typeof value !== 'string') {
+    throw new AppError(422, ErrorCodes.VALIDATION_ERROR, `${field} harus string.`);
+  }
+  if (value.length > MAX_TODO_DESCRIPTION) {
+    throw new AppError(
+      422,
+      ErrorCodes.VALIDATION_ERROR,
+      `${field} maksimal ${MAX_TODO_DESCRIPTION} karakter.`,
+    );
+  }
+  return value;
+}
+
+function parseBooleanFlag(value: unknown, field: string): boolean {
+  if (typeof value === 'boolean') return value;
+  if (value === 1 || value === '1' || value === 'true') return true;
+  if (value === 0 || value === '0' || value === 'false') return false;
+  throw new AppError(422, ErrorCodes.VALIDATION_ERROR, `${field} harus boolean.`);
 }
 
 function parseLinks(value: unknown): Array<{ type: 'discord' | 'notion' | 'mr'; url: string }> {
@@ -326,6 +357,78 @@ export class TaskBoardService {
     }
 
     return taskBoardRepository.getRevisions(personId, taskId);
+  }
+
+  /* ----------------------------- Todos ----------------------------- */
+
+  async listTodos(personId: number, taskId: number): Promise<TaskTodo[]> {
+    await this.assertTaskExists(personId, taskId);
+    return taskBoardRepository.listTodos(taskId);
+  }
+
+  async createTodo(
+    personId: number,
+    taskId: number,
+    body: unknown,
+  ): Promise<TaskTodo> {
+    await this.assertTaskExists(personId, taskId);
+    if (!body || typeof body !== 'object') {
+      throw new AppError(422, ErrorCodes.VALIDATION_ERROR, 'Body tidak valid.');
+    }
+    const raw = body as Record<string, unknown>;
+    const title = parseNonEmptyString(raw.title, 'title', MAX_TODO_TITLE);
+    const description =
+      parseTodoDescription(raw.description, 'description') ?? '';
+    return taskBoardRepository.createTodo(taskId, { title, description });
+  }
+
+  async updateTodo(
+    personId: number,
+    taskId: number,
+    todoId: number,
+    body: unknown,
+  ): Promise<TaskTodo> {
+    await this.assertTaskExists(personId, taskId);
+    if (!body || typeof body !== 'object') {
+      throw new AppError(422, ErrorCodes.VALIDATION_ERROR, 'Body tidak valid.');
+    }
+    const raw = body as Record<string, unknown>;
+    const patch: TaskTodoUpdateInput = {};
+    if (raw.title !== undefined) {
+      patch.title = parseNonEmptyString(raw.title, 'title', MAX_TODO_TITLE);
+    }
+    if (raw.description !== undefined) {
+      patch.description =
+        parseTodoDescription(raw.description, 'description') ?? '';
+    }
+    if (raw.is_done !== undefined) {
+      patch.is_done = parseBooleanFlag(raw.is_done, 'is_done');
+    }
+
+    const updated = await taskBoardRepository.updateTodo(taskId, todoId, patch);
+    if (!updated) {
+      throw new AppError(404, ErrorCodes.NOT_FOUND, 'Todo tidak ditemukan.');
+    }
+    return updated;
+  }
+
+  async deleteTodo(
+    personId: number,
+    taskId: number,
+    todoId: number,
+  ): Promise<void> {
+    await this.assertTaskExists(personId, taskId);
+    const deleted = await taskBoardRepository.deleteTodo(taskId, todoId);
+    if (!deleted) {
+      throw new AppError(404, ErrorCodes.NOT_FOUND, 'Todo tidak ditemukan.');
+    }
+  }
+
+  private async assertTaskExists(personId: number, taskId: number): Promise<void> {
+    const task = await taskBoardRepository.findRowById(personId, taskId);
+    if (!task) {
+      throw new AppError(404, ErrorCodes.NOT_FOUND, 'Task tidak ditemukan.');
+    }
   }
 
   async create(personId: number, body: unknown): Promise<Task> {
