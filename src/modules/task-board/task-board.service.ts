@@ -3,6 +3,7 @@ import { ErrorCodes } from '../../shared/errors/errorCodes';
 import type {
   Task,
   TaskCreateInput,
+  TaskDescription,
   TaskDescriptionInput,
   TaskHistoryEntry,
   TaskListQuery,
@@ -11,6 +12,7 @@ import type {
   TaskUpdateInput,
 } from './task-board.types';
 import { taskBoardRepository } from './task-board.repository';
+import { taskBoardWorkplaceRepository } from './task-board.workplace.repository';
 
 const TASK_TYPES = ['Bugfixing', 'Feature', 'Refactor'] as const;
 /** Status yang valid. "Done" sudah dihapus — status terakhir task adalah "Merged". */
@@ -179,6 +181,58 @@ function parseParentTaskId(value: unknown, field: string): number | null | undef
   return id;
 }
 
+/** `undefined` = tidak dikirim, `null` = lepas tempat kerja. */
+function parseWorkplaceId(
+  value: unknown,
+  field: string,
+): number | null | undefined {
+  if (value === undefined) return undefined;
+  if (value === null || value === '') return null;
+
+  const id = parseOptionalId(value, field);
+  if (id === undefined) {
+    throw new AppError(
+      422,
+      ErrorCodes.VALIDATION_ERROR,
+      `${field} harus id berupa angka positif.`,
+    );
+  }
+  return id;
+}
+
+/** Array id urut untuk reorder: non-kosong, bilangan bulat positif, tanpa duplikat. */
+function parseReorderIds(value: unknown, field: string): number[] {
+  if (!Array.isArray(value) || value.length === 0) {
+    throw new AppError(
+      422,
+      ErrorCodes.VALIDATION_ERROR,
+      `${field} harus array id dan tidak boleh kosong.`,
+    );
+  }
+
+  const ids = value.map((item, index) => {
+    const parsed = typeof item === 'string' ? Number(item) : item;
+    if (typeof parsed !== 'number' || !Number.isInteger(parsed) || parsed <= 0) {
+      throw new AppError(
+        422,
+        ErrorCodes.VALIDATION_ERROR,
+        `${field}[${index}] harus id berupa angka positif.`,
+      );
+    }
+    return parsed;
+  });
+
+  if (new Set(ids).size !== ids.length) {
+    throw new AppError(
+      422,
+      ErrorCodes.VALIDATION_ERROR,
+      `${field} memuat id duplikat.`,
+    );
+  }
+
+  return ids;
+}
+
 function parseDescriptions(
   value: unknown,
   field: string,
@@ -327,6 +381,10 @@ export class TaskBoardService {
     if (typeof query.search === 'string' && query.search.trim() !== '') {
       filters.search = query.search.trim();
     }
+    if (query.workplace_id !== undefined && query.workplace_id !== null) {
+      const workplaceId = parseOptionalId(query.workplace_id, 'workplace_id');
+      if (workplaceId !== undefined) filters.workplace_id = workplaceId;
+    }
 
     return taskBoardRepository.list(personId, filters);
   }
@@ -357,6 +415,87 @@ export class TaskBoardService {
     }
 
     return taskBoardRepository.getRevisions(personId, taskId);
+  }
+
+  /* ---------------------------- Reorder ---------------------------- */
+
+  /** PUT /tasks/reorder — simpan urutan manual list task. */
+  async reorder(personId: number, body: unknown): Promise<Task[]> {
+    if (!body || typeof body !== 'object') {
+      throw new AppError(422, ErrorCodes.VALIDATION_ERROR, 'Body tidak valid.');
+    }
+    const raw = body as Record<string, unknown>;
+    const ids = parseReorderIds(raw.order, 'order');
+
+    const owned = await taskBoardRepository.findOwnedTaskIds(personId, ids);
+    if (owned.length !== ids.length) {
+      const ownedSet = new Set(owned);
+      const invalid = ids.find((id) => !ownedSet.has(id));
+      throw new AppError(
+        422,
+        ErrorCodes.VALIDATION_ERROR,
+        `Task #${invalid} tidak ditemukan.`,
+      );
+    }
+
+    await taskBoardRepository.reorderTasks(personId, ids);
+    return taskBoardRepository.list(personId, {});
+  }
+
+  /** PUT /tasks/:id/descriptions/reorder — simpan urutan penjelasan. */
+  async reorderDescriptions(
+    personId: number,
+    taskId: number,
+    body: unknown,
+  ): Promise<TaskDescription[]> {
+    await this.assertTaskExists(personId, taskId);
+    if (!body || typeof body !== 'object') {
+      throw new AppError(422, ErrorCodes.VALIDATION_ERROR, 'Body tidak valid.');
+    }
+    const raw = body as Record<string, unknown>;
+    const ids = parseReorderIds(raw.order, 'order');
+
+    const existing = await taskBoardRepository.findDescriptionIds(taskId);
+    const existingSet = new Set(existing);
+    const invalid = ids.find((id) => !existingSet.has(id));
+    if (invalid !== undefined || ids.length !== existing.length) {
+      throw new AppError(
+        422,
+        ErrorCodes.VALIDATION_ERROR,
+        'order harus memuat tepat semua id penjelasan task ini.',
+      );
+    }
+
+    await taskBoardRepository.reorderDescriptions(taskId, ids);
+    return taskBoardRepository.listDescriptions(taskId);
+  }
+
+  /** PUT /tasks/:id/todos/reorder — simpan urutan todo. */
+  async reorderTodos(
+    personId: number,
+    taskId: number,
+    body: unknown,
+  ): Promise<TaskTodo[]> {
+    await this.assertTaskExists(personId, taskId);
+    if (!body || typeof body !== 'object') {
+      throw new AppError(422, ErrorCodes.VALIDATION_ERROR, 'Body tidak valid.');
+    }
+    const raw = body as Record<string, unknown>;
+    const ids = parseReorderIds(raw.order, 'order');
+
+    const existing = await taskBoardRepository.findTodoIds(taskId);
+    const existingSet = new Set(existing);
+    const invalid = ids.find((id) => !existingSet.has(id));
+    if (invalid !== undefined || ids.length !== existing.length) {
+      throw new AppError(
+        422,
+        ErrorCodes.VALIDATION_ERROR,
+        'order harus memuat tepat semua id todo task ini.',
+      );
+    }
+
+    await taskBoardRepository.reorderTodos(taskId, ids);
+    return taskBoardRepository.listTodos(taskId);
   }
 
   /* ----------------------------- Todos ----------------------------- */
@@ -431,6 +570,23 @@ export class TaskBoardService {
     }
   }
 
+  private async assertWorkplaceOwned(
+    personId: number,
+    workplaceId: number,
+  ): Promise<void> {
+    const workplace = await taskBoardWorkplaceRepository.findById(
+      personId,
+      workplaceId,
+    );
+    if (!workplace) {
+      throw new AppError(
+        422,
+        ErrorCodes.VALIDATION_ERROR,
+        'workplace_id tidak ditemukan atau bukan milikmu.',
+      );
+    }
+  }
+
   async create(personId: number, body: unknown): Promise<Task> {
     if (!body || typeof body !== 'object') {
       throw new AppError(422, ErrorCodes.VALIDATION_ERROR, 'Body tidak valid.');
@@ -451,10 +607,14 @@ export class TaskBoardService {
     const deployNotes = parseOptionalString(raw.deployNotes, 'deployNotes', 100000);
     const migrationFiles = parseMigrationFiles(raw.migration_files);
     const parentTaskId = parseParentTaskId(raw.parent_task_id, 'parent_task_id');
+    const workplaceId = parseWorkplaceId(raw.workplace_id, 'workplace_id');
     const notes = parseOptionalString(raw.notes ?? raw.statusNotes, 'notes', MAX_NOTES_LENGTH);
 
     if (parentTaskId !== undefined && parentTaskId !== null) {
       await this.assertRevisionParent(personId, parentTaskId);
+    }
+    if (workplaceId !== undefined && workplaceId !== null) {
+      await this.assertWorkplaceOwned(personId, workplaceId);
     }
 
     return taskBoardRepository.create(personId, {
@@ -467,6 +627,7 @@ export class TaskBoardService {
       deploy_notes: deployNotes,
       migration_files: migrationFiles,
       parent_task_id: parentTaskId ?? null,
+      workplace_id: workplaceId ?? null,
       status_notes: notes,
     });
   }
@@ -517,6 +678,14 @@ export class TaskBoardService {
         await this.assertRevisionParent(personId, parentTaskId, taskId);
       }
       updateData.parent_task_id = parentTaskId;
+    }
+
+    const workplaceId = parseWorkplaceId(raw.workplace_id, 'workplace_id');
+    if (workplaceId !== undefined) {
+      if (workplaceId !== null) {
+        await this.assertWorkplaceOwned(personId, workplaceId);
+      }
+      updateData.workplace_id = workplaceId;
     }
 
     const notes = parseOptionalString(raw.notes ?? raw.statusNotes, 'notes', MAX_NOTES_LENGTH);

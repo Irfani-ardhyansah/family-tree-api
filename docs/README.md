@@ -61,7 +61,11 @@ docs/
 
 ### Pending
 
-_Tidak ada._ Spek FE baru yang belum dikerjakan BE taruh di [`requests/from-fe/pending/`](./requests/from-fe/pending/).
+| File | Topik | Status BE |
+|---|---|---|
+| [`pending/TASK-BOARD-ORDERING-API.md`](./requests/from-fe/pending/TASK-BOARD-ORDERING-API.md) | Task board: urutan manual list task (`sort_order` + `PUT /tasks/reorder`) | ⏳ Menunggu review |
+| [`pending/TASK-BOARD-WORKPLACES-API.md`](./requests/from-fe/pending/TASK-BOARD-WORKPLACES-API.md) | Task board: tempat kerja (workplaces) + migrasi/backfill task lama | ⏳ Menunggu review |
+| [`pending/TASK-BOARD-ITEM-ORDERING-API.md`](./requests/from-fe/pending/TASK-BOARD-ITEM-ORDERING-API.md) | Task board: urutan penjelasan & todo di halaman detail | ⏳ Menunggu review |
 
 ---
 

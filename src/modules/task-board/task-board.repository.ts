@@ -44,6 +44,8 @@ interface TaskRow {
   deploy_notes: string | null;
   migration_files: unknown;
   parent_task_id: number | null;
+  workplace_id: number | null;
+  sort_order: number;
   created_at: string;
   updated_at: string;
 }
@@ -56,6 +58,7 @@ type TaskDescriptionRow = {
   task_id: number;
   title: string;
   content: string;
+  sort_order: number;
   created_at: string;
   updated_at: string;
 };
@@ -67,6 +70,7 @@ interface TaskTodoRow {
   title: string;
   description: string;
   is_done: boolean | number;
+  sort_order: number;
   created_at: string;
   updated_at: string;
 }
@@ -78,6 +82,7 @@ function toTaskTodo(row: TaskTodoRow): TaskTodo {
     title: row.title,
     description: row.description,
     is_done: row.is_done === true || row.is_done === 1,
+    sort_order: row.sort_order,
     created_at: row.created_at,
     updated_at: row.updated_at,
   };
@@ -141,9 +146,7 @@ function toTask(
 
 export class TaskBoardRepository {
   async list(personId: number, query: TaskListQuery = {}): Promise<Task[]> {
-    let q = db(Tables.TB_TASKS)
-      .where({ person_id: personId })
-      .orderBy('updated_at', 'desc');
+    let q = db(Tables.TB_TASKS).where({ person_id: personId });
 
     if (query.type) {
       q = q.where({ type: query.type });
@@ -151,6 +154,10 @@ export class TaskBoardRepository {
 
     if (query.status) {
       q = q.where({ status: query.status });
+    }
+
+    if (query.workplace_id) {
+      q = q.where({ workplace_id: query.workplace_id });
     }
 
     if (query.search) {
@@ -170,7 +177,10 @@ export class TaskBoardRepository {
       });
     }
 
-    const rows = await q.select<TaskRow[]>('*');
+    const rows = await q
+      .orderBy('sort_order', 'asc')
+      .orderBy('id', 'asc')
+      .select<TaskRow[]>('*');
     return this.hydrate(rows);
   }
 
@@ -212,6 +222,14 @@ export class TaskBoardRepository {
 
   async create(personId: number, input: TaskCreateInput): Promise<Task> {
     const taskId = await db.transaction(async (trx) => {
+      const [maxRow] = await trx(Tables.TB_TASKS)
+        .where({ person_id: personId })
+        .max<Array<{ max_order: number | null }>>({ max_order: 'sort_order' });
+      const nextOrder =
+        maxRow?.max_order === null || maxRow?.max_order === undefined
+          ? 0
+          : Number(maxRow.max_order) + 1;
+
       const [insertedId] = await trx(Tables.TB_TASKS).insert({
         person_id: personId,
         type: input.type,
@@ -221,6 +239,8 @@ export class TaskBoardRepository {
         deploy_notes: input.deploy_notes ?? null,
         migration_files: serializeMigrationFiles(input.migration_files),
         parent_task_id: input.parent_task_id ?? null,
+        workplace_id: input.workplace_id ?? null,
+        sort_order: nextOrder,
       });
 
       const descriptions = input.descriptions ?? [];
@@ -280,6 +300,7 @@ export class TaskBoardRepository {
         updateData.migration_files = serializeMigrationFiles(input.migration_files);
       }
       if (input.parent_task_id !== undefined) updateData.parent_task_id = input.parent_task_id;
+      if (input.workplace_id !== undefined) updateData.workplace_id = input.workplace_id;
 
       if (Object.keys(updateData).length > 0) {
         updateData.updated_at = trx.fn.now();
@@ -427,6 +448,7 @@ export class TaskBoardRepository {
   async listTodos(taskId: number): Promise<TaskTodo[]> {
     const rows = await db(Tables.TB_TASK_TODOS)
       .where({ task_id: taskId })
+      .orderBy('sort_order', 'asc')
       .orderBy('id', 'asc')
       .select<TaskTodoRow[]>('*');
     return rows.map(toTaskTodo);
@@ -447,11 +469,20 @@ export class TaskBoardRepository {
     taskId: number,
     input: TaskTodoCreateInput,
   ): Promise<TaskTodo> {
+    const [maxRow] = await db(Tables.TB_TASK_TODOS)
+      .where({ task_id: taskId })
+      .max<Array<{ max_order: number | null }>>({ max_order: 'sort_order' });
+    const nextOrder =
+      maxRow?.max_order === null || maxRow?.max_order === undefined
+        ? 0
+        : Number(maxRow.max_order) + 1;
+
     const [id] = await db(Tables.TB_TASK_TODOS).insert({
       task_id: taskId,
       title: input.title,
       description: input.description ?? '',
       is_done: false,
+      sort_order: nextOrder,
     });
     const row = await db(Tables.TB_TASK_TODOS)
       .where({ id })
@@ -488,6 +519,89 @@ export class TaskBoardRepository {
     return deleted > 0;
   }
 
+  /* --------------------------- Reordering --------------------------- */
+
+  /** Id task milik user dari daftar id (untuk validasi ownership). */
+  async findOwnedTaskIds(personId: number, ids: number[]): Promise<number[]> {
+    if (ids.length === 0) return [];
+    const rows = await db(Tables.TB_TASKS)
+      .where({ person_id: personId })
+      .whereIn('id', ids)
+      .select<Array<{ id: number }>>('id');
+    return rows.map((row) => row.id);
+  }
+
+  /** Set `sort_order` task sesuai urutan id yang dikirim. */
+  async reorderTasks(personId: number, ids: number[]): Promise<void> {
+    await db.transaction(async (trx) => {
+      for (let index = 0; index < ids.length; index += 1) {
+        await trx(Tables.TB_TASKS)
+          .where({ id: ids[index], person_id: personId })
+          .update({ sort_order: index });
+      }
+    });
+  }
+
+  async listDescriptions(taskId: number): Promise<TaskDescription[]> {
+    const rows = await db(Tables.TB_TASK_DESCRIPTIONS)
+      .where({ task_id: taskId })
+      .orderBy('sort_order', 'asc')
+      .orderBy('id', 'asc')
+      .select<TaskDescriptionRow[]>(
+        'id',
+        'task_id',
+        'title',
+        'content',
+        'sort_order',
+        'created_at',
+        'updated_at',
+      );
+    return rows.map(
+      ({ id, title, content, sort_order, created_at, updated_at }) => ({
+        id,
+        title,
+        content,
+        sort_order,
+        created_at,
+        updated_at,
+      }),
+    );
+  }
+
+  async findDescriptionIds(taskId: number): Promise<number[]> {
+    const rows = await db(Tables.TB_TASK_DESCRIPTIONS)
+      .where({ task_id: taskId })
+      .select<Array<{ id: number }>>('id');
+    return rows.map((row) => row.id);
+  }
+
+  async reorderDescriptions(taskId: number, ids: number[]): Promise<void> {
+    await db.transaction(async (trx) => {
+      for (let index = 0; index < ids.length; index += 1) {
+        await trx(Tables.TB_TASK_DESCRIPTIONS)
+          .where({ id: ids[index], task_id: taskId })
+          .update({ sort_order: index });
+      }
+    });
+  }
+
+  async findTodoIds(taskId: number): Promise<number[]> {
+    const rows = await db(Tables.TB_TASK_TODOS)
+      .where({ task_id: taskId })
+      .select<Array<{ id: number }>>('id');
+    return rows.map((row) => row.id);
+  }
+
+  async reorderTodos(taskId: number, ids: number[]): Promise<void> {
+    await db.transaction(async (trx) => {
+      for (let index = 0; index < ids.length; index += 1) {
+        await trx(Tables.TB_TASK_TODOS)
+          .where({ id: ids[index], task_id: taskId })
+          .update({ sort_order: index });
+      }
+    });
+  }
+
   private async findParentTask(personId: number, parentTaskId: number): Promise<Task | undefined> {
     const row = await this.findRowById(personId, parentTaskId);
     if (!row) return undefined;
@@ -504,12 +618,14 @@ export class TaskBoardRepository {
     const [descriptionRows, links, images] = await Promise.all([
       db(Tables.TB_TASK_DESCRIPTIONS)
         .whereIn('task_id', taskIds)
+        .orderBy('sort_order', 'asc')
         .orderBy('id', 'asc')
         .select<TaskDescriptionRow[]>(
           'id',
           'task_id',
           'title',
           'content',
+          'sort_order',
           'created_at',
           'updated_at',
         ),
@@ -530,10 +646,11 @@ export class TaskBoardRepository {
     return rows.map((row) =>
       toTask(
         row,
-        (descriptionsByTask.get(row.id) ?? []).map(({ id, title, content, created_at, updated_at }) => ({
+        (descriptionsByTask.get(row.id) ?? []).map(({ id, title, content, sort_order, created_at, updated_at }) => ({
           id,
           title,
           content,
+          sort_order,
           created_at,
           updated_at,
         })),
@@ -549,10 +666,11 @@ export class TaskBoardRepository {
     descriptions: TaskDescriptionInput[],
   ): Promise<void> {
     await trx(Tables.TB_TASK_DESCRIPTIONS).insert(
-      descriptions.map((description) => ({
+      descriptions.map((description, index) => ({
         task_id: taskId,
         title: description.title,
         content: description.content,
+        sort_order: index,
       })),
     );
   }
@@ -579,6 +697,14 @@ export class TaskBoardRepository {
         .del();
     }
 
+    const [maxRow] = await trx(Tables.TB_TASK_DESCRIPTIONS)
+      .where({ task_id: taskId })
+      .max<Array<{ max_order: number | null }>>({ max_order: 'sort_order' });
+    let nextOrder =
+      maxRow?.max_order === null || maxRow?.max_order === undefined
+        ? 0
+        : Number(maxRow.max_order) + 1;
+
     for (const description of descriptions) {
       const descriptionId = description.id;
 
@@ -597,7 +723,9 @@ export class TaskBoardRepository {
         task_id: taskId,
         title: description.title,
         content: description.content,
+        sort_order: nextOrder,
       });
+      nextOrder += 1;
     }
 
     return diff;

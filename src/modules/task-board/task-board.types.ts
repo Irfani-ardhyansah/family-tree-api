@@ -5,6 +5,14 @@ export type TaskStatus = 'To-Do' | 'In Progress' | 'Merged';
 
 export type LinkType = 'discord' | 'notion' | 'mr';
 
+/** Jenis pekerjaan tempat kerja. */
+export type EmploymentType =
+  | 'Fulltime'
+  | 'Freelance'
+  | 'Part-time'
+  | 'Contract'
+  | 'Personal';
+
 export interface TaskLink {
   id?: number;
   type: LinkType;
@@ -21,6 +29,8 @@ export interface TaskDescription {
   id?: number;
   title: string;
   content: string;
+  /** Posisi urutan manual (0 = paling atas). */
+  sort_order?: number;
   created_at?: string;
   updated_at?: string;
 }
@@ -33,6 +43,8 @@ export interface TaskTodo {
   /** HTML dari editor (boleh kosong). */
   description: string;
   is_done: boolean;
+  /** Posisi urutan manual (0 = paling atas). */
+  sort_order?: number;
   created_at: string;
   updated_at: string;
 }
@@ -47,6 +59,40 @@ export interface TaskTodoUpdateInput {
   description?: string;
   is_done?: boolean;
 }
+
+/**
+ * Tempat kerja / kantor yang menaungi task. Dimiliki per `person_id`
+ * (owner-scoped) dan bisa diarsipkan (soft delete).
+ */
+export interface Workplace {
+  id: number;
+  person_id: number;
+  name: string;
+  employment_type: EmploymentType;
+  role: string | null;
+  location: string | null;
+  /** Kunci warna aksen (mis. `amber`, `sky`). */
+  accent: string | null;
+  started_at: string | null;
+  ended_at: string | null;
+  /** Tempat kerja bawaan untuk task lama yang belum punya kantor. */
+  is_default: boolean;
+  archived_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface WorkplaceCreateInput {
+  name: string;
+  employment_type: EmploymentType;
+  role?: string | null;
+  location?: string | null;
+  accent?: string | null;
+  started_at?: string | null;
+  ended_at?: string | null;
+}
+
+export type WorkplaceUpdateInput = Partial<WorkplaceCreateInput>;
 
 /**
  * Jenis aksi di riwayat task.
@@ -102,6 +148,10 @@ export interface Task {
   migration_files: string[];
   /** Kalau terisi, task ini revisi dari task tersebut. */
   parent_task_id: number | null;
+  /** Tempat kerja pemilik task. `null` = belum ditentukan. */
+  workplace_id: number | null;
+  /** Posisi urutan manual pada list (0 = paling atas). */
+  sort_order: number;
   links: TaskLink[];
   images: TaskImage[];
   /** Terisi di GET /tasks/:id kalau task ini revisi. */
@@ -132,6 +182,7 @@ export interface TaskCreateInput {
   deploy_notes?: string;
   migration_files?: string[];
   parent_task_id?: number | null;
+  workplace_id?: number | null;
   /** Notes untuk entri history pertama. */
   status_notes?: string;
 }
@@ -146,6 +197,7 @@ export interface TaskUpdateInput {
   deploy_notes?: string;
   migration_files?: string[];
   parent_task_id?: number | null;
+  workplace_id?: number | null;
   /** Notes yang ikut disimpan di history saat status berubah. */
   status_notes?: string;
 }
@@ -154,4 +206,5 @@ export interface TaskListQuery {
   type?: TaskType;
   status?: TaskStatus;
   search?: string;
+  workplace_id?: number;
 }

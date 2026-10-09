@@ -19,6 +19,7 @@ import moneyRoutes from './modules/money-track/money.routes';
 import fcRoutes from './modules/family-core/fc.routes';
 import portfolioAnalyticsRoutes from './modules/portfolio-analytics/portfolio-analytics.routes';
 import taskBoardRoutes from './modules/task-board/task-board.routes';
+import taskBoardWorkplaceRoutes from './modules/task-board/task-board.workplace.routes';
 import { errorHandler, notFoundHandler } from './shared/errors/errorHandler';
 import {
   httpAuditLogMiddleware,
@@ -81,6 +82,7 @@ export function createApp() {
   app.use('/api/v1/fc', fcRoutes);
   app.use('/api/v1/analytics', portfolioAnalyticsRoutes);
   app.use('/api/v1/tasks', taskBoardRoutes);
+  app.use('/api/v1/workplaces', taskBoardWorkplaceRoutes);
 
   app.use(notFoundHandler);
   app.use(errorHandler);

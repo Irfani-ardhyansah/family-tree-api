@@ -56,6 +56,19 @@ taskBoardRoutes.delete('/:id/todos/:todoId', (req, res, next) => {
   void taskBoardController.deleteTodo(req, res, next);
 });
 
+// Reorder list task (urutan manual). WAJIB didaftarkan sebelum PUT /:id.
+taskBoardRoutes.put('/reorder', (req, res, next) => {
+  void taskBoardController.reorder(req, res, next);
+});
+
+// Reorder penjelasan & todo di dalam sebuah task
+taskBoardRoutes.put('/:id/descriptions/reorder', (req, res, next) => {
+  void taskBoardController.reorderDescriptions(req, res, next);
+});
+taskBoardRoutes.put('/:id/todos/reorder', (req, res, next) => {
+  void taskBoardController.reorderTodos(req, res, next);
+});
+
 // Create task
 taskBoardRoutes.post('/', (req, res, next) => {
   void taskBoardController.create(req, res, next);

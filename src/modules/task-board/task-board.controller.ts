@@ -45,6 +45,43 @@ export class TaskBoardController {
     }
   }
 
+  async reorder(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const data = await taskBoardService.reorder(req.auth!.personId, req.body);
+      sendData(res, { items: data });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async reorderDescriptions(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const taskId = parseInt(req.params.id, 10);
+      const data = await taskBoardService.reorderDescriptions(
+        req.auth!.personId,
+        taskId,
+        req.body,
+      );
+      sendData(res, { items: data });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async reorderTodos(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const taskId = parseInt(req.params.id, 10);
+      const data = await taskBoardService.reorderTodos(
+        req.auth!.personId,
+        taskId,
+        req.body,
+      );
+      sendData(res, { items: data });
+    } catch (error) {
+      next(error);
+    }
+  }
+
   async listTodos(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const taskId = parseInt(req.params.id, 10);
