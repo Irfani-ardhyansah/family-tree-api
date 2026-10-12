@@ -17,6 +17,7 @@ export const ADMIN_AUDIT_MODULE_IDS = [
   ...ADMIN_MODULE_IDS,
   'admin',
   'auth',
+  'task-board',
 ] as const;
 export type AdminAuditModuleId = (typeof ADMIN_AUDIT_MODULE_IDS)[number];
 

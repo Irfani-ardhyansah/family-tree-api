@@ -23,6 +23,7 @@ export const Tables = {
   BROADCASTS: 'core_broadcasts',
   NOTIFICATIONS: 'core_notifications',
   BACKUP_JOBS: 'core_backup_jobs',
+  AUTO_CLEANUP_SETTINGS: 'core_auto_cleanup_settings',
   PUSH_SUBSCRIPTIONS: 'core_push_subscriptions',
   SECONDARY_PASSWORDS: 'core_secondary_passwords',
   WEBAUTHN_CREDENTIALS: 'core_webauthn_credentials',

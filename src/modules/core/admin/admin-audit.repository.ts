@@ -156,12 +156,13 @@ export class AdminAuditRepository {
 
   async findByFilters(familyId: number, filters: AdminAuditLogQuery): Promise<UnifiedRow[]> {
     const offset = (filters.page - 1) * filters.pageSize;
+    const direction: 'asc' | 'desc' = filters.sort === 'asc' ? 'asc' : 'desc';
     const union = this.unifiedSubquery(familyId, filters).as('u');
     return db
       .from(union)
-      .orderBy('occurred_at', 'desc')
+      .orderBy('occurred_at', direction)
       .orderBy('source', 'asc')
-      .orderBy('id', 'desc')
+      .orderBy('id', direction)
       .limit(filters.pageSize)
       .offset(offset)
       .select<UnifiedRow[]>('*');

@@ -153,4 +153,13 @@ export const env = {
     collectEventsPerMinuteMax: 120,
     botCollectPerMinute: 30,
   },
+  /** Pembersihan otomatis admin: logs, file backup/export, data lama DB. */
+  autoCleanup: {
+    /** Frekuensi scheduler cek (menit). <= 0 = nonaktif. Default harian. */
+    intervalMinutes: Number(optional('CLEANUP_INTERVAL_MINUTES', '1440')),
+    /** Batas aman minimum retensi (hari). */
+    minRetentionDays: Number(optional('CLEANUP_MIN_RETENTION_DAYS', '7')),
+    /** Nilai awal `enabled` saat baris settings dibuat pertama kali. */
+    defaultEnabled: optional('CLEANUP_ENABLED', 'false') === 'true',
+  },
 } as const;

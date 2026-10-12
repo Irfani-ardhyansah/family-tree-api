@@ -12,6 +12,7 @@ export class AdminDashboardService {
       adminSessionsRepository.countActive(familyId),
       moduleStatusService.list(familyId),
       adminAuditRepository.findByFilters(familyId, {
+        sort: 'desc',
         page: 1,
         pageSize: 8,
       }),

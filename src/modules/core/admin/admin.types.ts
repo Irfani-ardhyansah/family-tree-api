@@ -40,6 +40,9 @@ export type ModuleStatusRow = {
 
 export type AdminAuditSource = 'admin' | 'money';
 
+/** Arah urutan kolom waktu (`occurred_at`) di daftar audit log. */
+export type AdminAuditSortOrder = 'asc' | 'desc';
+
 export type AdminAuditLogEntry = {
   id: number;
   /** `money` = dari mt_audit_logs; `admin` = core_admin_audit_logs. */
@@ -69,6 +72,8 @@ export type AdminAuditLogQuery = {
   action?: string;
   from?: string;
   to?: string;
+  /** Arah urutan `occurred_at`. Default `desc` (terbaru dulu). */
+  sort: AdminAuditSortOrder;
   page: number;
   pageSize: number;
 };
@@ -229,4 +234,43 @@ export type BackupJobRow = {
   error_message: string | null;
   created_at: Date | string;
   finished_at: Date | string | null;
+};
+
+/** Jenis data yang dibersihkan otomatis (auto cleanup). */
+export type CleanupTargets = {
+  appLogs: boolean;
+  backupHistory: boolean;
+  backupFiles: boolean;
+  logFiles: boolean;
+};
+
+/** Ringkasan jumlah yang dihapus pada satu kali run. */
+export type CleanupDeleted = {
+  appLogs: number;
+  backupHistory: number;
+  backupFiles: number;
+  logFiles: number;
+  freedBytes: number;
+};
+
+export type AutoCleanupSettings = {
+  enabled: boolean;
+  retentionDays: number;
+  targets: CleanupTargets;
+  minRetentionDays: number;
+  scheduleLabel: string;
+  lastRunAt: string | null;
+  lastResult: CleanupDeleted | null;
+};
+
+export type AutoCleanupSettingsRow = {
+  family_id: number;
+  enabled: boolean | number;
+  retention_days: number;
+  targets: string | CleanupTargets;
+  last_run_at: Date | string | null;
+  last_result: string | CleanupDeleted | null;
+  updated_by: number | null;
+  created_at: Date | string;
+  updated_at: Date | string;
 };

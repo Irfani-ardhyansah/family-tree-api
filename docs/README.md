@@ -33,6 +33,7 @@ docs/
 | [`reference/PERSONS-IMPORT-API.md`](./reference/PERSONS-IMPORT-API.md) | Bulk import persons (job + progress) |
 | [`reference/PORTFOLIO-ANALYTICS-API.md`](./reference/PORTFOLIO-ANALYTICS-API.md) | Collect publik + admin analytics portfolio |
 | [`reference/TASK-BOARD-API.md`](./reference/TASK-BOARD-API.md) | Task board: task, deskripsi, revisi, history |
+| [`reference/ADMIN-AUTO-CLEANUP-STB.md`](./reference/ADMIN-AUTO-CLEANUP-STB.md) | Tutorial STB: pembersihan otomatis (logs, backup/export, data lama DB) |
 | [`reference/adr/001-auth-tokens.md`](./reference/adr/001-auth-tokens.md) | ADR JWT + refresh tokens |
 | [`reference/seed/`](./reference/seed/) | Artifact seed (`mock-family-seed.json`) |
 | [`reference/templates/`](./reference/templates/) | Template CSV/JSON import |
@@ -63,9 +64,13 @@ docs/
 
 | File | Topik | Status BE |
 |---|---|---|
-| [`pending/TASK-BOARD-ORDERING-API.md`](./requests/from-fe/pending/TASK-BOARD-ORDERING-API.md) | Task board: urutan manual list task (`sort_order` + `PUT /tasks/reorder`) | ⏳ Menunggu review |
-| [`pending/TASK-BOARD-WORKPLACES-API.md`](./requests/from-fe/pending/TASK-BOARD-WORKPLACES-API.md) | Task board: tempat kerja (workplaces) + migrasi/backfill task lama | ⏳ Menunggu review |
-| [`pending/TASK-BOARD-ITEM-ORDERING-API.md`](./requests/from-fe/pending/TASK-BOARD-ITEM-ORDERING-API.md) | Task board: urutan penjelasan & todo di halaman detail | ⏳ Menunggu review |
+| [`pending/TASK-BOARD-ORDERING-API.md`](./requests/from-fe/pending/TASK-BOARD-ORDERING-API.md) | Task board: urutan manual list task (`sort_order` + `PUT /tasks/reorder`) | ✅ BE implemented — menunggu deploy |
+| [`pending/TASK-BOARD-WORKPLACES-API.md`](./requests/from-fe/pending/TASK-BOARD-WORKPLACES-API.md) | Task board: tempat kerja (workplaces) + migrasi/backfill task lama | ✅ BE implemented — menunggu deploy |
+| [`pending/TASK-BOARD-ITEM-ORDERING-API.md`](./requests/from-fe/pending/TASK-BOARD-ITEM-ORDERING-API.md) | Task board: urutan penjelasan & todo di halaman detail | ✅ BE implemented — menunggu deploy |
+| [`pending/TASK-BOARD-LOGS-BE-PROMPT.md`](./requests/from-fe/pending/TASK-BOARD-LOGS-BE-PROMPT.md) | Task board: logs aksi (app logs + admin audit) | ✅ BE implemented — menunggu deploy |
+| [`pending/ADMIN-AUTO-CLEANUP-BE-PROMPT.md`](./requests/from-fe/pending/ADMIN-AUTO-CLEANUP-BE-PROMPT.md) | Admin: pembersihan otomatis logs, backup/export, data lama DB | ✅ BE implemented — menunggu deploy |
+| [`pending/TASK-BOARD-MERGE-REQUEST-STATUS-BE-PROMPT.md`](./requests/from-fe/pending/TASK-BOARD-MERGE-REQUEST-STATUS-BE-PROMPT.md) | Task board: status baru `Merge Request` (enum + validasi + history) | ✅ BE implemented — menunggu deploy |
+| [`pending/ADMIN-AUDIT-LOG-SORT-BE-PROMPT.md`](./requests/from-fe/pending/ADMIN-AUDIT-LOG-SORT-BE-PROMPT.md) | Admin audit log: query `sort=asc\|desc` untuk urutan waktu | ✅ BE implemented — menunggu deploy |
 
 ---
 

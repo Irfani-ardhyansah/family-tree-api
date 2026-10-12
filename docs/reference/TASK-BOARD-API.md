@@ -10,9 +10,10 @@ Asal spek: [`../requests/from-fe/done/TASK-BOARD-API.md`](../requests/from-fe/do
 |---|---|
 | `To-Do` | belum dikerjakan (status awal saat create kalau `status` tidak dikirim) |
 | `In Progress` | sedang dikerjakan |
+| `Merge Request` | MR sudah dibuka, menunggu review/merge |
 | `Merged` | sudah di-merge. Status terakhir — `Done` sudah dihapus |
 
-`Done` dijawab `422` dengan pesan `status "Done" sudah tidak dipakai. Status yang valid: To-Do, In Progress, Merged.` Baris lama berstatus `Done` dilebur migration menjadi `Merged`.
+`Done` dijawab `422` dengan pesan `status "Done" sudah tidak dipakai. Status yang valid: To-Do, In Progress, Merge Request, Merged.` Baris lama berstatus `Done` dilebur migration menjadi `Merged`. Nilai `Merge Request` ditulis persis dengan spasi dan title case (sama seperti label link `mr`).
 
 ## Bentuk Task
 
@@ -199,11 +200,11 @@ Format umum: `{ "error": { "code": "VALIDATION_ERROR", "message": "Pesan Bahasa 
 |---|---|
 | `401 UNAUTHORIZED` | tanpa / token tidak valid |
 | `404 NOT_FOUND` | task tidak ada atau bukan milik user |
-| `422 VALIDATION_ERROR` | enum tidak valid, `descriptions` kosong/absen, `migration_files` bukan nama file valid, `parent_task_id` tidak ada / induk belum `Merged` / menunjuk diri sendiri / membentuk siklus, `descriptions` + `description` dikirim bersamaan |
+| `422 VALIDATION_ERROR` | enum tidak valid, `descriptions` kosong/absen, `migration_files` bukan nama file valid, `parent_task_id` tidak ada / induk belum `Merged` (termasuk `Merge Request`) / menunjuk diri sendiri / membentuk siklus, `descriptions` + `description` dikirim bersamaan |
 
 ## Catatan perilaku
 
 - Hapus task induk: revisi tidak ikut terhapus, `parent_task_id`-nya jadi `null` (FK `ON DELETE SET NULL`). Deskripsi, history, links, dan images milik task yang dihapus terhapus otomatis (cascade).
 - `descriptions` dan `history` hanya diubah lewat `POST`/`PUT` task; tidak ada endpoint per entri.
-- Revisi hanya boleh dibuat dari task berstatus `Merged` (induk belum Merged → `422`).
+- Revisi hanya boleh dibuat dari task berstatus `Merged` (induk `To-Do`, `In Progress`, atau `Merge Request` → `422`).
 

@@ -15,8 +15,11 @@ import { taskBoardRepository } from './task-board.repository';
 import { taskBoardWorkplaceRepository } from './task-board.workplace.repository';
 
 const TASK_TYPES = ['Bugfixing', 'Feature', 'Refactor'] as const;
-/** Status yang valid. "Done" sudah dihapus — status terakhir task adalah "Merged". */
-const TASK_STATUSES = ['To-Do', 'In Progress', 'Merged'] as const;
+/**
+ * Status yang valid. "Done" sudah dihapus — status terakhir task adalah "Merged".
+ * Urutannya mengikuti alur: To-Do → In Progress → Merge Request → Merged.
+ */
+const TASK_STATUSES = ['To-Do', 'In Progress', 'Merge Request', 'Merged'] as const;
 /** Status lama yang masih dikirim klien lama → dijawab pesan khusus. */
 const REMOVED_TASK_STATUSES = ['Done'] as const;
 const LINK_TYPES = ['discord', 'notion', 'mr'] as const;

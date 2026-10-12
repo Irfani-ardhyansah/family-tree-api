@@ -111,6 +111,15 @@ describe('create task — deskripsi', () => {
     );
   });
 
+  it('menerima status baru "Merge Request"', async () => {
+    await taskBoardService.create(personId, validBody({ status: 'Merge Request' }));
+
+    expect(taskBoardRepository.create).toHaveBeenCalledWith(
+      personId,
+      expect.objectContaining({ status: 'Merge Request' }),
+    );
+  });
+
   it('meneruskan notes sebagai entri history pertama', async () => {
     await taskBoardService.create(personId, validBody({ notes: 'Mulai dikerjakan' }));
 
@@ -172,6 +181,16 @@ describe('create task — revisi (parent/child)', () => {
     ).rejects.toThrow(/Revisi hanya boleh dibuat dari task berstatus "Merged"/);
   });
 
+  it('menolak revisi saat task induk berstatus "Merge Request"', async () => {
+    vi.mocked(taskBoardRepository.findRowById).mockResolvedValue(
+      taskRow({ id: 5, status: 'Merge Request' }),
+    );
+
+    await expect(
+      taskBoardService.create(personId, validBody({ parent_task_id: 5 })),
+    ).rejects.toThrow(/Revisi hanya boleh dibuat dari task berstatus "Merged"/);
+  });
+
   it('menolak parent_task_id yang tidak ada / bukan milik user', async () => {
     await expect(
       taskBoardService.create(personId, validBody({ parent_task_id: 999 })),
@@ -218,6 +237,22 @@ describe('update task', () => {
       personId,
       11,
       expect.objectContaining({ status_notes: 'sudah merge' }),
+    );
+  });
+
+  it('menerima update status ke "Merge Request" + notes', async () => {
+    await taskBoardService.update(personId, 11, {
+      status: 'Merge Request',
+      notes: 'MR sudah dibuka, menunggu review',
+    });
+
+    expect(taskBoardRepository.update).toHaveBeenCalledWith(
+      personId,
+      11,
+      expect.objectContaining({
+        status: 'Merge Request',
+        status_notes: 'MR sudah dibuka, menunggu review',
+      }),
     );
   });
 
@@ -305,6 +340,14 @@ describe('list task', () => {
       status: 'Merged',
       search: 'filter',
     });
+  });
+
+  it('meneruskan filter status "Merge Request"', async () => {
+    vi.mocked(taskBoardRepository.list).mockResolvedValue([]);
+
+    await taskBoardService.list(personId, { status: 'Merge Request' });
+
+    expect(taskBoardRepository.list).toHaveBeenCalledWith(personId, { status: 'Merge Request' });
   });
 });
 

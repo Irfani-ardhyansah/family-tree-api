@@ -5,6 +5,7 @@ import { sendData } from '../../../shared/utils/response';
 import { adminAuditService } from './admin-audit.service';
 import { adminBackupService } from './admin-backup.service';
 import { adminBroadcastService } from './admin-broadcast.service';
+import { adminCleanupService } from './admin-cleanup.service';
 import { adminDashboardService } from './admin-dashboard.service';
 import { adminSessionsService } from './admin-sessions.service';
 import { adminSettingsService } from './admin-settings.service';
@@ -225,6 +226,50 @@ export class AdminController {
         req.auth!.familyId,
         req.auth!.personId,
         req.file,
+      );
+      sendData(res, data);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async getCleanupSettings(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const data = await adminCleanupService.getSettings(req.auth!.familyId);
+      sendData(res, data);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async updateCleanupSettings(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const data = await adminCleanupService.updateSettings(
+        req.auth!.familyId,
+        req.auth!.personId,
+        (req.body ?? {}) as Record<string, unknown>,
+      );
+      sendData(res, data);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async previewCleanup(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const data = await adminCleanupService.preview(req.auth!.familyId);
+      sendData(res, data);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async runCleanup(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const data = await adminCleanupService.run(
+        req.auth!.familyId,
+        req.auth!.personId,
+        'manual',
       );
       sendData(res, data);
     } catch (error) {

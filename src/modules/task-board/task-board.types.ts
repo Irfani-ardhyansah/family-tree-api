@@ -1,7 +1,10 @@
 export type TaskType = 'Bugfixing' | 'Feature' | 'Refactor';
 
-/** Status task. "Done" dibuang — status terakhir task adalah "Merged". */
-export type TaskStatus = 'To-Do' | 'In Progress' | 'Merged';
+/**
+ * Status task. "Done" dibuang — status terakhir task adalah "Merged".
+ * "Merge Request" = MR sudah dibuka tapi belum di-merge (sebelum "Merged").
+ */
+export type TaskStatus = 'To-Do' | 'In Progress' | 'Merge Request' | 'Merged';
 
 export type LinkType = 'discord' | 'notion' | 'mr';
 

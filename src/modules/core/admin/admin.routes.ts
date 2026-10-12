@@ -82,6 +82,22 @@ adminRoutes.post('/settings/logo', mediaUploadMiddleware, (req, res, next) => {
   void adminController.uploadLogo(req, res, next);
 });
 
+adminRoutes.get('/cleanup/settings', (req, res, next) => {
+  void adminController.getCleanupSettings(req, res, next);
+});
+
+adminRoutes.put('/cleanup/settings', (req, res, next) => {
+  void adminController.updateCleanupSettings(req, res, next);
+});
+
+adminRoutes.get('/cleanup/preview', (req, res, next) => {
+  void adminController.previewCleanup(req, res, next);
+});
+
+adminRoutes.post('/cleanup/run', (req, res, next) => {
+  void adminController.runCleanup(req, res, next);
+});
+
 adminRoutes.get('/backups', (req, res, next) => {
   void adminController.listBackups(req, res, next);
 });

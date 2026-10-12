@@ -11,6 +11,7 @@ import {
   AdminAuditLogEntry,
   AdminAuditLogListResponse,
   AdminAuditLogQuery,
+  AdminAuditSortOrder,
   AdminAuditSource,
   RecordAdminAuditInput,
 } from './admin.types';
@@ -98,7 +99,17 @@ export class AdminAuditService {
 
     const q = typeof query.q === 'string' && query.q.trim() ? query.q.trim() : undefined;
 
-    return { q, userId, moduleId, action, from, to, page, pageSize };
+    const sortRaw = typeof query.sort === 'string' ? query.sort.trim() : '';
+    if (sortRaw && sortRaw !== 'asc' && sortRaw !== 'desc') {
+      throw new AppError(
+        422,
+        ErrorCodes.VALIDATION_ERROR,
+        'sort harus "asc" atau "desc".',
+      );
+    }
+    const sort: AdminAuditSortOrder = sortRaw === 'asc' ? 'asc' : 'desc';
+
+    return { q, userId, moduleId, action, from, to, sort, page, pageSize };
   }
 
   async list(familyId: number, rawQuery: Record<string, unknown>): Promise<AdminAuditLogListResponse> {

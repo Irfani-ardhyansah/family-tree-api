@@ -127,6 +127,43 @@ export class LogsService {
     if (normalized.startsWith('/auth/refresh') && method === 'POST') return 'auth.refresh';
     if (normalized.startsWith('/auth/me') && method === 'GET') return 'auth.me';
 
+    // Task Board
+    if (normalized.startsWith('/tasks')) {
+      if (normalized === '/tasks/reorder' && method === 'PUT') {
+        return 'task.reorder';
+      }
+      if (normalized.endsWith('/descriptions/reorder') && method === 'PUT') {
+        return 'task.description.reorder';
+      }
+      if (normalized.endsWith('/todos/reorder') && method === 'PUT') {
+        return 'task.todo.reorder';
+      }
+      if (normalized.includes('/todos') && method === 'POST') {
+        return 'task.todo.create';
+      }
+      if (normalized.includes('/todos') && method === 'PATCH') {
+        return 'task.todo.update';
+      }
+      if (normalized.includes('/todos') && method === 'DELETE') {
+        return 'task.todo.delete';
+      }
+      if (method === 'POST') return 'task.create';
+      if (method === 'PUT' || method === 'PATCH') return 'task.update';
+      if (method === 'DELETE') return 'task.delete';
+    }
+
+    if (normalized.startsWith('/workplaces')) {
+      if (normalized.endsWith('/archive') && method === 'PATCH') {
+        return 'workplace.archive';
+      }
+      if (normalized.endsWith('/unarchive') && method === 'PATCH') {
+        return 'workplace.unarchive';
+      }
+      if (method === 'POST') return 'workplace.create';
+      if (method === 'PUT' || method === 'PATCH') return 'workplace.update';
+      if (method === 'DELETE') return 'workplace.delete';
+    }
+
     if (method === 'GET' || method === 'HEAD' || method === 'OPTIONS') {
       return null;
     }
