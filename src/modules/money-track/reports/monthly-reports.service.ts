@@ -15,14 +15,15 @@ import { debtsRepository } from '../debts/debts.repository';
 import {
   changePercent1,
   eachDateInRange,
-  monthDateRange,
   parseYearMonth,
+  periodDateRange,
   previousYearMonth,
   round1,
   yearMonthLabel,
 } from '../money.helpers';
 import type { MoneyMonthlyReportResponse } from '../money.types';
 import { pocketsRepository } from '../pockets/pockets.repository';
+import { preferencesRepository } from '../preferences/preferences.repository';
 
 type AggRow = {
   amount: number | string;
@@ -93,9 +94,10 @@ export class MonthlyReportsService {
     }
 
     const workspaceId = ctx.workspace.id;
-    const { from, to } = monthDateRange(yearMonth);
+    const periodSettings = await preferencesRepository.getPeriodSettings(workspaceId);
+    const { from, to } = periodDateRange(yearMonth, periodSettings);
     const prevYm = previousYearMonth(yearMonth);
-    const prevRange = monthDateRange(prevYm);
+    const prevRange = periodDateRange(prevYm, periodSettings);
 
     const [
       curIncome,
@@ -216,6 +218,8 @@ export class MonthlyReportsService {
       previousPeriod: {
         yearMonth: prevYm,
         label: yearMonthLabel(prevYm),
+        from: prevRange.from,
+        to: prevRange.to,
       },
       scope,
       summary: {

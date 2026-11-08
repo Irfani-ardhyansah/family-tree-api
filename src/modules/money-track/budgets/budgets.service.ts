@@ -6,9 +6,10 @@ import {
   parsePositiveInt,
   resolveMoneyContext,
 } from '../money.access';
-import { monthDateRange, parseYearMonth } from '../money.helpers';
-import type { MoneyBudgetDto } from '../money.types';
+import { parseYearMonth, periodDateRange } from '../money.helpers';
+import type { MoneyBudgetDto, MoneyPeriodSettings } from '../money.types';
 import { categoriesRepository } from '../categories/categories.repository';
+import { preferencesRepository } from '../preferences/preferences.repository';
 import { budgetsRepository } from './budgets.repository';
 
 export class BudgetsService {
@@ -22,7 +23,10 @@ export class BudgetsService {
       throw new AppError(422, ErrorCodes.VALIDATION_ERROR, 'yearMonth wajib.');
     }
     const yearMonth = parseYearMonth(query.yearMonth, 'yearMonth');
-    return this.buildDtos(ctx.workspace.id, yearMonth);
+    const periodSettings = await preferencesRepository.getPeriodSettings(
+      ctx.workspace.id,
+    );
+    return this.buildDtos(ctx.workspace.id, yearMonth, periodSettings);
   }
 
   async upsert(
@@ -64,11 +68,18 @@ export class BudgetsService {
       });
     }
 
-    return this.buildDtos(ctx.workspace.id, yearMonth);
+    const periodSettings = await preferencesRepository.getPeriodSettings(
+      ctx.workspace.id,
+    );
+    return this.buildDtos(ctx.workspace.id, yearMonth, periodSettings);
   }
 
-  private async buildDtos(workspaceId: number, yearMonth: string): Promise<MoneyBudgetDto[]> {
-    const { from, to } = monthDateRange(yearMonth);
+  private async buildDtos(
+    workspaceId: number,
+    yearMonth: string,
+    periodSettings: MoneyPeriodSettings,
+  ): Promise<MoneyBudgetDto[]> {
+    const { from, to } = periodDateRange(yearMonth, periodSettings);
     const rows = await budgetsRepository.listByMonth(workspaceId, yearMonth);
     const categories = await categoriesRepository.list(workspaceId, 'expense');
     const catMap = new Map(categories.map((c) => [c.id, c]));

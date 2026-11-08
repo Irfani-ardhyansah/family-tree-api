@@ -99,6 +99,7 @@ docs/
 | [`pending/WEB-PUSH-FE-PROMPT.md`](./requests/to-fe/pending/WEB-PUSH-FE-PROMPT.md) | Web push | Spek siap |
 | [`pending/BIOMETRIC-LOGIN-FE-PROMPT.md`](./requests/to-fe/pending/BIOMETRIC-LOGIN-FE-PROMPT.md) | Login biometrik (WebAuthn) | Spek FE siap, BE live |
 | [`pending/MONEY-DEBT-POCKET-LINKING-FE-PROMPT.md`](./requests/to-fe/pending/MONEY-DEBT-POCKET-LINKING-FE-PROMPT.md) | Utang/piutang di-link ke kantong + `kind: "debt"` di list transaksi | Spek siap, BE live |
+| [`pending/MONEY-PERIOD-START-FE-PROMPT.md`](./requests/to-fe/pending/MONEY-PERIOD-START-FE-PROMPT.md) | Jadwal reset/gajian Money Track: tanggal mulai periode, hari kerja terakhir, libur manual | Spek siap, BE live |
 
 ---
 

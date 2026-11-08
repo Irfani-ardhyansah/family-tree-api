@@ -62,6 +62,38 @@ export const BUDGET_NEAR_THRESHOLD_PCT = 80;
 export const MONEY_PREF_TX_TYPES = ['expense', 'income'] as const;
 export type MoneyPrefTxType = (typeof MONEY_PREF_TX_TYPES)[number];
 
+/**
+ * Kapan periode bulanan Money Track mulai (jadwal "reset"/gajian).
+ *
+ * - `fixed_day`   : tanggal tetap 1–31 (diklem ke hari terakhir bulan pendek).
+ * - `last_day`    : hari terakhir bulan kalender.
+ * - `last_workday`: hari kerja terakhir bulan (Senin–Jumat + daftar `holidays`).
+ *
+ * Default `fixed_day` + `startDay = 1` = perilaku lama (periode = bulan kalender).
+ */
+export const MONEY_PERIOD_START_MODES = [
+  'fixed_day',
+  'last_day',
+  'last_workday',
+] as const;
+export type MoneyPeriodStartMode = (typeof MONEY_PERIOD_START_MODES)[number];
+
+/** Geser tanggal mulai kalau jatuh di Sabtu/Minggu. */
+export const MONEY_PERIOD_WEEKEND_ADJUSTS = [
+  'none',
+  'previous_workday',
+  'next_workday',
+] as const;
+export type MoneyPeriodWeekendAdjust =
+  (typeof MONEY_PERIOD_WEEKEND_ADJUSTS)[number];
+
+export const DEFAULT_MONEY_PERIOD_START_MODE: MoneyPeriodStartMode = 'fixed_day';
+export const DEFAULT_MONEY_PERIOD_START_DAY = 1;
+export const DEFAULT_MONEY_PERIOD_WEEKEND_ADJUST: MoneyPeriodWeekendAdjust = 'none';
+
+/** Batas tanggal libur manual yang boleh disimpan per workspace. */
+export const MONEY_PERIOD_HOLIDAY_MAX = 366;
+
 /** Batas preset nominal cepat di numpad. */
 export const MONEY_QUICK_AMOUNT_MAX = 6;
 

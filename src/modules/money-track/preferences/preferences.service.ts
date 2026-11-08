@@ -9,6 +9,7 @@ import type { MoneyPreferencesDto, MoneyScopedDefaultsDto } from '../money.types
 import {
   normalizeQuickAmounts,
   parseNullableId,
+  parsePeriodSettings,
   toPreferencesDto,
 } from './preferences.helpers';
 import { preferencesRepository } from './preferences.repository';
@@ -63,12 +64,20 @@ export class PreferencesService {
       }
     }
 
+    // `period` tidak dikirim (mis. FE lama) → pertahankan setting yang sudah ada,
+    // supaya jadwal gajian tidak ikut ter-reset ke tanggal 1.
+    const period =
+      raw.period === undefined
+        ? await preferencesRepository.getPeriodSettings(workspaceId)
+        : parsePeriodSettings(raw);
+
     const row = await preferencesRepository.upsert({
       workspaceId,
       defaultTxType,
       quickAmounts,
       shared,
       persons,
+      period,
     });
     return toPreferencesDto(row);
   }

@@ -1,10 +1,14 @@
 import { asNumber, toDateOnly } from '../money.access';
 import { BUDGET_NEAR_THRESHOLD_PCT } from '../money.constants';
-import { jakartaYearMonth, monthDateRange } from '../money.helpers';
+import {
+  currentPeriodYearMonth,
+  periodDateRange,
+} from '../money.helpers';
 import type { MoneyReminderDto } from '../money.types';
 import { budgetsRepository } from '../budgets/budgets.repository';
 import { categoriesRepository } from '../categories/categories.repository';
 import { debtsRepository } from '../debts/debts.repository';
+import { preferencesRepository } from '../preferences/preferences.repository';
 
 function formatRp(n: number): string {
   return `Rp ${n.toLocaleString('id-ID')}`;
@@ -45,8 +49,9 @@ export async function buildMoneyReminders(
     });
   }
 
-  const yearMonth = jakartaYearMonth();
-  const { from, to } = monthDateRange(yearMonth);
+  const periodSettings = await preferencesRepository.getPeriodSettings(workspaceId);
+  const yearMonth = currentPeriodYearMonth(new Date(), periodSettings);
+  const { from, to } = periodDateRange(yearMonth, periodSettings);
   const budgets = await budgetsRepository.listByMonth(workspaceId, yearMonth);
   const categories = await categoriesRepository.list(workspaceId, 'expense');
   const catMap = new Map(categories.map((c) => [c.id, c.name]));

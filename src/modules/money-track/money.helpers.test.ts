@@ -11,11 +11,18 @@ import {
   debtRemaining,
   debtStatusFromPaid,
   eachDateInRange,
+  currentPeriodYearMonth,
+  periodDateRange,
   previousYearMonth,
+  resolvePeriodStartDate,
   round1,
   yearMonthLabel,
 } from './money.helpers';
-import type { MoneyPocketRow, MoneyWorkspaceRow } from './money.types';
+import type {
+  MoneyPeriodSettings,
+  MoneyPocketRow,
+  MoneyWorkspaceRow,
+} from './money.types';
 
 function pocket(
   partial: Partial<MoneyPocketRow> & Pick<MoneyPocketRow, 'id' | 'owner_type' | 'owner_person_id'>,
@@ -133,6 +140,142 @@ describe('changePercent / yearMonth helpers', () => {
   it('yearMonthLabel is Indonesian', () => {
     expect(yearMonthLabel('2026-07')).toMatch(/Juli/);
     expect(yearMonthLabel('2026-07')).toMatch(/2026/);
+  });
+});
+
+describe('periode bulanan (jadwal reset/gajian)', () => {
+  const settings = (
+    partial: Partial<MoneyPeriodSettings>,
+  ): MoneyPeriodSettings => ({
+    startMode: 'fixed_day',
+    startDay: 1,
+    weekendAdjust: 'none',
+    holidays: [],
+    ...partial,
+  });
+
+  it('default tetap bulan kalender (tanggal 1)', () => {
+    expect(periodDateRange('2026-10', settings({}))).toEqual({
+      from: '2026-10-01',
+      to: '2026-10-31',
+    });
+  });
+
+  it('tanggal tetap: 25 Okt – 24 Nov', () => {
+    expect(
+      periodDateRange('2026-10', settings({ startDay: 25 })),
+    ).toEqual({ from: '2026-10-25', to: '2026-11-24' });
+  });
+
+  it('hari terakhir bulan', () => {
+    expect(
+      periodDateRange('2026-10', settings({ startMode: 'last_day' })),
+    ).toEqual({ from: '2026-10-31', to: '2026-11-29' });
+  });
+
+  it('hari kerja terakhir bulan (30/31 weekend → mundur Jumat)', () => {
+    // 31 Okt 2026 Sabtu, 30 Nov 2026 Senin.
+    expect(
+      periodDateRange('2026-10', settings({ startMode: 'last_workday' })),
+    ).toEqual({ from: '2026-10-30', to: '2026-11-29' });
+    // 31 Mei 2026 Minggu → Jumat 29 Mei.
+    expect(
+      resolvePeriodStartDate(
+        '2026-05',
+        settings({ startMode: 'last_workday' }),
+      ),
+    ).toBe('2026-05-29');
+  });
+
+  it('libur manual ikut dilewati (30/31 libur nasional)', () => {
+    // 31 Des 2026 Kamis, tapi kalau libur → Rabu 30 Des.
+    expect(
+      resolvePeriodStartDate(
+        '2026-12',
+        settings({
+          startMode: 'last_workday',
+          holidays: ['2026-12-31'],
+        }),
+      ),
+    ).toBe('2026-12-30');
+    expect(
+      resolvePeriodStartDate(
+        '2026-12',
+        settings({
+          startDay: 31,
+          weekendAdjust: 'previous_workday',
+          holidays: ['2026-12-31'],
+        }),
+      ),
+    ).toBe('2026-12-30');
+  });
+
+  it('tanggal 31 + geser ke hari kerja sebelumnya', () => {
+    expect(
+      periodDateRange(
+        '2026-10',
+        settings({ startDay: 31, weekendAdjust: 'previous_workday' }),
+      ),
+    ).toEqual({ from: '2026-10-30', to: '2026-11-29' });
+    // Februari pendek: 28 Feb 2026 Sabtu → Jumat 27 Feb.
+    expect(
+      resolvePeriodStartDate(
+        '2026-02',
+        settings({ startDay: 31, weekendAdjust: 'previous_workday' }),
+      ),
+    ).toBe('2026-02-27');
+  });
+
+  it('tanggal 1 + geser ke hari kerja berikutnya', () => {
+    expect(
+      periodDateRange(
+        '2026-11',
+        settings({ startDay: 1, weekendAdjust: 'next_workday' }),
+      ),
+    ).toEqual({ from: '2026-11-02', to: '2026-11-30' });
+  });
+
+  it('periode berjalan mengikuti jam Jakarta', () => {
+    const now = new Date('2026-11-08T05:00:00.000Z'); // 12:00 WIB
+    expect(currentPeriodYearMonth(now, settings({}))).toBe('2026-11');
+    expect(currentPeriodYearMonth(now, settings({ startDay: 25 }))).toBe(
+      '2026-10',
+    );
+    expect(
+      currentPeriodYearMonth(now, settings({ startMode: 'last_workday' })),
+    ).toBe('2026-10');
+    expect(
+      currentPeriodYearMonth(
+        new Date('2026-11-25T05:00:00.000Z'),
+        settings({ startDay: 25 }),
+      ),
+    ).toBe('2026-11');
+    expect(
+      currentPeriodYearMonth(
+        new Date('2026-11-30T05:00:00.000Z'),
+        settings({ startMode: 'last_workday' }),
+      ),
+    ).toBe('2026-11');
+  });
+
+  it('tetap benar saat tanggal mulai bergeser lintas bulan', () => {
+    // 31 Jan 2026 Sabtu + next_workday → mulai 2 Feb. Tanggal 1 Feb masih
+    // masuk periode Desember (31 Des 2025 – 1 Feb 2026).
+    expect(
+      currentPeriodYearMonth(
+        new Date('2026-02-01T05:00:00.000Z'),
+        settings({ startDay: 31, weekendAdjust: 'next_workday' }),
+      ),
+    ).toBe('2025-12');
+
+    // 1 Agu 2026 Sabtu + previous_workday → mulai 31 Jul. Tanggal 31 Jul
+    // sudah masuk periode Agustus.
+    expect(
+      currentPeriodYearMonth(
+        new Date('2026-07-31T05:00:00.000Z'),
+        settings({ startDay: 1, weekendAdjust: 'previous_workday' }),
+      ),
+    ).toBe('2026-08');
   });
 });
 

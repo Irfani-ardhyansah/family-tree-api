@@ -3,6 +3,8 @@ import type {
   MoneyCategoryType,
   MoneyDebtDirection,
   MoneyDebtStatus,
+  MoneyPeriodStartMode,
+  MoneyPeriodWeekendAdjust,
   MoneyPersonRole,
   MoneyPocketCategory,
   MoneyPocketOwnerType,
@@ -316,8 +318,30 @@ export type MoneyBalancingCheckItemDto = {
   diff: number;
 };
 
+/** Konfigurasi kapan periode bulanan mulai (jadwal reset/gajian). */
+export type MoneyPeriodSettings = {
+  startMode: MoneyPeriodStartMode;
+  /** 1–31; hanya dipakai saat `startMode = 'fixed_day'`. */
+  startDay: number;
+  weekendAdjust: MoneyPeriodWeekendAdjust;
+  /**
+   * Tanggal libur manual (YYYY-MM-DD) yang ikut dianggap bukan hari kerja.
+   * Dipakai `last_workday` dan `weekendAdjust` supaya 30/31 libur nasional bisa mundur.
+   */
+  holidays: string[];
+};
+
+/** Satu periode bulanan yang sudah di-resolve ke tanggal nyata. */
+export type MoneyPeriodDto = {
+  /** Key periode = bulan tempat periode dimulai (YYYY-MM). */
+  yearMonth: string;
+  label: string;
+  from: string;
+  to: string;
+};
+
 export type MoneyDashboardResponse = {
-  period: { yearMonth: string; label: string };
+  period: MoneyPeriodDto;
   scope: 'all' | 'person';
   mode: MoneyWorkspaceMode;
   summary: {
@@ -504,6 +528,10 @@ export type MoneyPreferencesRow = {
   quick_amounts: unknown;
   shared: unknown;
   persons: unknown;
+  period_start_mode: MoneyPeriodStartMode;
+  period_start_day: number;
+  period_weekend_adjust: MoneyPeriodWeekendAdjust;
+  period_holidays: unknown;
   created_at: Date | string;
   updated_at: Date | string;
 };
@@ -514,6 +542,10 @@ export type MoneyPreferencesDto = {
   shared: MoneyScopedDefaultsDto;
   /** key = personId (string) */
   persons: Record<string, MoneyScopedDefaultsDto>;
+  /** Jadwal reset/gajian + periode yang sedang berjalan. */
+  period: MoneyPeriodSettings & {
+    current: MoneyPeriodDto;
+  };
 };
 
 export type MoneyAuditLogRow = {
@@ -571,6 +603,8 @@ export type MoneyMonthlyReportResponse = {
   previousPeriod: {
     yearMonth: string;
     label: string;
+    from: string;
+    to: string;
   };
   scope: 'all' | 'person';
   summary: {

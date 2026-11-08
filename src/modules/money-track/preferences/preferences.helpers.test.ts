@@ -6,6 +6,7 @@ import {
   defaultPreferences,
   normalizeQuickAmounts,
   parseNullableId,
+  parsePeriodSettings,
   toPreferencesDto,
 } from './preferences.helpers';
 
@@ -46,9 +47,59 @@ describe('parseNullableId', () => {
   });
 });
 
+describe('parsePeriodSettings', () => {
+  it('default: tanggal 1, tanpa geser', () => {
+    expect(parsePeriodSettings({})).toEqual({
+      startMode: 'fixed_day',
+      startDay: 1,
+      weekendAdjust: 'none',
+      holidays: [],
+    });
+  });
+
+  it('menerima konfigurasi gajian akhir bulan', () => {
+    expect(
+      parsePeriodSettings({
+        period: {
+          startMode: 'last_workday',
+          startDay: 31,
+          weekendAdjust: 'previous_workday',
+          holidays: ['2026-12-31', '2026-12-31', '2027-01-01'],
+        },
+      }),
+    ).toEqual({
+      startMode: 'last_workday',
+      startDay: 31,
+      weekendAdjust: 'previous_workday',
+      holidays: ['2026-12-31', '2027-01-01'],
+    });
+  });
+
+  it('menolak nilai tidak valid dengan 422', () => {
+    expect(() =>
+      parsePeriodSettings({ period: { startMode: 'payday' } }),
+    ).toThrow(AppError);
+    expect(() =>
+      parsePeriodSettings({ period: { startDay: 32 } }),
+    ).toThrow(AppError);
+    expect(() =>
+      parsePeriodSettings({ period: { weekendAdjust: 'weekend' } }),
+    ).toThrow(AppError);
+    expect(() =>
+      parsePeriodSettings({ period: { holidays: ['2026-02-30'] } }),
+    ).toThrow(AppError);
+    expect(() =>
+      parsePeriodSettings({ period: { holidays: '2026-12-31' } }),
+    ).toThrow(AppError);
+    expect(() => parsePeriodSettings({ period: 'x' })).toThrow(AppError);
+  });
+});
+
 describe('toPreferencesDto', () => {
+  const now = new Date('2026-11-08T05:00:00.000Z'); // 12:00 WIB
+
   it('default saat row undefined', () => {
-    expect(toPreferencesDto(undefined)).toEqual(defaultPreferences());
+    expect(toPreferencesDto(undefined, now)).toEqual(defaultPreferences(now));
   });
 
   it('mem-parse kolom JSON yang tersimpan sebagai string', () => {
@@ -71,11 +122,15 @@ describe('toPreferencesDto', () => {
           incomeCategoryId: null,
         },
       }),
+      period_start_mode: 'last_workday',
+      period_start_day: 31,
+      period_weekend_adjust: 'previous_workday',
+      period_holidays: JSON.stringify(['2026-12-31']),
       created_at: new Date(),
       updated_at: new Date(),
     } satisfies MoneyPreferencesRow;
 
-    expect(toPreferencesDto(row)).toEqual({
+    expect(toPreferencesDto(row, now)).toEqual({
       defaultTxType: 'income',
       quickAmounts: [10000, 20000],
       shared: {
@@ -90,6 +145,18 @@ describe('toPreferencesDto', () => {
           incomePocketId: null,
           expenseCategoryId: null,
           incomeCategoryId: null,
+        },
+      },
+      period: {
+        startMode: 'last_workday',
+        startDay: 31,
+        weekendAdjust: 'previous_workday',
+        holidays: ['2026-12-31'],
+        current: {
+          yearMonth: '2026-10',
+          label: 'Oktober 2026',
+          from: '2026-10-30',
+          to: '2026-11-29',
         },
       },
     });

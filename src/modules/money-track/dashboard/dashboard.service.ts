@@ -15,14 +15,15 @@ import { cashWithdrawalsRepository } from '../cash-withdrawals/cash-withdrawals.
 import { MONEY_DASHBOARD_SCOPES } from '../money.constants';
 import {
   changePercent,
-  jakartaYearMonth,
-  monthDateRange,
+  currentPeriodYearMonth,
   parseYearMonth,
+  periodDateRange,
   previousYearMonth,
   yearMonthLabel,
 } from '../money.helpers';
 import type { MoneyDashboardResponse, MoneyTransactionRow } from '../money.types';
 import { pocketsRepository } from '../pockets/pockets.repository';
+import { preferencesRepository } from '../preferences/preferences.repository';
 import { buildMoneyReminders } from '../reminders/reminders.service';
 import { transfersRepository } from '../transfers/transfers.repository';
 
@@ -42,9 +43,12 @@ export class MoneyDashboardService {
     query: Record<string, unknown>,
   ): Promise<MoneyDashboardResponse> {
     const ctx = await resolveMoneyContext(authPersonId, familyId);
+    const periodSettings = await preferencesRepository.getPeriodSettings(
+      ctx.workspace.id,
+    );
     const yearMonth =
       query.period === undefined
-        ? jakartaYearMonth()
+        ? currentPeriodYearMonth(new Date(), periodSettings)
         : parseYearMonth(query.period, 'period');
 
     let scope =
@@ -68,9 +72,9 @@ export class MoneyDashboardService {
       }
     }
 
-    const { from, to } = monthDateRange(yearMonth);
+    const { from, to } = periodDateRange(yearMonth, periodSettings);
     const prevYm = previousYearMonth(yearMonth);
-    const prevRange = monthDateRange(prevYm);
+    const prevRange = periodDateRange(prevYm, periodSettings);
 
     const [income, expense, prevIncome, prevExpense] = await Promise.all([
       this.sumTxn(ctx.workspace.id, 'income', from, to, filterPersonId),
@@ -161,7 +165,7 @@ export class MoneyDashboardService {
     const alerts: MoneyDashboardResponse['alerts'] = [];
 
     return {
-      period: { yearMonth, label: yearMonthLabel(yearMonth) },
+      period: { yearMonth, label: yearMonthLabel(yearMonth), from, to },
       scope,
       mode: ctx.workspace.mode,
       summary: {

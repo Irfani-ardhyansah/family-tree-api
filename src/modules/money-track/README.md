@@ -15,6 +15,24 @@ Semua route membutuhkan:
 - Phase 2: transfers, cash withdrawals, opening/balancing, dashboard
 - Phase 3: wishlist, debts + payments, budgets, audit logs, reminders, media purposes `money_*`
 
+## Jadwal reset/gajian (periode bulanan)
+
+Default periode = bulan kalender (tanggal 1 s/d akhir bulan). Workspace bisa
+mengubahnya lewat `PUT /money/preferences` → objek `period`:
+
+- `startMode`: `fixed_day` (tanggal 1–31), `last_day`, atau `last_workday`
+  (Senin–Jumat + `holidays`).
+- `weekendAdjust`: `none`, `previous_workday`, atau `next_workday` untuk
+  `fixed_day`.
+- `holidays`: daftar tanggal `YYYY-MM-DD` yang dianggap libur.
+
+Helper murni: `money.helpers.ts` (`resolvePeriodStartDate`, `periodDateRange`,
+`currentPeriodYearMonth`). Dashboard, laporan bulanan, budget, dan reminder
+memakai rentang yang sama. `yearMonth` = bulan tempat periode **mulai**;
+response selalu menyertakan `from`/`to` supaya FE bisa menampilkan rentang nyata.
+
+Spek FE: [`docs/requests/to-fe/pending/MONEY-PERIOD-START-FE-PROMPT.md`](../../docs/requests/to-fe/pending/MONEY-PERIOD-START-FE-PROMPT.md).
+
 ## Utang/piutang nempel ke kantong
 
 `mt_debts.pocket_id` (nullable) menautkan satu catatan utang/piutang ke satu kantong:

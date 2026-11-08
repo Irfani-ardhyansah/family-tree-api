@@ -1,11 +1,21 @@
 import { AppError } from '../../shared/errors/AppError';
 import { ErrorCodes } from '../../shared/errors/errorCodes';
+import {
+  DEFAULT_MONEY_PERIOD_START_DAY,
+  DEFAULT_MONEY_PERIOD_START_MODE,
+  DEFAULT_MONEY_PERIOD_WEEKEND_ADJUST,
+} from './money.constants';
 import type {
   MoneyDebtDirection,
   MoneyDebtStatus,
   MoneyTransferKind,
 } from './money.constants';
-import type { MoneyPocketRow, MoneyWorkspaceRow } from './money.types';
+import type {
+  MoneyPeriodDto,
+  MoneyPeriodSettings,
+  MoneyPocketRow,
+  MoneyWorkspaceRow,
+} from './money.types';
 
 /**
  * Validate transfer kind against pocket ownership rules.
@@ -111,15 +121,158 @@ export function eachDateInRange(from: string, to: string): string[] {
   return out;
 }
 
-export function jakartaYearMonth(date = new Date()): string {
+export const DEFAULT_MONEY_PERIOD_SETTINGS: MoneyPeriodSettings = {
+  startMode: DEFAULT_MONEY_PERIOD_START_MODE,
+  startDay: DEFAULT_MONEY_PERIOD_START_DAY,
+  weekendAdjust: DEFAULT_MONEY_PERIOD_WEEKEND_ADJUST,
+  holidays: [],
+};
+
+function pad2(n: number): string {
+  return String(n).padStart(2, '0');
+}
+
+function utcDate(year: number, month: number, day: number): Date {
+  return new Date(Date.UTC(year, month - 1, day));
+}
+
+function formatUtcDate(date: Date): string {
+  return `${date.getUTCFullYear()}-${pad2(date.getUTCMonth() + 1)}-${pad2(
+    date.getUTCDate(),
+  )}`;
+}
+
+function daysInMonth(year: number, month: number): number {
+  return new Date(Date.UTC(year, month, 0)).getUTCDate();
+}
+
+function isNonWorkday(date: Date, holidays: Set<string>): boolean {
+  const day = date.getUTCDay();
+  return day === 0 || day === 6 || holidays.has(formatUtcDate(date));
+}
+
+function shiftToWorkday(
+  date: Date,
+  direction: 'previous' | 'next',
+  holidays: Set<string>,
+): Date {
+  const step = direction === 'previous' ? -1 : 1;
+  let result = date;
+  while (isNonWorkday(result, holidays)) {
+    result = new Date(result.getTime() + step * 86_400_000);
+  }
+  return result;
+}
+
+/** Tanggal Jakarta (WIB) saat ini, aman dari pergeseran UTC. */
+export function jakartaDateParts(date = new Date()): {
+  yearMonth: string;
+  date: string;
+} {
   const parts = new Intl.DateTimeFormat('en-CA', {
     timeZone: 'Asia/Jakarta',
     year: 'numeric',
     month: '2-digit',
+    day: '2-digit',
   }).formatToParts(date);
   const year = parts.find((p) => p.type === 'year')?.value;
   const month = parts.find((p) => p.type === 'month')?.value;
-  return `${year}-${month}`;
+  const day = parts.find((p) => p.type === 'day')?.value;
+  return {
+    yearMonth: `${year}-${month}`,
+    date: `${year}-${month}-${day}`,
+  };
+}
+
+export function jakartaYearMonth(date = new Date()): string {
+  return jakartaDateParts(date).yearMonth;
+}
+
+/**
+ * Tanggal mulai periode untuk key `yearMonth` (bulan tempat periode dimulai).
+ * Semua perhitungan pakai UTC supaya hasil tidak bergeser oleh timezone server.
+ */
+export function resolvePeriodStartDate(
+  yearMonth: string,
+  settings: MoneyPeriodSettings = DEFAULT_MONEY_PERIOD_SETTINGS,
+): string {
+  const [year, month] = yearMonth.split('-').map(Number);
+  const lastDay = daysInMonth(year!, month!);
+  const holidays = new Set(settings.holidays ?? []);
+
+  if (settings.startMode === 'last_workday') {
+    return formatUtcDate(
+      shiftToWorkday(utcDate(year!, month!, lastDay), 'previous', holidays),
+    );
+  }
+
+  const baseDay =
+    settings.startMode === 'last_day'
+      ? lastDay
+      : Math.min(Math.max(1, settings.startDay), lastDay);
+
+  let start = utcDate(year!, month!, baseDay);
+  if (settings.weekendAdjust === 'previous_workday') {
+    start = shiftToWorkday(start, 'previous', holidays);
+  } else if (settings.weekendAdjust === 'next_workday') {
+    start = shiftToWorkday(start, 'next', holidays);
+  }
+  return formatUtcDate(start);
+}
+
+export function nextYearMonth(yearMonth: string): string {
+  const [year, month] = yearMonth.split('-').map(Number);
+  const date = new Date(Date.UTC(year!, month! - 1, 1));
+  date.setUTCMonth(date.getUTCMonth() + 1);
+  return `${date.getUTCFullYear()}-${pad2(date.getUTCMonth() + 1)}`;
+}
+
+/**
+ * Rentang inklusif satu periode. `to` = sehari sebelum periode berikutnya mulai,
+ * jadi antar-periode selalu nyambung tanpa celah/overlap.
+ */
+export function periodDateRange(
+  yearMonth: string,
+  settings: MoneyPeriodSettings = DEFAULT_MONEY_PERIOD_SETTINGS,
+): { from: string; to: string } {
+  const from = resolvePeriodStartDate(yearMonth, settings);
+  const nextStart = resolvePeriodStartDate(nextYearMonth(yearMonth), settings);
+  const to = formatUtcDate(
+    new Date(new Date(`${nextStart}T00:00:00.000Z`).getTime() - 86_400_000),
+  );
+  return { from, to };
+}
+
+/** Key periode yang sedang berjalan pada `date` (default: sekarang, WIB). */
+export function currentPeriodYearMonth(
+  date: Date,
+  settings: MoneyPeriodSettings = DEFAULT_MONEY_PERIOD_SETTINGS,
+): string {
+  const { yearMonth, date: today } = jakartaDateParts(date);
+
+  // Tanggal mulai bisa bergeser ke bulan sebelumnya/berikutnya (weekend adjust),
+  // jadi cari periode yang rentangnya benar-benar memuat `today`.
+  let candidate = yearMonth;
+  for (let i = 0; i < 24; i += 1) {
+    if (resolvePeriodStartDate(candidate, settings) <= today) break;
+    candidate = previousYearMonth(candidate);
+  }
+  for (let i = 0; i < 24; i += 1) {
+    const next = nextYearMonth(candidate);
+    if (resolvePeriodStartDate(next, settings) > today) break;
+    candidate = next;
+  }
+  return candidate;
+}
+
+/** Periode berjalan lengkap dengan label & rentang tanggal untuk FE. */
+export function currentPeriodDto(
+  date: Date,
+  settings: MoneyPeriodSettings = DEFAULT_MONEY_PERIOD_SETTINGS,
+): MoneyPeriodDto {
+  const yearMonth = currentPeriodYearMonth(date, settings);
+  const { from, to } = periodDateRange(yearMonth, settings);
+  return { yearMonth, label: yearMonthLabel(yearMonth), from, to };
 }
 
 export function parseYearMonth(value: unknown, field: string): string {
@@ -156,14 +309,12 @@ export function yearMonthLabel(yearMonth: string): string {
   }).format(date);
 }
 
-export function monthDateRange(yearMonth: string): { from: string; to: string } {
-  const [y, m] = yearMonth.split('-').map(Number);
-  const lastDay = new Date(Date.UTC(y!, m!, 0)).getUTCDate();
-  const mm = String(m).padStart(2, '0');
-  return {
-    from: `${y}-${mm}-01`,
-    to: `${y}-${mm}-${String(lastDay).padStart(2, '0')}`,
-  };
+/** @deprecated pakai `periodDateRange` — dipertahankan untuk kompatibilitas. */
+export function monthDateRange(
+  yearMonth: string,
+  settings: MoneyPeriodSettings = DEFAULT_MONEY_PERIOD_SETTINGS,
+): { from: string; to: string } {
+  return periodDateRange(yearMonth, settings);
 }
 
 /* ------------------------------------------------------------------------- *
