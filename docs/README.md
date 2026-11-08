@@ -34,6 +34,8 @@ docs/
 | [`reference/PORTFOLIO-ANALYTICS-API.md`](./reference/PORTFOLIO-ANALYTICS-API.md) | Collect publik + admin analytics portfolio |
 | [`reference/TASK-BOARD-API.md`](./reference/TASK-BOARD-API.md) | Task board: task, deskripsi, revisi, history |
 | [`reference/ADMIN-AUTO-CLEANUP-STB.md`](./reference/ADMIN-AUTO-CLEANUP-STB.md) | Tutorial STB: pembersihan otomatis (logs, backup/export, data lama DB) |
+| [`reference/MCP-PLAN.md`](./reference/MCP-PLAN.md) | Rencana arsitektur MCP, auth token, daftar tool |
+| [`reference/MCP-NOURIDE-SETUP.md`](./reference/MCP-NOURIDE-SETUP.md) | Tutorial pasca-deploy: token MCP + `family-mcp` + Nouride per agent |
 | [`reference/adr/001-auth-tokens.md`](./reference/adr/001-auth-tokens.md) | ADR JWT + refresh tokens |
 | [`reference/seed/`](./reference/seed/) | Artifact seed (`mock-family-seed.json`) |
 | [`reference/templates/`](./reference/templates/) | Template CSV/JSON import |
@@ -83,6 +85,7 @@ docs/
 | [`done/PERSONS-IMPORT-FE-PROMPT.md`](./requests/to-fe/done/PERSONS-IMPORT-FE-PROMPT.md) | Prompt integrasi UI import persons | ✅ Spek siap (konsumsi FE) |
 | [`done/TASK-BOARD-ENHANCEMENTS-FE-PROMPT.md`](./requests/to-fe/done/TASK-BOARD-ENHANCEMENTS-FE-PROMPT.md) | Task board: status Merged, deskripsi, revisi, history | ✅ FE sudah implementasi |
 | [`done/TASK-BOARD-ACTIVITY-HISTORY-FE-PROMPT.md`](./requests/to-fe/done/TASK-BOARD-ACTIVITY-HISTORY-FE-PROMPT.md) | Task board: riwayat aktivitas (deskripsi, revisi) + link child | ✅ FE sudah implementasi |
+| [`done/MCP-TOKEN-FE-PROMPT.md`](./requests/to-fe/done/MCP-TOKEN-FE-PROMPT.md) | Token MCP + panduan Nouride per agent | ✅ Spek siap, BE implemented |
 
 ### Pending
 

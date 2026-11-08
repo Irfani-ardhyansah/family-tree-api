@@ -1,16 +1,17 @@
 import { Router } from 'express';
-import { requireAuth } from '../../../shared/middleware/requireAuth.middleware';
+import { requireSessionAuth } from '../../../shared/middleware/requireAuth.middleware';
 import { requireAdmin } from '../../../shared/middleware/requireAdmin.middleware';
 import { requireModuleUnlock } from '../../../shared/middleware/requireModuleUnlock.middleware';
 import { mediaUploadMiddleware } from '../media/media.upload.middleware';
 import { adminController } from './admin.controller';
+import { adminMcpTokensController } from './admin-mcp-tokens.controller';
 import { backupImportUploadMiddleware } from './backup-import.upload.middleware';
 import analyticsReportingRoutes from '../../portfolio-analytics/analytics-reporting.routes';
 import { webauthnController } from '../auth/webauthn/webauthn.controller';
 
 const adminRoutes = Router();
 
-adminRoutes.use(requireAuth);
+adminRoutes.use(requireSessionAuth);
 adminRoutes.use((req, res, next) => {
   void requireAdmin(req, res, next);
 });
@@ -60,6 +61,14 @@ adminRoutes.post('/sessions/:sessionId/revoke', (req, res, next) => {
 
 adminRoutes.get('/users', (req, res, next) => {
   void adminController.listUsers(req, res, next);
+});
+
+adminRoutes.get('/mcp-tokens', (req, res, next) => {
+  void adminMcpTokensController.list(req, res, next);
+});
+
+adminRoutes.post('/mcp-tokens/:id/revoke', (req, res, next) => {
+  void adminMcpTokensController.revoke(req, res, next);
 });
 
 adminRoutes.get('/broadcasts', (req, res, next) => {

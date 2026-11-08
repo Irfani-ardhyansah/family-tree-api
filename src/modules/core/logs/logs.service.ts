@@ -127,6 +127,17 @@ export class LogsService {
     if (normalized.startsWith('/auth/refresh') && method === 'POST') return 'auth.refresh';
     if (normalized.startsWith('/auth/me') && method === 'GET') return 'auth.me';
 
+    if (normalized.startsWith('/auth/mcp-tokens')) {
+      if (method === 'POST') return 'auth.mcp_token.create';
+      if (method === 'DELETE') return 'auth.mcp_token.revoke';
+      if (method === 'GET') return 'auth.mcp_token.read';
+    }
+
+    if (normalized.startsWith('/admin/mcp-tokens')) {
+      if (method === 'POST') return 'admin.mcp_token.revoke';
+      if (method === 'GET') return 'admin.mcp_token.read';
+    }
+
     // Task Board
     if (normalized.startsWith('/tasks')) {
       if (normalized === '/tasks/reorder' && method === 'PUT') {

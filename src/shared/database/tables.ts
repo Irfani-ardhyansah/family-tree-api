@@ -28,6 +28,7 @@ export const Tables = {
   SECONDARY_PASSWORDS: 'core_secondary_passwords',
   WEBAUTHN_CREDENTIALS: 'core_webauthn_credentials',
   WEBAUTHN_CHALLENGES: 'core_webauthn_challenges',
+  MCP_TOKENS: 'core_mcp_tokens',
 
   // fr_ (Family Roots)
   PERSON_LINEAGE: 'fr_person_lineage',

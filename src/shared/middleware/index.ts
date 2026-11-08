@@ -1,4 +1,4 @@
-export { requireAuth, optionalAuth } from './requireAuth.middleware';
+export { requireAuth, requireSessionAuth, optionalAuth } from './requireAuth.middleware';
 export { requireAdmin } from './requireAdmin.middleware';
 export { requireModuleUnlock } from './requireModuleUnlock.middleware';
 export { loginRateLimitMiddleware } from './loginRateLimit.middleware';

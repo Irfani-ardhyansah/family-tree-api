@@ -25,6 +25,29 @@ export function requireModuleUnlock(module: SensitiveModule) {
         return;
       }
 
+      /*
+       * Token MCP yang dibuat dengan unlock module sudah "trusted": tidak perlu
+       * X-Module-Unlock di setiap request. Admin tetap tidak bisa lewat token MCP
+       * karena route admin memakai requireSessionAuth.
+       */
+      if (req.auth.authType === 'mcp') {
+        const modules = req.auth.mcpUnlockModules ?? [];
+        if (!modules.includes(module)) {
+          next(
+            new AppError(
+              403,
+              ErrorCodes.SECONDARY_UNLOCK_REQUIRED,
+              `Token MCP ini tidak punya akses modul ${module}. Buat token baru dengan unlock modul tersebut.`,
+            ),
+          );
+          return;
+        }
+
+        req.auth.moduleUnlock = modules;
+        next();
+        return;
+      }
+
       const token = readUnlockHeader(req);
       if (!token) {
         next(
