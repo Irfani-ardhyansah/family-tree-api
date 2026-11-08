@@ -2,11 +2,13 @@ import crypto from 'crypto';
 import { AppError } from '../../../../shared/errors/AppError';
 import { ErrorCodes } from '../../../../shared/errors/errorCodes';
 import {
+  MCP_DEFAULT_MODULES,
+  MCP_OPTIONAL_MODULES,
   MCP_TOKEN_DEFAULT_LABEL,
   MCP_TOKEN_LABEL_MAX,
   MCP_TOKEN_PREFIX,
-  MCP_UNLOCK_MODULES,
   McpUnlockModule,
+  isMcpDefaultModule,
   isMcpUnlockModule,
 } from './mcp-token.constants';
 import { McpTokenItem, McpTokenRow } from './mcp-token.types';
@@ -50,8 +52,8 @@ export function parseMcpTokenLabel(raw: unknown): string {
 }
 
 /**
- * `undefined` = tidak dikirim → warisi modul dari unlock header.
- * `null` / array kosong = tidak ada modul sensitif.
+ * `undefined` = tidak dikirim → tidak ada modul opsional (Money Track tetap otomatis).
+ * `null` / array kosong = tidak ada modul opsional.
  */
 export function parseMcpUnlockModules(raw: unknown): McpUnlockModule[] | null {
   if (raw === undefined) {
@@ -82,7 +84,7 @@ export function parseMcpUnlockModules(raw: unknown): McpUnlockModule[] | null {
       throw new AppError(
         422,
         ErrorCodes.VALIDATION_ERROR,
-        `Modul tidak valid: ${item}. Pilihan: ${MCP_UNLOCK_MODULES.join(', ')}.`,
+        `Modul tidak valid: ${item}. Pilihan opsional: ${MCP_OPTIONAL_MODULES.join(', ')}. Money Track otomatis.`,
       );
     }
     if (!result.includes(moduleId)) {
@@ -116,6 +118,25 @@ export function parseStoredUnlockModules(raw: unknown): McpUnlockModule[] {
   });
 }
 
+/**
+ * Modul efektif token: default (Money Track) + modul opsional yang tersimpan.
+ * Dipakai saat verifikasi token dan saat menampilkan item ke user/admin.
+ */
+export function effectiveUnlockModules(stored: McpUnlockModule[]): McpUnlockModule[] {
+  const result: McpUnlockModule[] = [...MCP_DEFAULT_MODULES];
+  for (const moduleId of stored) {
+    if (!result.includes(moduleId)) {
+      result.push(moduleId);
+    }
+  }
+  return result;
+}
+
+/** Buang modul default; sisakan modul yang benar-benar perlu unlock/checkbox. */
+export function optionalUnlockModules(modules: McpUnlockModule[]): McpUnlockModule[] {
+  return modules.filter((moduleId) => !isMcpDefaultModule(moduleId));
+}
+
 export function toIso(value: Date | string | null | undefined): string | null {
   if (value == null) {
     return null;
@@ -140,7 +161,7 @@ export function toMcpTokenItem(row: McpTokenRow): McpTokenItem {
     id: Number(row.id),
     label: row.label,
     tokenHint: row.token_hint,
-    unlocks: parseStoredUnlockModules(row.unlock_modules),
+    unlocks: effectiveUnlockModules(parseStoredUnlockModules(row.unlock_modules)),
     createdAt: toIso(row.created_at) ?? new Date(0).toISOString(),
     lastUsedAt: toIso(row.last_used_at),
     expiresAt: toIso(row.expires_at),

@@ -9,8 +9,10 @@ import {
 } from './mcp-token.constants';
 import {
   buildMcpTokenHint,
+  effectiveUnlockModules,
   generateMcpToken,
   hashMcpToken,
+  optionalUnlockModules,
   parseMcpTokenLabel,
   parseMcpUnlockModules,
   parseStoredUnlockModules,
@@ -136,30 +138,26 @@ export class McpTokenService {
     const record = body && typeof body === 'object' ? (body as Record<string, unknown>) : {};
     const label = parseMcpTokenLabel(record.label);
     const requested = parseMcpUnlockModules(record.modules);
-    const unlock = verifyUnlockHeader(unlockHeader, personId, familyId);
+    const optionalModules: McpUnlockModule[] =
+      requested === null ? [] : optionalUnlockModules(requested);
 
-    let unlockModules: McpUnlockModule[];
-    if (requested === null) {
-      unlockModules = unlock ? unlock.modules : [];
-    } else {
-      if (requested.length > 0) {
-        if (!unlock) {
-          throw new AppError(
-            403,
-            ErrorCodes.SECONDARY_UNLOCK_REQUIRED,
-            'Verifikasi password kedua diperlukan untuk memberi akses modul ke token MCP.',
-          );
-        }
-        const missing = requested.filter((moduleId) => !unlock.modules.includes(moduleId));
-        if (missing.length > 0) {
-          throw new AppError(
-            403,
-            ErrorCodes.SECONDARY_UNLOCK_REQUIRED,
-            `Unlock untuk modul ${missing.join(', ')} tidak ada. Verifikasi password kedua ulang.`,
-          );
-        }
+    if (optionalModules.length > 0) {
+      const unlock = verifyUnlockHeader(unlockHeader, personId, familyId);
+      if (!unlock) {
+        throw new AppError(
+          403,
+          ErrorCodes.SECONDARY_UNLOCK_REQUIRED,
+          'Verifikasi password kedua diperlukan untuk memberi akses modul opsional ke token MCP.',
+        );
       }
-      unlockModules = requested;
+      const missing = optionalModules.filter((moduleId) => !unlock.modules.includes(moduleId));
+      if (missing.length > 0) {
+        throw new AppError(
+          403,
+          ErrorCodes.SECONDARY_UNLOCK_REQUIRED,
+          `Unlock untuk modul ${missing.join(', ')} tidak ada. Verifikasi password kedua ulang.`,
+        );
+      }
     }
 
     const activeCount = await mcpTokenRepository.countActiveByPerson(personId);
@@ -178,7 +176,7 @@ export class McpTokenService {
       label,
       tokenHash: hashMcpToken(token),
       tokenHint: buildMcpTokenHint(token),
-      unlockModules,
+      unlockModules: optionalModules,
     });
 
     return {
@@ -231,7 +229,7 @@ export class McpTokenService {
       tokenId: Number(row.id),
       personId: Number(row.person_id),
       familyId: Number(row.family_id),
-      unlockModules: parseStoredUnlockModules(row.unlock_modules),
+      unlockModules: effectiveUnlockModules(parseStoredUnlockModules(row.unlock_modules)),
     };
   }
 

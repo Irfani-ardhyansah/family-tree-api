@@ -1,12 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildMcpTokenHint,
+  effectiveUnlockModules,
   generateMcpToken,
   hashMcpToken,
   isMcpTokenActive,
+  optionalUnlockModules,
   parseMcpTokenLabel,
   parseMcpUnlockModules,
   parseStoredUnlockModules,
+  toMcpTokenItem,
 } from './mcp-token.helpers';
 
 describe('mcp-token.helpers', () => {
@@ -50,7 +53,7 @@ describe('mcp-token.helpers', () => {
   });
 
   describe('parseMcpUnlockModules', () => {
-    it('undefined = warisi unlock header', () => {
+    it('undefined = tidak ada modul opsional', () => {
       expect(parseMcpUnlockModules(undefined)).toBeNull();
     });
 
@@ -82,6 +85,46 @@ describe('mcp-token.helpers', () => {
     });
   });
 
+  describe('effectiveUnlockModules', () => {
+    it('selalu menambahkan Money Track dan dedupe', () => {
+      expect(effectiveUnlockModules([])).toEqual(['money']);
+      expect(effectiveUnlockModules(['money'])).toEqual(['money']);
+      expect(effectiveUnlockModules(['money', 'core'])).toEqual(['money', 'core']);
+      expect(effectiveUnlockModules(['household'])).toEqual(['money', 'household']);
+    });
+  });
+
+  describe('optionalUnlockModules', () => {
+    it('membuang modul default dan menyisakan modul opsional', () => {
+      expect(optionalUnlockModules(['money', 'core', 'household'])).toEqual([
+        'core',
+        'household',
+      ]);
+      expect(optionalUnlockModules(['money'])).toEqual([]);
+      expect(optionalUnlockModules([])).toEqual([]);
+    });
+  });
+
+  describe('toMcpTokenItem', () => {
+    it('menampilkan Money Track sebagai akses default', () => {
+      const item = toMcpTokenItem({
+        id: 1,
+        family_id: 1,
+        person_id: 1,
+        label: 'MCP',
+        token_hash: 'x',
+        token_hint: 'frmcp_x',
+        unlock_modules: [],
+        last_used_at: null,
+        expires_at: null,
+        revoked_at: null,
+        created_at: '2026-11-07T00:00:00.000Z',
+      });
+
+      expect(item.unlocks).toEqual(['money']);
+    });
+  });
+
   describe('isMcpTokenActive', () => {
     const base = {
       id: 1,
@@ -95,31 +138,42 @@ describe('mcp-token.helpers', () => {
       created_at: '2026-11-07T00:00:00.000Z',
     };
 
+    const now = new Date('2026-11-08T00:00:00.000Z');
+
     it('aktif kalau belum dicabut dan belum kedaluwarsa', () => {
-      expect(isMcpTokenActive({ ...base, expires_at: null, revoked_at: null })).toBe(true);
+      expect(isMcpTokenActive({ ...base, expires_at: null, revoked_at: null }, now)).toBe(true);
       expect(
-        isMcpTokenActive({
-          ...base,
-          expires_at: '2026-11-08T00:00:00.000Z',
-          revoked_at: null,
-        }),
+        isMcpTokenActive(
+          {
+            ...base,
+            expires_at: '2026-11-09T00:00:00.000Z',
+            revoked_at: null,
+          },
+          now,
+        ),
       ).toBe(true);
     });
 
     it('tidak aktif kalau dicabut atau kedaluwarsa', () => {
       expect(
-        isMcpTokenActive({
-          ...base,
-          expires_at: null,
-          revoked_at: '2026-11-07T00:00:00.000Z',
-        }),
+        isMcpTokenActive(
+          {
+            ...base,
+            expires_at: null,
+            revoked_at: '2026-11-07T00:00:00.000Z',
+          },
+          now,
+        ),
       ).toBe(false);
       expect(
-        isMcpTokenActive({
-          ...base,
-          expires_at: '2026-11-06T00:00:00.000Z',
-          revoked_at: null,
-        }),
+        isMcpTokenActive(
+          {
+            ...base,
+            expires_at: '2026-11-07T00:00:00.000Z',
+            revoked_at: null,
+          },
+          now,
+        ),
       ).toBe(false);
     });
   });

@@ -11,7 +11,7 @@ vi.mock('../../modules/core/auth/mcp-tokens/mcp-token.service', () => ({
 import { AppError } from '../errors/AppError';
 import { tokenService } from '../../modules/core/auth/token.service';
 import { mcpTokenService } from '../../modules/core/auth/mcp-tokens/mcp-token.service';
-import { requireSessionAuth } from './requireAuth.middleware';
+import { requireAuth, requireSessionAuth } from './requireAuth.middleware';
 
 const verifyAccessToken = vi.mocked(tokenService.verifyAccessToken);
 const verifyToken = vi.mocked(mcpTokenService.verifyToken);
@@ -22,6 +22,31 @@ function makeReq(authorization?: string): any {
 
 beforeEach(() => {
   vi.clearAllMocks();
+});
+
+describe('requireAuth', () => {
+  it('accepts an MCP token and sets MCP auth context', async () => {
+    verifyToken.mockResolvedValue({
+      tokenId: 10,
+      personId: 1,
+      familyId: 2,
+      unlockModules: ['money'],
+    });
+
+    const req = makeReq('Bearer frmcp_test-token');
+    const next = vi.fn();
+
+    await requireAuth(req, {} as any, next);
+
+    expect(next).toHaveBeenCalledWith();
+    expect(req.auth).toMatchObject({
+      personId: 1,
+      familyId: 2,
+      authType: 'mcp',
+      mcpTokenId: 10,
+      mcpUnlockModules: ['money'],
+    });
+  });
 });
 
 describe('requireSessionAuth', () => {

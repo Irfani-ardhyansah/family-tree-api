@@ -1,11 +1,12 @@
 # Token MCP per person
 
-Tanggal: 2026-11-07 (update keamanan: 2026-11-08)
+Tanggal: 2026-11-07 (update keamanan & Money Track default: 2026-11-08)
 
 Menambah pengelolaan token MCP: user bisa membuat, melihat, dan menghapus token
 miliknya sendiri; admin bisa mencabut paksa token anggota keluarga. Token dipakai
-sebagai Bearer untuk akses MCP ke API, termasuk modul yang sudah di-unlock saat
-token dibuat. Token MCP **tidak** bisa mengubah kredensial/keamanan akun.
+sebagai Bearer untuk akses MCP ke API. Money Track, Family Roots, dan Task Board
+otomatis bisa diakses; Family Core dan Household opsional lewat password kedua.
+Token MCP **tidak** bisa mengubah kredensial/keamanan akun.
 
 Panduan pasca-deploy (buat token, `family-mcp`, Nouride per agent):
 `docs/reference/MCP-NOURIDE-SETUP.md`.
@@ -58,12 +59,14 @@ Harapan: `401` (route hidup, butuh login admin).
 
 Setelah login:
 - `POST /auth/mcp-tokens` mengembalikan `token` sekali + `item`; token asli tidak
-  disimpan di DB (hanya hash).
+  disimpan di DB (hanya hash). `item.unlocks` minimal `["money"]`.
 - `GET /auth/mcp-tokens` menampilkan token milik sendiri.
 - `POST /admin/mcp-tokens/:id/revoke` mencabut token person lain di keluarga yang sama.
 - Dengan token MCP, endpoint keamanan akun harus `403 FORBIDDEN`: WebAuthn
   credential management, `secondary-password/setup|verify|change`, `logout`,
   `PATCH /auth/me/options`, dan push subscription. Hanya `GET /auth/me` dan
   endpoint data yang boleh.
-- Token MCP di endpoint `/money/*` hanya lolos kalau token dibuat dengan modul
-  `money`; tanpa itu response `403 SECONDARY_UNLOCK_REQUIRED`.
+- Token MCP default **otomatis** lolos di endpoint `/money/*` (Money Track),
+  tanpa modul/checkbox/password kedua.
+- Modul `core` dan `household` tetap opsional. Token tanpa modul itu mendapat
+  `403 SECONDARY_UNLOCK_REQUIRED` di endpoint terkait.

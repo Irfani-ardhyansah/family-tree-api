@@ -7,6 +7,11 @@ Nouride adalah pengganti Hermes Agent dan sudah terpasang di STB. Tidak ada peru
 endpoint, schema, atau response BE. Dokumen ini diperbarui untuk copy UI dan panduan
 menghubungkan token ke Nouride.
 
+Update 2026-11-08 (copy modal): Token MCP otomatis bisa mengakses **Family Roots**,
+**Task Board**, dan **Money Track** sesuai hak akun. Ketiganya **tidak punya checkbox**.
+Checkbox hanya untuk **Family Core** dan **Household** (modul opsional; butuh password
+kedua).
+
 Fitur: user non-admin bisa membuat, melihat, dan menghapus token MCP miliknya sendiri.
 Admin bisa melihat semua token di keluarganya dan mencabut paksa token siapa pun.
 Token dipakai oleh MCP client seperti Nouride sebagai `Authorization: Bearer frmcp_...`.
@@ -27,12 +32,16 @@ Tempat: **Profil / Pengaturan → Token MCP** (atau bagian "Integrasi").
      Default `Nouride`.
    - Helper text: "Satu token untuk satu agent Nouride. Kalau kamu punya beberapa
      agent atau device, buat token terpisah untuk masing-masing."
-   - Pilihan akses modul: **Money Track**, **Family Core**, **Household**
-     (opsional; Family Roots selalu bisa diakses mengikuti hak user).
-3. Kalau user memilih modul sensitif, FE harus meminta password kedua dulu lewat
+   - **Info akses default (bukan pilihan):** "Token MCP otomatis bisa mengakses
+     **Family Roots**, **Task Board**, dan **Money Track** sesuai hak akun.
+     Tidak ada checkbox untuk ketiganya."
+   - **Pilihan modul opsional:** tampilkan checkbox **Family Core** dan
+     **Household**. Helper text: "Centang hanya kalau agent perlu akses modul ini.
+     Token tanpa centang tidak bisa mengakses modul tersebut."
+3. Kalau user memilih modul opsional, FE harus meminta password kedua dulu lewat
    flow yang sudah ada (`POST /auth/secondary-password/verify`), lalu kirim
    `X-Module-Unlock` saat membuat token. Kalau belum punya password kedua, arahkan
-   untuk setup dulu atau buat token tanpa modul sensitif.
+   untuk setup dulu atau buat token dengan akses default saja.
 4. Setelah sukses, tampilkan token di modal dengan tombol **Salin** dan peringatan:
    "Token ini hanya ditampilkan sekali. Simpan di tempat aman. Kalau hilang, hapus
    lalu buat baru."
@@ -78,32 +87,37 @@ token MCP, response `403 FORBIDDEN`.
 ```http
 POST /api/v1/auth/mcp-tokens
 Authorization: Bearer <accessToken>
-X-Module-Unlock: <unlockToken>        # opsional, wajib kalau minta modul sensitif
+X-Module-Unlock: <unlockToken>        # opsional, wajib kalau minta core/household
 Content-Type: application/json
 
 {
   "label": "Nouride - Discord",
-  "modules": ["money"]
+  "modules": []
 }
 ```
 
 Aturan `modules`:
 
-- `modules` tidak dikirim → token mewarisi semua modul non-admin dari
-  `X-Module-Unlock`. Kalau header tidak ada → tidak ada modul sensitif.
-- `modules: []` → token tanpa akses modul sensitif (Family Roots tetap bisa).
-- `modules: ["money","core","household"]` → harus semua ada di `unlockToken`.
+- Family Roots, Task Board, dan Money Track **selalu bisa** diakses token MCP;
+  ketiganya tidak memakai `modules` dan tidak punya checkbox.
+- `modules` hanya untuk modul opsional: `core` dan `household`.
+- `modules` tidak dikirim / `modules: []` → token hanya mendapat akses default
+  (Family Roots, Task Board, Money Track).
+- `modules: ["core"]` atau `modules: ["household"]` → modul itu harus ada di
+  `unlockToken`.
+- `modules: ["money"]` → diterima untuk kompatibilitas, tetapi Money Track tetap
+  otomatis dan tidak butuh `unlockToken`.
 - `admin` tidak boleh. Response `422 VALIDATION_ERROR`.
-- Kalau minta modul tapi tidak ada/kedaluwarsa unlock header →
+- Kalau minta `core`/`household` tanpa unlock header atau unlock kedaluwarsa →
   `403 SECONDARY_UNLOCK_REQUIRED` atau `403 SECONDARY_UNLOCK_INVALID`.
 
-Contoh: token dengan akses Money Track.
+Contoh: token dengan akses Family Core.
 
 ```ts
 const unlock = await api.post('/auth/secondary-password/verify', { password });
 const created = await api.post(
   '/auth/mcp-tokens',
-  { label: 'Nouride - Discord', modules: ['money'] },
+  { label: 'Nouride - Discord', modules: ['core'] },
   { headers: { 'X-Module-Unlock': unlock.data.unlockToken } },
 );
 ```
@@ -118,7 +132,7 @@ Response `201`:
       "id": 12,
       "label": "Nouride - Discord",
       "tokenHint": "frmcp_xxxxxxx...xxxx",
-      "unlocks": ["money"],
+      "unlocks": ["money", "core"],
       "createdAt": "2026-11-07T10:00:00.000Z",
       "lastUsedAt": null,
       "expiresAt": null,
@@ -158,7 +172,7 @@ Authorization: Bearer <accessToken>
         "id": 11,
         "label": "Laptop lama",
         "tokenHint": "frmcp_yyyyyyy...yyyy",
-        "unlocks": [],
+        "unlocks": ["money"],
         "createdAt": "2026-11-01T09:00:00.000Z",
         "lastUsedAt": null,
         "expiresAt": null,
@@ -291,8 +305,8 @@ Aksi admin tercatat di audit log admin (`module_id=admin`, action `delete`, summ
 - Judul: **Token MCP**.
 - Kalimat: "Token ini dipakai agent Nouride atau MCP client lain untuk mengakses data
   FamilyRoots atas nama kamu. Perlakukan seperti password."
-- Kolom/kartu: label, hint token, badge akses (`Money`, `Core`, `Household`),
-  dibuat, terakhir dipakai, status.
+- Kolom/kartu: label, hint token, badge akses (`Money` otomatis; `Core`/`Household`
+  kalau dipilih), dibuat, terakhir dipakai, status.
 - Token aktif: tombol **Hapus**.
 - Token dicabut: badge "Dicabut", tanpa tombol hapus.
 - Kosong: "Belum ada token MCP. Buat token kalau kamu ingin menghubungkan agent Nouride."
@@ -300,11 +314,11 @@ Aksi admin tercatat di audit log admin (`module_id=admin`, action `delete`, summ
 ### User — modal buat token
 
 - Field label, max 60 karakter, default `Nouride`.
-- Checkbox akses:
-  - Money Track
+- Info default: **Family Roots, Task Board, Money Track otomatis aktif**.
+- Checkbox akses opsional:
   - Family Core
   - Household
-- Kalau user centang modul sensitif:
+- Kalau user centang modul opsional:
   - Pastikan sudah unlock password kedua. Kalau belum, buka flow unlock yang ada.
   - Kirim `X-Module-Unlock` pada request create.
 - Tombol **Buat token** disabled saat request berjalan.
@@ -373,7 +387,7 @@ token; agent Nouride dibuat dan diatur sendiri oleh masing-masing orang.
 
 - Satu person boleh punya beberapa token, satu per agent/device.
 - Cabut paksa dari admin = agent yang memakai token itu langsung kehilangan akses.
-- Token dengan modul `money` adalah token "trusted" untuk modul money; tidak perlu
+- Money Track otomatis "trusted" untuk semua token MCP; tidak perlu
   `X-Module-Unlock` di setiap request. Karena itu token harus diperlakukan seperti
   password.
 - Token MCP tidak bisa mengubah password kedua, WebAuthn, logout, opsi profil, atau
@@ -394,7 +408,7 @@ token; agent Nouride dibuat dan diatur sendiri oleh masing-masing orang.
 - Jangan pakai token MCP untuk membuat/menghapus token lain; endpoint itu hanya
   menerima sesi aplikasi.
 - Jangan tampilkan halaman admin token ke member.
-- Jangan menganggap token MCP otomatis punya akses money. Cek `unlocks` di response.
-  Kalau `unlocks` kosong, token hanya bisa data non-sensitif.
+- Jangan menganggap token MCP otomatis punya akses Core/Household. Cek `unlocks`
+  di response. Money selalu ada di `unlocks`; Core/Household hanya kalau dipilih.
 - Jangan auto-retry create token tanpa idempotency; kalau timeout, refresh daftar
   dulu untuk melihat apakah token sudah terbuat.

@@ -26,9 +26,10 @@ export function requireModuleUnlock(module: SensitiveModule) {
       }
 
       /*
-       * Token MCP yang dibuat dengan unlock module sudah "trusted": tidak perlu
-       * X-Module-Unlock di setiap request. Admin tetap tidak bisa lewat token MCP
-       * karena route admin memakai requireSessionAuth.
+       * Token MCP sudah "trusted": Money Track otomatis, sedangkan core/household
+       * hanya kalau dipilih saat membuat token. Tidak perlu X-Module-Unlock di
+       * setiap request. Admin tetap tidak bisa lewat token MCP karena route admin
+       * memakai requireSessionAuth.
        */
       if (req.auth.authType === 'mcp') {
         const modules = req.auth.mcpUnlockModules ?? [];

@@ -1,4 +1,4 @@
-# Tutorial Pasca-Deploy — Token MCP, `family-mcp`, dan Nouride
+# Tutorial Pasca-Deploy — Token MCP, `family-mcp`, Nouride, dan Task Board
 
 Status: **draft operasional** — token MCP BE sudah diimplementasikan; service
 `family-mcp` belum di-scaffold. Dokumen ini berlaku setelah BE naik ke STB dan
@@ -30,7 +30,8 @@ Dokumen ini menjelaskan urutan kerja **setelah deploy BE**:
 2. membuat token untuk agent Nouride,
 3. menjalankan service `family-mcp`,
 4. menghubungkan Nouride per agent,
-5. menguji, mencabut, dan merotasi token.
+5. menguji Family Roots, Money Track, dan Task Board,
+6. mencabut dan merotasi token.
 
 Untuk arsitektur dan daftar tool, lihat
 [`MCP-PLAN.md`](./MCP-PLAN.md). Untuk request UI token ke FE, lihat
@@ -53,6 +54,11 @@ Aturan utama:
   `Authorization: Bearer frmcp_...` dari Nouride ke API.
 - API hanya tahu token → person/family/modul. Tidak ada `discord_id` di API.
 - Admin bisa mencabut token siapa pun dari aplikasi FamilyRoots.
+- Family Roots, Money Track, dan Task Board memakai token yang sama dan **otomatis
+  bisa diakses** tanpa checkbox/modul unlock. Modul `core` dan `household` opsional.
+- MCP hanya mencatat `branchName` di task. MCP tidak membuat/menghapus branch Git.
+- Task Board MCP **tidak butuh perubahan BE/FE**. Task yang dibuat Nouride muncul
+  di UI Task Board yang sama; upload gambar tetap dari aplikasi.
 
 ---
 
@@ -163,6 +169,15 @@ curl -sS -o /dev/null -w "%{http_code}\n" http://localhost:3000/api/v1/admin/mcp
 
 Harapan: `401` (butuh login admin). `404` berarti route belum naik.
 
+### 3.5 Route Task Board hidup
+
+```bash
+curl -sS -o /dev/null -w "%{http_code}\n" http://localhost:3000/api/v1/tasks
+```
+
+Harapan: `401`. Kalau `404`, route Task Board belum naik atau container belum
+rebuild.
+
 ---
 
 ## 4. Buat token pertama
@@ -186,9 +201,10 @@ curl -s http://localhost:3000/api/v1/auth/me \
   -H "Authorization: Bearer $TOKEN" | jq '.data.fullName'
 ```
 
-### 4.2 Buat token tanpa modul sensitif
+### 4.2 Buat token default
 
-Cocok untuk agent yang hanya perlu Family Roots.
+Token default otomatis bisa mengakses **Family Roots, Task Board, dan Money Track**.
+Tidak perlu password kedua.
 
 ```bash
 curl -s -X POST http://localhost:3000/api/v1/auth/mcp-tokens \
@@ -198,10 +214,11 @@ curl -s -X POST http://localhost:3000/api/v1/auth/mcp-tokens \
 ```
 
 Simpan nilai `.data.token` dari response. Token asli **hanya muncul sekali**.
+Di response, `unlocks` minimal berisi `["money"]`.
 
-### 4.3 Buat token dengan akses Money Track
+### 4.3 Buat token dengan modul opsional Core/Household
 
-Verifikasi password kedua dulu:
+Kalau agent perlu **Family Core** atau **Household**, verifikasi password kedua dulu:
 
 ```bash
 UNLOCK=$(curl -s -X POST http://localhost:3000/api/v1/auth/secondary-password/verify \
@@ -210,17 +227,20 @@ UNLOCK=$(curl -s -X POST http://localhost:3000/api/v1/auth/secondary-password/ve
   -d '{"password":"<PASSWORD_KEDUA>"}' | jq -r '.data.unlockToken')
 ```
 
-Lalu buat token dengan modul `money`:
+Lalu buat token dengan modul opsional:
 
 ```bash
 curl -s -X POST http://localhost:3000/api/v1/auth/mcp-tokens \
   -H "Authorization: Bearer $TOKEN" \
   -H "X-Module-Unlock: $UNLOCK" \
   -H 'Content-Type: application/json' \
-  -d '{"label":"Nouride - <nama-agent>","modules":["money"]}' | jq
+  -d '{"label":"Nouride - <nama-agent>","modules":["core"]}' | jq
 ```
 
-Modul yang boleh: `money`, `core`, `household`. Modul `admin` sengaja ditolak.
+Modul opsional yang boleh: `core`, `household`. Modul `admin` sengaja ditolak.
+`money` boleh dikirim untuk kompatibilitas, tetapi tetap otomatis. Task Board
+**tidak butuh modul**; token tanpa `modules` tetap bisa mengakses `/tasks` dan
+`/workplaces` milik person pemilik token.
 
 ### 4.4 Lihat daftar token
 
@@ -257,15 +277,15 @@ curl -s "http://localhost:3000/api/v1/persons?page=1&limit=1" \
   -H "Authorization: Bearer $MCP_TOKEN" | jq '.data.pagination'
 ```
 
-### 5.3 Akses Money (kalau token punya modul `money`)
+### 5.3 Akses Money (otomatis)
 
 ```bash
 curl -s http://localhost:3000/api/v1/money/dashboard \
   -H "Authorization: Bearer $MCP_TOKEN" | jq
 ```
 
-Kalau token dibuat tanpa modul `money`, response harus
-`403 SECONDARY_UNLOCK_REQUIRED`.
+Harapan: `200` dengan data Money Track. Money Track otomatis untuk semua token MCP;
+tidak perlu modul atau password kedua.
 
 ### 5.4 Pastikan endpoint keamanan ditolak
 
@@ -278,7 +298,100 @@ curl -s -o /dev/null -w "%{http_code}\n" -X POST http://localhost:3000/api/v1/au
 
 Harapan: `403`. Token MCP tidak boleh mengubah kredensial/keamanan akun.
 
-### 5.5 Tes revoke
+### 5.5 Tes Task Board
+
+Task Board memakai token yang sama dan **tidak butuh modul unlock**. Tes create
+fitur baru + branch name:
+
+```bash
+TASK=$(curl -s -X POST http://localhost:3000/api/v1/tasks \
+  -H "Authorization: Bearer $MCP_TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"type":"Feature","title":"Tes MCP Task Board","branchName":"feature/tes-mcp-task-board","status":"To-Do","descriptions":[{"title":"Konteks","content":"<p>Tes dari tutorial.</p>"}]}' | jq -r '.data.id')
+```
+
+Cek task:
+
+```bash
+curl -s "http://localhost:3000/api/v1/tasks/$TASK" \
+  -H "Authorization: Bearer $MCP_TOKEN" \
+  | jq '{id:.data.id,title:.data.title,branch:.data.branch_name,status:.data.status}'
+```
+
+Ubah status:
+
+```bash
+curl -s -X PUT "http://localhost:3000/api/v1/tasks/$TASK" \
+  -H "Authorization: Bearer $MCP_TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"status":"In Progress","notes":"Mulai dikerjakan"}' | jq '.data.status'
+```
+
+Set ke `Merged` sebelum membuat revisi:
+
+```bash
+curl -s -X PUT "http://localhost:3000/api/v1/tasks/$TASK" \
+  -H "Authorization: Bearer $MCP_TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"status":"Merged","notes":"Selesai"}' | jq '.data.status'
+```
+
+Buat revisi dari task induk:
+
+```bash
+REV=$(curl -s -X POST http://localhost:3000/api/v1/tasks \
+  -H "Authorization: Bearer $MCP_TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"type":"Feature","title":"Revisi tes MCP","branchName":"feature/tes-mcp-revisi","status":"To-Do","descriptions":[{"title":"Konteks","content":"<p>Revisi.</p>"}],"parent_task_id":'"$TASK"'}' | jq -r '.data.id')
+```
+
+Revisi hanya boleh dibuat dari task induk berstatus `Merged`. `branchName` tetap
+wajib di revisi.
+
+Lihat history dan revisi:
+
+```bash
+curl -s "http://localhost:3000/api/v1/tasks/$TASK/history" \
+  -H "Authorization: Bearer $MCP_TOKEN" | jq '.data[] | {action,status,notes}'
+```
+
+```bash
+curl -s "http://localhost:3000/api/v1/tasks/$TASK/revisions" \
+  -H "Authorization: Bearer $MCP_TOKEN" | jq '.data[] | {id,title,status}'
+```
+
+Tambah todo dan tandai selesai:
+
+```bash
+TODO=$(curl -s -X POST "http://localhost:3000/api/v1/tasks/$TASK/todos" \
+  -H "Authorization: Bearer $MCP_TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"title":"Tambah test"}' | jq -r '.data.id')
+```
+
+```bash
+curl -s -X PATCH "http://localhost:3000/api/v1/tasks/$TASK/todos/$TODO" \
+  -H "Authorization: Bearer $MCP_TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"is_done":true}' | jq '.data.is_done'
+```
+
+Hapus data tes (revisi dulu, lalu induk):
+
+```bash
+curl -s -X DELETE "http://localhost:3000/api/v1/tasks/$REV" \
+  -H "Authorization: Bearer $MCP_TOKEN" | jq
+```
+
+```bash
+curl -s -X DELETE "http://localhost:3000/api/v1/tasks/$TASK" \
+  -H "Authorization: Bearer $MCP_TOKEN" | jq
+```
+
+Catatan: lewat tool MCP, `task_delete` dan `task_delete_todo` wajib `confirm`.
+Panggilan API langsung di atas tidak memakai `confirm` karena ini tes manual.
+
+### 5.6 Tes revoke
 
 Cabut token:
 
@@ -301,6 +414,7 @@ Setelah dicabut, `/auth/me` dengan token itu harus `401 MCP_TOKEN_INVALID`.
 - repo/service `family-mcp` (Node 22 + TypeScript + MCP SDK),
 - transport **Streamable HTTP**,
 - endpoint `GET /health`,
+- tool Family Roots, Money Track, dan Task Board,
 - image **linux/arm64**,
 - akses ke network Docker yang sama dengan API.
 
@@ -451,15 +565,22 @@ CLI Nouride, gunakan perintah enable server per agent sesuai versi terpasang.
 
 ### 7.5 Batasi tool per agent
 
-Contoh allowlist untuk agent yang hanya perlu baca family + dashboard money
-(contoh bentuk perintah; cek `nouride mcp tools --help` untuk versi terpasang):
+Contoh allowlist untuk agent yang perlu baca family, dashboard money, dan Task
+Board (contoh bentuk perintah; cek `nouride mcp tools --help` untuk versi
+terpasang):
 
 ```bash
 nouride mcp tools familyroots --agent <agent-id> \
-  --only family_search_people,family_get_person,money_get_dashboard
+  --only family_search_people,family_get_person,money_get_dashboard,task_list,task_get,task_create,task_set_status,task_create_revision
 ```
 
 Prinsipnya: mulai dari tool read-only, tambah tool write hanya kalau perlu.
+Untuk agent yang hanya mencatat pekerjaan, cukup:
+
+```text
+task_get_context, task_list, task_get, task_create, task_update,
+task_create_revision, task_set_status, task_list_history, task_list_revisions
+```
 
 ### 7.6 Tool destruktif wajib approval
 
@@ -471,10 +592,15 @@ tambahkan di config agent:
 approval_required = [
   "familyroots__money_delete_transaction",
   "familyroots__money_delete_account",
+  "familyroots__task_delete",
+  "familyroots__task_delete_todo",
+  "familyroots__task_delete_workplace",
 ]
 ```
 
 Kalau tidak butuh tool destruktif sama sekali, jangan masukkan ke allowlist.
+Tool `task_delete` juga wajib `confirm` di sisi MCP, jadi ada dua lapis: approval
+Nouride + konfirmasi argumen.
 
 ### 7.7 Tes dari Nouride
 
@@ -484,15 +610,32 @@ Kirim pertanyaan sederhana ke agent:
 Siapa saja anak Pak Budi?
 ```
 
-Lalu tes money kalau token punya modul `money`:
+Lalu tes money (otomatis untuk semua token):
 
 ```text
 Saldo kantong Transaksi berapa?
 ```
 
+Tes Task Board:
+
+```text
+Catat fitur baru: tambah filter status, branch feature/filter-status.
+Konteks: filter status di list task. Acceptance: filter jalan dan bisa reset.
+```
+
+```text
+Ubah status task #12 ke Merge Request, catatan: MR sudah dibuka.
+```
+
+```text
+Tampilkan history dan revisi task #12.
+```
+
 Cek di FamilyRoots:
 
 - `GET /auth/mcp-tokens` → `lastUsedAt` token harus terisi.
+- Task baru muncul di Task Board dengan `branch_name` yang benar.
+- History task berisi `created` / `status_changed` / `revision_created`.
 - Log `family-mcp` tidak boleh menampilkan token.
 - Kalau gagal, lihat tabel troubleshooting di bawah.
 
@@ -505,15 +648,14 @@ Ulangi alur ini **per orang**:
 1. Orang tersebut login ke FamilyRoots.
 2. Buka **Pengaturan → Token MCP**.
 3. Buat token dengan label `Nouride - <nama-agent>`.
-4. Pilih modul:
-   - `[]` kalau hanya Family Roots,
-   - `["money"]` kalau perlu Money Track,
+4. Pilih modul opsional:
+   - `[]` untuk akses default (Family Roots, Task Board, Money Track),
    - `["core"]` / `["household"]` kalau perlu modul itu.
 5. Copy token sekali.
 6. Di Nouride, buat agent + bot/connection milik orang itu.
 7. Simpan token di secret store agent tersebut.
 8. Aktifkan `familyroots` dan atur allowlist tool.
-9. Tes satu pertanyaan family dan satu pertanyaan money (kalau ada).
+9. Tes satu pertanyaan family, satu task board, dan satu money.
 10. Minta orang itu menyimpan token di tempat aman.
 
 Admin dapat melihat semua token di **Admin → Token MCP** dan mencabut paksa
@@ -583,7 +725,11 @@ tanpa batas di STB.
 |---|---|---|
 | `404` di `/auth/mcp-tokens` | BE belum naik / container belum rebuild | Cek deploy, rebuild, lihat log `api` |
 | `401 MCP_TOKEN_INVALID` di Nouride | Token salah, dicabut, atau terpotong | Buat token baru, ganti credential agent |
-| `403 SECONDARY_UNLOCK_REQUIRED` di money | Token tidak punya modul `money` | Buat token baru dengan `modules: ["money"]` |
+| `403 SECONDARY_UNLOCK_REQUIRED` di core/household | Token tidak punya modul opsional itu | Buat token baru dengan `modules: ["core"]` atau `["household"]` |
+| `422` saat create task | `type`/`title`/`branchName`/`descriptions` kurang | Kirim `type`, `title`, `branchName`, dan minimal satu `{ title, content }` |
+| `422` “Revisi hanya boleh dibuat dari task berstatus Merged” | Task induk belum `Merged` | Ubah induk ke `Merged` dulu, baru buat revisi |
+| `422` status `Done` | Status `Done` sudah dihapus | Pakai `Merged` sebagai status akhir |
+| `task_delete` ditolak | Belum ada `confirm` / approval Nouride | Kirim `confirm: "DELETE TASK <id>"` dan approve |
 | `403 FORBIDDEN` di endpoint keamanan | Memang sengaja diblokir untuk token MCP | Gunakan sesi aplikasi, bukan token MCP |
 | `502` / connection refused dari Nouride | `family-mcp` mati, URL salah, atau beda network | Cek `docker compose ps`, log, dan network |
 | Nouride connect tapi tool kosong | Server belum di-enable untuk agent / allowlist kosong | Enable `familyroots`, cek `nouride mcp tools` |
@@ -600,15 +746,21 @@ tanpa batas di STB.
 - [ ] Catatan `2026-11-07-mcp-tokens.md` sudah pindah ke `shipped/`.
 - [ ] `GET /api/v1/health` → `200`.
 - [ ] `GET /api/v1/auth/mcp-tokens` tanpa auth → `401`.
+- [ ] `GET /api/v1/tasks` tanpa auth → `401`.
 - [ ] Tabel `core_mcp_tokens` ada.
 - [ ] Token pertama berhasil dibuat dan `.data.token` disimpan.
 - [ ] `GET /auth/me` dengan token MCP → nama person benar.
 - [ ] `GET /persons` dengan token MCP → data family keluar.
-- [ ] Money dashboard dengan token `money` → keluar; token tanpa `money` → `403`.
+- [ ] Create task via token MCP → `branch_name` dan `status` benar.
+- [ ] Task Board history → `created` / `status_changed` / `revision_created`.
+- [ ] Revisi dari task `Merged` berhasil; revisi dari status lain → `422`.
+- [ ] Todo task bisa dibuat dan ditandai selesai.
+- [ ] Money dashboard dengan token MCP default → `200` (Money Track otomatis).
 - [ ] Endpoint keamanan dengan token MCP → `403`.
 - [ ] Revoke token → token lama `401`.
 - [ ] `family-mcp` sehat dan bisa diakses Nouride.
 - [ ] Satu agent Nouride berhasil memanggil satu tool family.
+- [ ] Satu agent Nouride berhasil membuat task + branch.
 - [ ] Tool destruktif masuk approval/allowlist yang benar.
 - [ ] `lastUsedAt` token terisi setelah dipakai.
 - [ ] Tidak ada token di log, Git, atau `mcp.toml`.
@@ -624,6 +776,7 @@ tanpa batas di STB.
 - Jangan mengekspos `family-mcp` ke internet tanpa HTTPS/auth tambahan.
 - Jangan menjalankan `RUN_SEED=true` atau `SKIP_MIGRATE=true` di STB.
 - Jangan menganggap token MCP bisa mengelola admin, token lain, atau keamanan akun.
+- Jangan minta MCP membuat/menghapus branch Git. MCP hanya mencatat `branchName`.
 - Jangan lupa mencabut token lama setelah rotasi.
 
 ---
@@ -633,5 +786,6 @@ tanpa batas di STB.
 - [`deploy/README.md`](../../deploy/README.md) — prosedur deploy STB.
 - [`deploy/releases/pending/2026-11-07-mcp-tokens.md`](../../deploy/releases/pending/2026-11-07-mcp-tokens.md) — catatan deploy fitur token.
 - [`MCP-PLAN.md`](./MCP-PLAN.md) — arsitektur MCP, daftar tool, keputusan auth.
+- [`TASK-BOARD-API.md`](./TASK-BOARD-API.md) — kontrak task, revisi, history, todo.
 - [`MCP-TOKEN-FE-PROMPT.md`](../requests/to-fe/done/MCP-TOKEN-FE-PROMPT.md) — kontrak UI token untuk FE.
 - [`INSTALLATION.md`](./INSTALLATION.md) — setup lokal dan smoke test API.
